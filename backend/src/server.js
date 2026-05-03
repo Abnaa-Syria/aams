@@ -1,0 +1,39 @@
+const app = require('./app');
+const config = require('./config');
+const prisma = require('./config/database');
+
+async function main() {
+  try {
+    if (config.storage.driver === 's3') {
+      const { bucket, publicBaseUrl } = config.storage.s3;
+      if (!bucket || !publicBaseUrl) {
+        throw new Error('STORAGE_DRIVER=s3 requires S3_BUCKET and S3_PUBLIC_BASE_URL');
+      }
+    }
+
+    await prisma.$connect();
+    console.log('Database connected successfully');
+
+    app.listen(config.port, (req, res) => {
+      console.log(res);
+      console.log(`Server running on port ${config.port}`);
+      console.log(`Swagger docs: http://localhost:${config.port}/api-docs`);
+      console.log(`Environment: ${config.nodeEnv}`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+process.on('SIGINT', async () => {
+  await prisma.$disconnect();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  await prisma.$disconnect();
+  process.exit(0);
+});
+
+main();

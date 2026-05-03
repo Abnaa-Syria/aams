@@ -1,0 +1,1119 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum UserRole {
+  SUPER_ADMIN
+  OPERATIONS_ADMIN
+  HR_ADMIN
+  FLEET_ADMIN
+  FINANCE_ADMIN
+  SUPERVISOR
+  DRIVER
+}
+
+enum AccountStatus {
+  ACTIVE
+  TEMPORARILY_SUSPENDED
+  RESTRICTED
+  UNDER_INVESTIGATION
+  PENDING_APPROVAL
+  INCOMPLETE_PROFILE
+  ARCHIVED
+}
+
+enum AvailabilityStatus {
+  AVAILABLE
+  ON_SHIFT
+  ON_LEAVE
+  OFF_DUTY
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum DocumentType {
+  NATIONAL_ID
+  IQAMA
+  PASSPORT
+  WORK_CONTRACT
+  RESIDENCE_PERMIT
+  OTHER
+}
+
+enum DocumentStatus {
+  VALID
+  NEAR_EXPIRY
+  EXPIRED
+  UNDER_REVIEW
+  REJECTED
+  PENDING
+}
+
+enum LicenseType {
+  DRIVING_LICENSE
+  TRANSPORT_LICENSE
+  MEDICAL_CERTIFICATE
+  OTHER_CERTIFICATE
+}
+
+enum VehicleStatus {
+  ACTIVE
+  IN_MAINTENANCE
+  OUT_OF_SERVICE
+  RESERVED
+  DECOMMISSIONED
+}
+
+enum OwnershipStatus {
+  COMPANY_OWNED
+  DRIVER_OWNED
+  LEASED
+  RENTED
+}
+
+enum ShiftStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  ACTIVE
+  ENDED
+  CANCELLED
+}
+
+enum FuelLogStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  FLAGGED
+}
+
+enum ViolationStatus {
+  REPORTED
+  UNDER_REVIEW
+  CONFIRMED
+  DISMISSED
+  PENALIZED
+}
+
+enum IncidentType {
+  MEDICAL
+  ACCIDENT
+  BREAKDOWN
+  LARGE_ORDER
+  OTHER
+}
+
+enum IncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum IncidentStatus {
+  OPEN
+  IN_PROGRESS
+  ESCALATED
+  RESOLVED
+  CLOSED
+}
+
+enum ReportStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  NEEDS_REVISION
+}
+
+enum InvestigationStatus {
+  OPEN
+  PENDING_RESPONSE
+  UNDER_REVIEW
+  CLOSED
+}
+
+enum PenaltyType {
+  FINANCIAL
+  WARNING
+  SUSPENSION
+  TERMINATION
+  OTHER
+}
+
+enum PenaltyStatus {
+  PENDING
+  APPLIED
+  APPEALED
+  CANCELLED
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  EMERGENCY
+  UNPAID
+  OTHER
+}
+
+enum MaintenancePriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum MaintenanceStatus {
+  REQUESTED
+  APPROVED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum BankVerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum PlatformAccountStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+}
+
+enum NotificationCategory {
+  SYSTEM
+  SHIFT
+  DOCUMENT
+  COMPLIANCE
+  APPROVAL
+  ALERT
+  HR
+  GENERAL
+}
+
+enum PushProvider {
+  EXPO
+  FCM_LEGACY
+  WEB_PUSH
+  CUSTOM
+}
+
+// ============================================================
+// USERS (Drivers, Admins, Supervisors)
+// ============================================================
+
+model User {
+  id                Int               @id @default(autoincrement())
+  identityNumber    String            @unique @db.VarChar(20)
+  mobileNumber      String?           @unique @db.VarChar(20)
+  email             String?           @db.VarChar(100)
+  passwordHash      String            @db.VarChar(255)
+  fullNameAr        String            @db.VarChar(150)
+  fullNameEn        String?           @db.VarChar(150)
+  gender            Gender?
+  dateOfBirth       DateTime?
+  nationality       String?           @db.VarChar(80)
+  profileImageUrl   String?           @db.VarChar(500)
+  role              UserRole          @default(DRIVER)
+  accountStatus     AccountStatus     @default(PENDING_APPROVAL)
+  availabilityStatus AvailabilityStatus @default(OFF_DUTY)
+
+  // Employment info
+  employeeNumber    String?           @unique @db.VarChar(50)
+  joinDate          DateTime?
+  contractEndDate   DateTime?
+  jobTitle          String?           @db.VarChar(100)
+
+  // Location
+  cityId            Int?
+  regionId          Int?
+  branchId          Int?
+  city              City?             @relation(fields: [cityId], references: [id])
+
+  // Supervisor assignment
+  supervisorId      Int?
+  supervisor        User?             @relation("SupervisorDrivers", fields: [supervisorId], references: [id])
+  assignedDrivers   User[]            @relation("SupervisorDrivers")
+
+  // Tags
+  tags              String?           @db.VarChar(500)
+  notes             String?           @db.Text
+
+  // OTP
+  otpCode           String?           @db.VarChar(10)
+  otpExpiresAt      DateTime?
+
+  // Timestamps
+  lastLoginAt       DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  deletedAt         DateTime?
+
+  // Relations
+  documents         Document[]
+  licenses          License[]
+  bankAccounts      BankAccount[]
+  platformAccounts  PlatformAccount[]
+  vehicleAssignment VehicleAssignment[]
+  shifts            Shift[]
+  fuelLogs          FuelLog[]
+  violations        Violation[]
+  incidents         Incident[]
+  dailyReports      DailyReport[]
+  notifications     Notification[]
+  sentMessages      ChatMessage[]     @relation("SentMessages")
+  receivedMessages  ChatMessage[]     @relation("ReceivedMessages")
+  investigations    Investigation[]   @relation("InvestigatedUser")
+  createdInvestigations Investigation[] @relation("InvestigationCreator")
+  penalties         Penalty[]
+  ratings           Rating[]          @relation("RatedUser")
+  givenRatings      Rating[]          @relation("Rater")
+  rewards           Reward[]
+  leaveRequests     LeaveRequest[]
+  salaryAdvances    SalaryAdvance[]
+  maintenanceReqs   MaintenanceRequest[]
+  auditLogs         AuditLog[]
+  loginActivities   LoginActivity[]
+  leaveBalances     LeaveBalance[]
+  pushDeviceTokens  PushDeviceToken[]
+
+  @@index([accountStatus])
+  @@index([role])
+  @@index([supervisorId])
+  @@index([cityId])
+  @@map("users")
+}
+
+model PushDeviceToken {
+  id        Int          @id @default(autoincrement())
+  userId    Int
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String       @unique @db.VarChar(512)
+  provider  PushProvider @default(EXPO)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([userId])
+  @@map("push_device_tokens")
+}
+
+model LoginActivity {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  ipAddress   String?   @db.VarChar(50)
+  userAgent   String?   @db.VarChar(500)
+  loginAt     DateTime  @default(now())
+  success     Boolean   @default(true)
+
+  @@index([userId])
+  @@map("login_activities")
+}
+
+// ============================================================
+// LOCATION MASTER DATA
+// ============================================================
+
+model City {
+  id          Int       @id @default(autoincrement())
+  nameAr      String    @db.VarChar(100)
+  nameEn      String?   @db.VarChar(100)
+  region      String?   @db.VarChar(100)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  users       User[]
+
+  @@map("cities")
+}
+
+// ============================================================
+// DOCUMENTS
+// ============================================================
+
+model Document {
+  id              Int             @id @default(autoincrement())
+  userId          Int
+  user            User            @relation(fields: [userId], references: [id])
+  type            DocumentType
+  title           String          @db.VarChar(200)
+  documentNumber  String?         @db.VarChar(100)
+  issueDate       DateTime?
+  expiryDate      DateTime?
+  status          DocumentStatus  @default(PENDING)
+  fileUrl         String?         @db.VarChar(500)
+  fileName        String?         @db.VarChar(255)
+  reviewedBy      Int?
+  reviewedAt      DateTime?
+  reviewNotes     String?         @db.Text
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  deletedAt       DateTime?
+
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([expiryDate])
+  @@map("documents")
+}
+
+// ============================================================
+// LICENSES & CERTIFICATES
+// ============================================================
+
+model License {
+  id              Int           @id @default(autoincrement())
+  userId          Int
+  user            User          @relation(fields: [userId], references: [id])
+  type            LicenseType
+  licenseNumber   String?       @db.VarChar(100)
+  title           String        @db.VarChar(200)
+  issueDate       DateTime?
+  expiryDate      DateTime?
+  status          DocumentStatus @default(PENDING)
+  fileUrl         String?       @db.VarChar(500)
+  fileName        String?       @db.VarChar(255)
+  reviewedBy      Int?
+  reviewedAt      DateTime?
+  reviewNotes     String?       @db.Text
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
+
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([expiryDate])
+  @@map("licenses")
+}
+
+// ============================================================
+// BANK ACCOUNTS
+// ============================================================
+
+model BankAccount {
+  id                  Int                   @id @default(autoincrement())
+  userId              Int
+  user                User                  @relation(fields: [userId], references: [id])
+  bankName            String                @db.VarChar(150)
+  iban                String                @db.VarChar(50)
+  accountOwnerName    String                @db.VarChar(200)
+  isDefault           Boolean               @default(false)
+  verificationStatus  BankVerificationStatus @default(PENDING)
+  proofFileUrl        String?               @db.VarChar(500)
+  proofFileName       String?               @db.VarChar(255)
+  reviewedBy          Int?
+  reviewedAt          DateTime?
+  reviewNotes         String?               @db.Text
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  deletedAt           DateTime?
+
+  @@index([userId])
+  @@map("bank_accounts")
+}
+
+// ============================================================
+// DELIVERY PLATFORMS
+// ============================================================
+
+model Platform {
+  id          Int               @id @default(autoincrement())
+  nameAr      String            @db.VarChar(100)
+  nameEn      String?           @db.VarChar(100)
+  logoUrl     String?           @db.VarChar(500)
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  accounts    PlatformAccount[]
+
+  @@map("platforms")
+}
+
+model PlatformAccount {
+  id              Int                   @id @default(autoincrement())
+  userId          Int
+  user            User                  @relation(fields: [userId], references: [id])
+  platformId      Int
+  platform        Platform              @relation(fields: [platformId], references: [id])
+  username        String?               @db.VarChar(150)
+  accountId       String?               @db.VarChar(150)
+  status          PlatformAccountStatus @default(PENDING_VERIFICATION)
+  notes           String?               @db.Text
+  fileUrl         String?               @db.VarChar(500)
+  verifiedBy      Int?
+  verifiedAt      DateTime?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  deletedAt       DateTime?
+  shifts          Shift[]
+
+  @@index([userId])
+  @@index([platformId])
+  @@map("platform_accounts")
+}
+
+// ============================================================
+// VEHICLES
+// ============================================================
+
+model Vehicle {
+  id                  Int               @id @default(autoincrement())
+  plateNumber         String            @unique @db.VarChar(20)
+  manufacturer        String?           @db.VarChar(100)
+  model               String?           @db.VarChar(100)
+  year                Int?
+  color               String?           @db.VarChar(50)
+  odometerKm          Int?
+  status              VehicleStatus     @default(ACTIVE)
+  ownershipStatus     OwnershipStatus   @default(COMPANY_OWNED)
+
+  // Insurance
+  insuranceCompany    String?           @db.VarChar(150)
+  insurancePolicyNo   String?           @db.VarChar(100)
+  insuranceStartDate  DateTime?
+  insuranceExpiryDate DateTime?
+
+  // Registration (Istimara)
+  registrationNumber  String?           @db.VarChar(100)
+  registrationExpiry  DateTime?
+  registrationFileUrl String?           @db.VarChar(500)
+
+  notes               String?           @db.Text
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  deletedAt           DateTime?
+
+  assignments         VehicleAssignment[]
+  shifts              Shift[]
+  fuelLogs            FuelLog[]
+  violations          Violation[]
+  maintenanceReqs     MaintenanceRequest[]
+
+  @@index([status])
+  @@index([plateNumber])
+  @@map("vehicles")
+}
+
+model VehicleAssignment {
+  id          Int       @id @default(autoincrement())
+  vehicleId   Int
+  vehicle     Vehicle   @relation(fields: [vehicleId], references: [id])
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  assignedAt  DateTime  @default(now())
+  releasedAt  DateTime?
+  isActive    Boolean   @default(true)
+  notes       String?   @db.Text
+
+  @@index([vehicleId])
+  @@index([userId])
+  @@map("vehicle_assignments")
+}
+
+// ============================================================
+// SHIFTS
+// ============================================================
+
+model Shift {
+  id                Int           @id @default(autoincrement())
+  userId            Int
+  user              User          @relation(fields: [userId], references: [id])
+  vehicleId         Int
+  vehicle           Vehicle       @relation(fields: [vehicleId], references: [id])
+  platformAccountId Int
+  platformAccount   PlatformAccount @relation(fields: [platformAccountId], references: [id])
+  status            ShiftStatus   @default(REQUESTED)
+
+  requestedAt       DateTime      @default(now())
+  approvedAt        DateTime?
+  approvedBy        Int?
+  rejectedAt        DateTime?
+  rejectedBy        Int?
+  rejectionReason   String?       @db.Text
+  startedAt         DateTime?
+  endedAt           DateTime?
+  cancelledAt       DateTime?
+  cancellationReason String?      @db.Text
+
+  startPhotoUrl     String?       @db.VarChar(500)
+  endPhotoUrl       String?       @db.VarChar(500)
+  notes             String?       @db.Text
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  midShiftRecords   MidShiftRecord[]
+  fuelLogs          FuelLog[]
+  violations        Violation[]
+  incidents         Incident[]
+  dailyReports      DailyReport[]
+  shiftLogs         ShiftLog[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([requestedAt])
+  @@map("shifts")
+}
+
+model ShiftLog {
+  id        Int       @id @default(autoincrement())
+  shiftId   Int
+  shift     Shift     @relation(fields: [shiftId], references: [id])
+  action    String    @db.VarChar(100)
+  performedBy Int?
+  notes     String?   @db.Text
+  createdAt DateTime  @default(now())
+
+  @@index([shiftId])
+  @@map("shift_logs")
+}
+
+model MidShiftRecord {
+  id              Int       @id @default(autoincrement())
+  shiftId         Int
+  shift           Shift     @relation(fields: [shiftId], references: [id])
+  screenshotUrl   String?   @db.VarChar(500)
+  checklistData   Json?
+  notes           String?   @db.Text
+  recordedAt      DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+
+  @@index([shiftId])
+  @@map("mid_shift_records")
+}
+
+// ============================================================
+// FUEL LOGS
+// ============================================================
+
+model FuelLog {
+  id            Int           @id @default(autoincrement())
+  userId        Int
+  user          User          @relation(fields: [userId], references: [id])
+  vehicleId     Int
+  vehicle       Vehicle       @relation(fields: [vehicleId], references: [id])
+  shiftId       Int?
+  shift         Shift?        @relation(fields: [shiftId], references: [id])
+  amount        Decimal       @db.Decimal(10, 2)
+  liters        Decimal?      @db.Decimal(10, 2)
+  fuelDate      DateTime
+  receiptUrl    String?       @db.VarChar(500)
+  status        FuelLogStatus @default(PENDING)
+  reviewedBy    Int?
+  reviewedAt    DateTime?
+  reviewNotes   String?       @db.Text
+  isDuplicate   Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([vehicleId])
+  @@index([shiftId])
+  @@index([fuelDate])
+  @@map("fuel_logs")
+}
+
+// ============================================================
+// VIOLATIONS
+// ============================================================
+
+model Violation {
+  id              Int             @id @default(autoincrement())
+  userId          Int
+  user            User            @relation(fields: [userId], references: [id])
+  vehicleId       Int?
+  vehicle         Vehicle?        @relation(fields: [vehicleId], references: [id])
+  shiftId         Int?
+  shift           Shift?          @relation(fields: [shiftId], references: [id])
+  amount          Decimal?        @db.Decimal(10, 2)
+  reason          String          @db.Text
+  location        String?         @db.VarChar(300)
+  violationDate   DateTime?
+  vehicleImageUrl String?         @db.VarChar(500)
+  violationImageUrl String?       @db.VarChar(500)
+  status          ViolationStatus @default(REPORTED)
+  reviewedBy      Int?
+  reviewedAt      DateTime?
+  reviewNotes     String?         @db.Text
+  penaltyId       Int?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([userId])
+  @@index([vehicleId])
+  @@index([status])
+  @@map("violations")
+}
+
+// ============================================================
+// INCIDENTS
+// ============================================================
+
+model Incident {
+  id              Int               @id @default(autoincrement())
+  userId          Int
+  user            User              @relation(fields: [userId], references: [id])
+  shiftId         Int?
+  shift           Shift?            @relation(fields: [shiftId], references: [id])
+  type            IncidentType      @default(OTHER)
+  customType      String?           @db.VarChar(100)
+  severity        IncidentSeverity  @default(MEDIUM)
+  title           String            @db.VarChar(300)
+  description     String            @db.Text
+  location        String?           @db.VarChar(300)
+  latitude        Decimal?          @db.Decimal(10, 8)
+  longitude       Decimal?          @db.Decimal(11, 8)
+  status          IncidentStatus    @default(OPEN)
+  resolvedAt      DateTime?
+  resolvedBy      Int?
+  resolutionNotes String?           @db.Text
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  attachments     IncidentAttachment[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([severity])
+  @@index([type])
+  @@map("incidents")
+}
+
+model IncidentAttachment {
+  id          Int       @id @default(autoincrement())
+  incidentId  Int
+  incident    Incident  @relation(fields: [incidentId], references: [id])
+  fileUrl     String    @db.VarChar(500)
+  fileName    String?   @db.VarChar(255)
+  fileType    String?   @db.VarChar(50)
+  createdAt   DateTime  @default(now())
+
+  @@index([incidentId])
+  @@map("incident_attachments")
+}
+
+// ============================================================
+// DAILY REPORTS (End of Day)
+// ============================================================
+
+model DailyReport {
+  id              Int           @id @default(autoincrement())
+  userId          Int
+  user            User          @relation(fields: [userId], references: [id])
+  shiftId         Int?
+  shift           Shift?        @relation(fields: [shiftId], references: [id])
+  reportDate      DateTime
+  totalHours      Decimal?      @db.Decimal(5, 2)
+  totalOrders     Int?
+  status          ReportStatus  @default(SUBMITTED)
+  reviewedBy      Int?
+  reviewedAt      DateTime?
+  reviewNotes     String?       @db.Text
+  notes           String?       @db.Text
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  appBreakdowns   ReportAppBreakdown[]
+  screenshots     ReportScreenshot[]
+
+  @@index([userId])
+  @@index([reportDate])
+  @@index([status])
+  @@map("daily_reports")
+}
+
+model ReportAppBreakdown {
+  id          Int         @id @default(autoincrement())
+  reportId    Int
+  report      DailyReport @relation(fields: [reportId], references: [id])
+  platformName String     @db.VarChar(100)
+  orders      Int?
+  hours       Decimal?    @db.Decimal(5, 2)
+  earnings    Decimal?    @db.Decimal(10, 2)
+
+  @@index([reportId])
+  @@map("report_app_breakdowns")
+}
+
+model ReportScreenshot {
+  id          Int         @id @default(autoincrement())
+  reportId    Int
+  report      DailyReport @relation(fields: [reportId], references: [id])
+  fileUrl     String      @db.VarChar(500)
+  fileName    String?     @db.VarChar(255)
+  createdAt   DateTime    @default(now())
+
+  @@index([reportId])
+  @@map("report_screenshots")
+}
+
+// ============================================================
+// NOTIFICATIONS
+// ============================================================
+
+model Notification {
+  id          Int                   @id @default(autoincrement())
+  userId      Int
+  user        User                  @relation(fields: [userId], references: [id])
+  title       String                @db.VarChar(300)
+  body        String                @db.Text
+  category    NotificationCategory  @default(GENERAL)
+  isRead      Boolean               @default(false)
+  readAt      DateTime?
+  metadata    Json?
+  createdAt   DateTime              @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([category])
+  @@map("notifications")
+}
+
+model NotificationTemplate {
+  id          Int       @id @default(autoincrement())
+  key         String    @unique @db.VarChar(100)
+  titleAr     String    @db.VarChar(300)
+  titleEn     String?   @db.VarChar(300)
+  bodyAr      String    @db.Text
+  bodyEn      String?   @db.Text
+  category    NotificationCategory @default(GENERAL)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("notification_templates")
+}
+
+// ============================================================
+// CHAT / COMMUNICATION
+// ============================================================
+
+model ChatMessage {
+  id            Int       @id @default(autoincrement())
+  senderId      Int
+  sender        User      @relation("SentMessages", fields: [senderId], references: [id])
+  receiverId    Int
+  receiver      User      @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  message       String    @db.Text
+  attachmentUrl String?   @db.VarChar(500)
+  isRead        Boolean   @default(false)
+  readAt        DateTime?
+  tag           String?   @db.VarChar(100)
+  createdAt     DateTime  @default(now())
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([createdAt])
+  @@map("chat_messages")
+}
+
+// ============================================================
+// INVESTIGATIONS
+// ============================================================
+
+model Investigation {
+  id              Int                   @id @default(autoincrement())
+  userId          Int
+  user            User                  @relation("InvestigatedUser", fields: [userId], references: [id])
+  createdById     Int
+  createdBy       User                  @relation("InvestigationCreator", fields: [createdById], references: [id])
+  category        String                @db.VarChar(100)
+  title           String                @db.VarChar(300)
+  details         String                @db.Text
+  status          InvestigationStatus   @default(OPEN)
+  outcome         String?               @db.Text
+  employeeResponse String?              @db.Text
+  respondedAt     DateTime?
+  closedAt        DateTime?
+  closedBy        Int?
+  internalNotes   String?               @db.Text
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  attachments     InvestigationAttachment[]
+  eventLogs       InvestigationEvent[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("investigations")
+}
+
+model InvestigationAttachment {
+  id              Int           @id @default(autoincrement())
+  investigationId Int
+  investigation   Investigation @relation(fields: [investigationId], references: [id])
+  fileUrl         String        @db.VarChar(500)
+  fileName        String?       @db.VarChar(255)
+  uploadedBy      Int?
+  createdAt       DateTime      @default(now())
+
+  @@index([investigationId])
+  @@map("investigation_attachments")
+}
+
+model InvestigationEvent {
+  id              Int           @id @default(autoincrement())
+  investigationId Int
+  investigation   Investigation @relation(fields: [investigationId], references: [id])
+  action          String        @db.VarChar(200)
+  performedBy     Int?
+  notes           String?       @db.Text
+  createdAt       DateTime      @default(now())
+
+  @@index([investigationId])
+  @@map("investigation_events")
+}
+
+// ============================================================
+// PENALTIES
+// ============================================================
+
+model Penalty {
+  id              Int           @id @default(autoincrement())
+  userId          Int
+  user            User          @relation(fields: [userId], references: [id])
+  type            PenaltyType   @default(WARNING)
+  amount          Decimal?      @db.Decimal(10, 2)
+  reason          String        @db.Text
+  status          PenaltyStatus @default(PENDING)
+  penaltyDate     DateTime
+  linkedEntity    String?       @db.VarChar(50)
+  linkedEntityId  Int?
+  notes           String?       @db.Text
+  createdBy       Int?
+  approvedBy      Int?
+  approvedAt      DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([type])
+  @@map("penalties")
+}
+
+// ============================================================
+// RATINGS / EVALUATIONS
+// ============================================================
+
+model Rating {
+  id                Int       @id @default(autoincrement())
+  userId            Int
+  user              User      @relation("RatedUser", fields: [userId], references: [id])
+  ratedById         Int
+  ratedBy           User      @relation("Rater", fields: [ratedById], references: [id])
+  overallScore      Decimal   @db.Decimal(3, 1)
+  punctuality       Decimal?  @db.Decimal(3, 1)
+  customerHandling  Decimal?  @db.Decimal(3, 1)
+  communication     Decimal?  @db.Decimal(3, 1)
+  compliance        Decimal?  @db.Decimal(3, 1)
+  productivity      Decimal?  @db.Decimal(3, 1)
+  period            String?   @db.VarChar(50)
+  periodStart       DateTime?
+  periodEnd         DateTime?
+  notes             String?   @db.Text
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([ratedById])
+  @@map("ratings")
+}
+
+// ============================================================
+// REWARDS
+// ============================================================
+
+model Reward {
+  id            Int           @id @default(autoincrement())
+  userId        Int
+  user          User          @relation(fields: [userId], references: [id])
+  category      String        @db.VarChar(100)
+  amount        Decimal?      @db.Decimal(10, 2)
+  points        Int?
+  reason        String        @db.Text
+  periodStart   DateTime?
+  periodEnd     DateTime?
+  status        RequestStatus @default(PENDING)
+  approvedBy    Int?
+  approvedAt    DateTime?
+  visibleToDriver Boolean     @default(true)
+  notes         String?       @db.Text
+  createdBy     Int?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@map("rewards")
+}
+
+// ============================================================
+// LEAVE REQUESTS
+// ============================================================
+
+model LeaveBalance {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  leaveType   LeaveType
+  year        Int
+  totalDays   Int       @default(0)
+  usedDays    Int       @default(0)
+  remainingDays Int     @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, leaveType, year])
+  @@map("leave_balances")
+}
+
+model LeaveRequest {
+  id            Int           @id @default(autoincrement())
+  userId        Int
+  user          User          @relation(fields: [userId], references: [id])
+  leaveType     LeaveType
+  startDate     DateTime
+  endDate       DateTime
+  totalDays     Int
+  reason        String        @db.Text
+  attachmentUrl String?       @db.VarChar(500)
+  status        RequestStatus @default(PENDING)
+  reviewedBy    Int?
+  reviewedAt    DateTime?
+  reviewNotes   String?       @db.Text
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@map("leave_requests")
+}
+
+// ============================================================
+// SALARY ADVANCE REQUESTS
+// ============================================================
+
+model SalaryAdvance {
+  id            Int           @id @default(autoincrement())
+  userId        Int
+  user          User          @relation(fields: [userId], references: [id])
+  amount        Decimal       @db.Decimal(10, 2)
+  reason        String        @db.Text
+  notes         String?       @db.Text
+  status        RequestStatus @default(PENDING)
+  reviewedBy    Int?
+  reviewedAt    DateTime?
+  reviewNotes   String?       @db.Text
+  financeNotes  String?       @db.Text
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@map("salary_advances")
+}
+
+// ============================================================
+// MAINTENANCE REQUESTS
+// ============================================================
+
+model MaintenanceRequest {
+  id              Int                 @id @default(autoincrement())
+  userId          Int
+  user            User                @relation(fields: [userId], references: [id])
+  vehicleId       Int
+  vehicle         Vehicle             @relation(fields: [vehicleId], references: [id])
+  issueType       String              @db.VarChar(100)
+  priority        MaintenancePriority @default(MEDIUM)
+  description     String              @db.Text
+  attachmentUrl   String?             @db.VarChar(500)
+  status          MaintenanceStatus   @default(REQUESTED)
+  technicianNotes String?             @db.Text
+  adminNotes      String?             @db.Text
+  completedAt     DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([userId])
+  @@index([vehicleId])
+  @@index([status])
+  @@index([priority])
+  @@map("maintenance_requests")
+}
+
+// ============================================================
+// MASTER DATA / SETTINGS
+// ============================================================
+
+model SystemSetting {
+  id          Int       @id @default(autoincrement())
+  key         String    @unique @db.VarChar(100)
+  value       String    @db.Text
+  description String?   @db.VarChar(300)
+  group       String?   @db.VarChar(50)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("system_settings")
+}
+
+model MasterDataType {
+  id          Int       @id @default(autoincrement())
+  category    String    @db.VarChar(50)
+  nameAr      String    @db.VarChar(100)
+  nameEn      String?   @db.VarChar(100)
+  isActive    Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([category])
+  @@map("master_data_types")
+}
+
+// ============================================================
+// AUDIT LOGS
+// ============================================================
+
+model AuditLog {
+  id          Int       @id @default(autoincrement())
+  userId      Int?
+  user        User?     @relation(fields: [userId], references: [id])
+  action      String    @db.VarChar(200)
+  entity      String    @db.VarChar(100)
+  entityId    String?   @db.VarChar(50)
+  oldValue    Json?
+  newValue    Json?
+  ipAddress   String?   @db.VarChar(50)
+  userAgent   String?   @db.VarChar(500)
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@index([entity])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
