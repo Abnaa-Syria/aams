@@ -14,6 +14,19 @@ async function getUserByIdentity(identityNumber) {
 }
 
 async function resetDemoData(demoUserIds) {
+  // Phase 5 Additions Clean up
+  await prisma.assetAssignment.deleteMany({ where: { userId: { in: demoUserIds } } });
+  await prisma.locationHistory.deleteMany({ where: { userId: { in: demoUserIds } } });
+  await prisma.complaint.deleteMany({ where: { OR: [{ filedById: { in: demoUserIds } }, { subjectId: { in: demoUserIds } }] } });
+  await prisma.adminRequest.deleteMany({ where: { userId: { in: demoUserIds } } });
+  await prisma.breakRequest.deleteMany({ where: { userId: { in: demoUserIds } } });
+  await prisma.canceledOrderLog.deleteMany({ where: { userId: { in: demoUserIds } } });
+  await prisma.vehicleSwapRequest.deleteMany({ where: { userId: { in: demoUserIds } } });
+  await prisma.substituteVehicleAssignment.deleteMany({ where: { userId: { in: demoUserIds } } });
+  await prisma.licenseTest.deleteMany({ where: { userId: { in: demoUserIds } } });
+  await prisma.trainee.deleteMany({ where: { OR: [{ traineeId: { in: demoUserIds } }, { trainerId: { in: demoUserIds } }] } });
+  await prisma.scheduledReminder.deleteMany({ where: { OR: [{ targetUserId: { in: demoUserIds } }, { createdById: { in: demoUserIds } }] } });
+
   // Delete children first (FK constraints)
   await prisma.shiftLog.deleteMany({ where: { shift: { userId: { in: demoUserIds } } } });
   await prisma.midShiftRecord.deleteMany({ where: { shift: { userId: { in: demoUserIds } } } });
@@ -244,6 +257,28 @@ async function main() {
     });
   }
   console.log('Vehicles created');
+
+  // Create Assets
+  const assets = [
+    { type: 'MOTORCYCLE', nameAr: 'دراجة نارية 01', description: 'دراجة سوزوكي', isActive: true },
+    { type: 'SAFETY_EQUIPMENT', nameAr: 'خوذة حماية', description: 'خوذة أمان معتمدة', isActive: true },
+  ];
+  for (const asset of assets) {
+    await prisma.asset.create({ data: asset }).catch(() => {});
+  }
+  console.log('Assets created');
+
+  // Create Zones
+  await prisma.zone.create({
+    data: {
+      nameAr: 'المنطقة الحمراء',
+      description: 'منطقة محظورة',
+      boundary: { type: 'Polygon', coordinates: [[[46.6, 24.7], [46.7, 24.7], [46.7, 24.8], [46.6, 24.8], [46.6, 24.7]]] },
+      isRestricted: true,
+      isActive: true,
+      alertMessage: 'تحذير: لقد دخلت منطقة محظورة'
+    }
+  }).catch(() => {});
 
   const vehicleRows = await prisma.vehicle.findMany({
     where: { plateNumber: { in: vehicles.map((v) => v.plateNumber) } },
@@ -566,6 +601,146 @@ async function main() {
         { userId: driver.id, title: 'تنبيه شفت', body: 'تمت الموافقة على الشفت', category: 'SHIFT' },
       ],
     });
+
+    // --- Phase 5 user-specific data ---
+    
+    // 1. AssetAssignment
+    const someAsset = await prisma.asset.findFirst();
+    if (someAsset) {
+      await prisma.assetAssignment.create({
+        data: {
+          assetId: someAsset.id,
+          userId: driver.id,
+          assignedBy: opsAdmin.id,
+          notes: 'seed asset assignment'
+        }
+      }).catch(() => {});
+    }
+
+    // 2. LocationHistory
+    await prisma.locationHistory.create({
+      data: { userId: driver.id, latitude: 24.7136, longitude: 46.6753, speed: 60 }
+    }).catch(() => {});
+
+    // 3. Complaint
+    await prisma.complaint.create({
+      data: {
+        type: 'EMPLOYEE_COMPLAINT',
+        filedById: driver.id,
+        subjectId: supervisor.id,
+        title: 'تأخر الرواتب',
+        details: 'يوجد تأخير في استلام الراتب',
+        status: 'PENDING'
+      }
+    }).catch(() => {});
+
+    // 4. AdminRequest
+    await prisma.adminRequest.create({
+      data: {
+        userId: driver.id,
+        type: 'OTHER',
+        title: 'طلب خطاب تعريف',
+        details: 'يرجى تزويدي بخطاب تعريف للبنك',
+        status: 'PENDING'
+      }
+    }).catch(() => {});
+
+    // 5. BreakRequest
+    await prisma.breakRequest.create({
+      data: {
+        shiftId: active.id,
+        userId: driver.id,
+        reason: 'استراحة غداء',
+        status: 'APPROVED',
+        reviewedBy: opsAdmin.id,
+        reviewedAt: new Date()
+      }
+    }).catch(() => {});
+
+    // 6. VehicleSwapRequest
+    await prisma.vehicleSwapRequest.create({
+      data: {
+        shiftId: active.id,
+        userId: driver.id,
+        currentVehicleId: vehicle.id,
+        reason: 'صوت غريب في المحرك',
+        status: 'PENDING'
+      }
+    }).catch(() => {});
+
+    // 7. CanceledOrderLog
+    await prisma.canceledOrderLog.create({
+      data: {
+        userId: driver.id,
+        orderRef: 'ORD-999',
+        reason: 'العميل لم يستجب',
+        platformName: 'Keeta',
+        discountAmount: 15.5,
+        orderDate: daysFromNow(-1)
+      }
+    }).catch(() => {});
+
+    // 8. OilChangeLog
+    await prisma.oilChangeLog.create({
+      data: {
+        vehicleId: vehicle.id,
+        odometerAtChange: 15000,
+        nextDueOdometer: 20000,
+        performedBy: opsAdmin.id,
+        notes: 'تغيير زيت دوري'
+      }
+    }).catch(() => {});
+
+    // 9. SubstituteVehicleAssignment
+    if (i === 0 && vehicleRows.length > 1) {
+      await prisma.substituteVehicleAssignment.create({
+        data: {
+          vehicleId: vehicleRows[1].id,
+          originalVehicleId: vehicle.id,
+          userId: driver.id,
+          startDate: daysFromNow(-2),
+          reason: 'صيانة دورية للمركبة الأساسية',
+          assignedBy: opsAdmin.id
+        }
+      }).catch(() => {});
+    }
+
+    // 10. LicenseTest & Trainee
+    if (i === 1) {
+      await prisma.trainee.create({
+        data: {
+          traineeId: driver.id,
+          trainerId: supervisor.id,
+          startDate: daysFromNow(-30),
+          isCompleted: true,
+          completedAt: daysFromNow(-5),
+          notes: 'اجتاز التدريب بنجاح'
+        }
+      }).catch(() => {});
+
+      await prisma.licenseTest.create({
+        data: {
+          userId: driver.id,
+          testDate: daysFromNow(-10),
+          result: 'ADVANCED',
+          scheduledBy: opsAdmin.id,
+          resultSetBy: supervisor.id
+        }
+      }).catch(() => {});
+    }
+
+    // 11. ScheduledReminder
+    await prisma.scheduledReminder.create({
+      data: {
+        targetUserId: driver.id,
+        createdById: opsAdmin.id,
+        title: 'تجديد الإقامة',
+        body: 'يرجى تجديد الإقامة قبل الانتهاء',
+        triggerDate: daysFromNow(10),
+        category: 'HR'
+      }
+    }).catch(() => {});
+
   }
 
   // Seed chat between supervisor and first driver
@@ -630,11 +805,11 @@ async function main() {
 
   // Create Notification Templates
   const templates = [
-    { key: 'shift_approved', titleAr: 'تم قبول الشفت', titleEn: 'Shift Approved', bodyAr: 'تم قبول طلب الشفت الخاص بك', bodyEn: 'Your shift request has been approved', category: 'SHIFT' },
-    { key: 'shift_rejected', titleAr: 'تم رفض الشفت', titleEn: 'Shift Rejected', bodyAr: 'تم رفض طلب الشفت الخاص بك', bodyEn: 'Your shift request has been rejected', category: 'SHIFT' },
-    { key: 'document_expiring', titleAr: 'مستند قارب على الانتهاء', titleEn: 'Document Expiring Soon', bodyAr: 'أحد مستنداتك يقترب من تاريخ الانتهاء', bodyEn: 'One of your documents is nearing expiry', category: 'DOCUMENT' },
-    { key: 'investigation_opened', titleAr: 'تحقيق جديد', titleEn: 'New Investigation', bodyAr: 'تم فتح تحقيق بشأنك', bodyEn: 'An investigation has been opened regarding you', category: 'COMPLIANCE' },
-    { key: 'leave_approved', titleAr: 'تم قبول الإجازة', titleEn: 'Leave Approved', bodyAr: 'تم قبول طلب الإجازة الخاص بك', bodyEn: 'Your leave request has been approved', category: 'HR' },
+    { key: 'shift_approved', titleAr: 'تم قبول الشفت', titleEn: 'Shift Approved', bodyAr: 'تم قبول طلب الشفت الخاص بك', bodyEn: 'Your shift request has been approved' },
+    { key: 'shift_rejected', titleAr: 'تم رفض الشفت', titleEn: 'Shift Rejected', bodyAr: 'تم رفض طلب الشفت الخاص بك', bodyEn: 'Your shift request has been rejected' },
+    { key: 'document_expiring', titleAr: 'مستند قارب على الانتهاء', titleEn: 'Document Expiring Soon', bodyAr: 'أحد مستنداتك يقترب من تاريخ الانتهاء', bodyEn: 'One of your documents is nearing expiry' },
+    { key: 'investigation_opened', titleAr: 'تحقيق جديد', titleEn: 'New Investigation', bodyAr: 'تم فتح تحقيق بشأنك', bodyEn: 'An investigation has been opened regarding you' },
+    { key: 'leave_approved', titleAr: 'تم قبول الإجازة', titleEn: 'Leave Approved', bodyAr: 'تم قبول طلب الإجازة الخاص بك', bodyEn: 'Your leave request has been approved' },
   ];
 
   for (const template of templates) {

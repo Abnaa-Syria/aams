@@ -4,8 +4,12 @@ const AuthService = require('./service');
 class AuthController {
   static async login(req, res, next) {
     try {
-      const { identityNumber, password } = req.validated.body;
-      const result = await AuthService.loginWithIdentityPassword(identityNumber, password, req);
+      const { identityNumber, mobileNumber, iqamaNumber, password } = req.validated.body;
+      const result = await AuthService.loginWithPassword(
+        { identityNumber, mobileNumber, iqamaNumber },
+        password,
+        req
+      );
       return ApiResponse.success(res, result, 'Login successful');
     } catch (err) {
       return next(err);

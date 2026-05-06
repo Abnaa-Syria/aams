@@ -14,6 +14,13 @@ CREATE TABLE `users` (
     `role` ENUM('SUPER_ADMIN', 'OPERATIONS_ADMIN', 'HR_ADMIN', 'FLEET_ADMIN', 'FINANCE_ADMIN', 'SUPERVISOR', 'DRIVER') NOT NULL DEFAULT 'DRIVER',
     `accountStatus` ENUM('ACTIVE', 'TEMPORARILY_SUSPENDED', 'RESTRICTED', 'UNDER_INVESTIGATION', 'PENDING_APPROVAL', 'INCOMPLETE_PROFILE', 'ARCHIVED') NOT NULL DEFAULT 'PENDING_APPROVAL',
     `availabilityStatus` ENUM('AVAILABLE', 'ON_SHIFT', 'ON_LEAVE', 'OFF_DUTY') NOT NULL DEFAULT 'OFF_DUTY',
+    `employmentStatus` ENUM('ON_DUTY', 'ON_LEAVE', 'SUSPENDED', 'RUNAWAY', 'FINAL_EXIT') NOT NULL DEFAULT 'ON_DUTY',
+    `transportType` ENUM('CAR', 'MOTORCYCLE', 'TRUCK') NULL,
+    `sevenHundredNumber` VARCHAR(50) NULL,
+    `emergencyName` VARCHAR(150) NULL,
+    `emergencyRelation` VARCHAR(100) NULL,
+    `emergencyPhone` VARCHAR(20) NULL,
+    `roomNumber` VARCHAR(50) NULL,
     `employeeNumber` VARCHAR(50) NULL,
     `joinDate` DATETIME(3) NULL,
     `contractEndDate` DATETIME(3) NULL,
@@ -38,6 +45,22 @@ CREATE TABLE `users` (
     INDEX `users_role_idx`(`role`),
     INDEX `users_supervisorId_idx`(`supervisorId`),
     INDEX `users_cityId_idx`(`cityId`),
+    INDEX `users_employmentStatus_idx`(`employmentStatus`),
+    INDEX `users_sevenHundredNumber_idx`(`sevenHundredNumber`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `push_device_tokens` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `userId` INTEGER NOT NULL,
+    `token` VARCHAR(512) NOT NULL,
+    `provider` ENUM('EXPO', 'FCM_LEGACY', 'WEB_PUSH', 'CUSTOM') NOT NULL DEFAULT 'EXPO',
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `push_device_tokens_token_key`(`token`),
+    INDEX `push_device_tokens_userId_idx`(`userId`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -51,6 +74,20 @@ CREATE TABLE `login_activities` (
     `success` BOOLEAN NOT NULL DEFAULT true,
 
     INDEX `login_activities_userId_idx`(`userId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `refresh_tokens` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `token` VARCHAR(512) NOT NULL,
+    `userId` INTEGER NOT NULL,
+    `expiresAt` DATETIME(3) NOT NULL,
+    `revokedAt` DATETIME(3) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    UNIQUE INDEX `refresh_tokens_token_key`(`token`),
+    INDEX `refresh_tokens_userId_idx`(`userId`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -70,7 +107,7 @@ CREATE TABLE `cities` (
 CREATE TABLE `documents` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `userId` INTEGER NOT NULL,
-    `type` ENUM('NATIONAL_ID', 'IQAMA', 'PASSPORT', 'WORK_CONTRACT', 'RESIDENCE_PERMIT', 'OTHER') NOT NULL,
+    `type` ENUM('NATIONAL_ID', 'IQAMA', 'PASSPORT', 'WORK_CONTRACT', 'RESIDENCE_PERMIT', 'BORDER_NUMBER', 'MUQEEM_ID', 'VISA', 'CONTRACT_WITH_SANAD', 'DRIVER_CARD', 'DRIVING_PERMIT', 'POLICE_CLEARANCE', 'WORK_INJURY', 'CLEARANCE_DOC', 'TERMINATION_DOC', 'HEALTH_CARD', 'MEDICAL_INSURANCE', 'OTHER') NOT NULL,
     `title` VARCHAR(200) NOT NULL,
     `documentNumber` VARCHAR(100) NULL,
     `issueDate` DATETIME(3) NULL,
@@ -129,6 +166,10 @@ CREATE TABLE `bank_accounts` (
     `verificationStatus` ENUM('PENDING', 'VERIFIED', 'REJECTED') NOT NULL DEFAULT 'PENDING',
     `proofFileUrl` VARCHAR(500) NULL,
     `proofFileName` VARCHAR(255) NULL,
+    `paymentMethod` ENUM('BANK_TRANSFER', 'CASH') NOT NULL DEFAULT 'BANK_TRANSFER',
+    `cashReceiptPhotoUrl` VARCHAR(500) NULL,
+    `receivedStatus` ENUM('RECEIVED', 'NOT_RECEIVED') NULL,
+    `receivedDate` DATETIME(3) NULL,
     `reviewedBy` INTEGER NULL,
     `reviewedAt` DATETIME(3) NULL,
     `reviewNotes` TEXT NULL,
@@ -137,6 +178,7 @@ CREATE TABLE `bank_accounts` (
     `deletedAt` DATETIME(3) NULL,
 
     INDEX `bank_accounts_userId_idx`(`userId`),
+    INDEX `bank_accounts_paymentMethod_idx`(`paymentMethod`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -163,6 +205,11 @@ CREATE TABLE `platform_accounts` (
     `status` ENUM('ACTIVE', 'INACTIVE', 'SUSPENDED', 'PENDING_VERIFICATION') NOT NULL DEFAULT 'PENDING_VERIFICATION',
     `notes` TEXT NULL,
     `fileUrl` VARCHAR(500) NULL,
+    `isAlternate` BOOLEAN NOT NULL DEFAULT false,
+    `alternateUsername` VARCHAR(150) NULL,
+    `receiptDate` DATETIME(3) NULL,
+    `returnDate` DATETIME(3) NULL,
+    `startWorkDate` DATETIME(3) NULL,
     `verifiedBy` INTEGER NULL,
     `verifiedAt` DATETIME(3) NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -171,6 +218,7 @@ CREATE TABLE `platform_accounts` (
 
     INDEX `platform_accounts_userId_idx`(`userId`),
     INDEX `platform_accounts_platformId_idx`(`platformId`),
+    INDEX `platform_accounts_username_idx`(`username`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -192,6 +240,8 @@ CREATE TABLE `vehicles` (
     `registrationNumber` VARCHAR(100) NULL,
     `registrationExpiry` DATETIME(3) NULL,
     `registrationFileUrl` VARCHAR(500) NULL,
+    `tankCapacity` INTEGER NULL,
+    `fuelType` VARCHAR(50) NULL,
     `notes` TEXT NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
@@ -219,6 +269,22 @@ CREATE TABLE `vehicle_assignments` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
+CREATE TABLE `vehicle_odometer_logs` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `vehicleId` INTEGER NOT NULL,
+    `userId` INTEGER NOT NULL,
+    `shiftId` INTEGER NULL,
+    `reading` INTEGER NOT NULL,
+    `photoUrl` VARCHAR(500) NULL,
+    `type` ENUM('START_SHIFT', 'END_SHIFT', 'MAINTENANCE', 'FUEL') NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `vehicle_odometer_logs_vehicleId_idx`(`vehicleId`),
+    INDEX `vehicle_odometer_logs_userId_idx`(`userId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `shifts` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `userId` INTEGER NOT NULL,
@@ -236,8 +302,15 @@ CREATE TABLE `shifts` (
     `cancelledAt` DATETIME(3) NULL,
     `cancellationReason` TEXT NULL,
     `startPhotoUrl` VARCHAR(500) NULL,
+    `startOdometer` INTEGER NULL,
+    `startAppPhotoUrl` VARCHAR(500) NULL,
     `endPhotoUrl` VARCHAR(500) NULL,
+    `endOdometer` INTEGER NULL,
+    `endAppPhotoUrl` VARCHAR(500) NULL,
     `notes` TEXT NULL,
+    `closureRequested` BOOLEAN NOT NULL DEFAULT false,
+    `closureApprovedBy` INTEGER NULL,
+    `closureApprovedAt` DATETIME(3) NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
@@ -311,6 +384,7 @@ CREATE TABLE `violations` (
     `violationDate` DATETIME(3) NULL,
     `vehicleImageUrl` VARCHAR(500) NULL,
     `violationImageUrl` VARCHAR(500) NULL,
+    `bikeImageUrl` VARCHAR(500) NULL,
     `status` ENUM('REPORTED', 'UNDER_REVIEW', 'CONFIRMED', 'DISMISSED', 'PENALIZED') NOT NULL DEFAULT 'REPORTED',
     `reviewedBy` INTEGER NULL,
     `reviewedAt` DATETIME(3) NULL,
@@ -338,6 +412,9 @@ CREATE TABLE `incidents` (
     `location` VARCHAR(300) NULL,
     `latitude` DECIMAL(10, 8) NULL,
     `longitude` DECIMAL(11, 8) NULL,
+    `caseNumber` VARCHAR(100) NULL,
+    `insuranceClaimed` BOOLEAN NOT NULL DEFAULT false,
+    `maintenanceRequestId` INTEGER NULL,
     `status` ENUM('OPEN', 'IN_PROGRESS', 'ESCALATED', 'RESOLVED', 'CLOSED') NOT NULL DEFAULT 'OPEN',
     `resolvedAt` DATETIME(3) NULL,
     `resolvedBy` INTEGER NULL,
@@ -438,12 +515,38 @@ CREATE TABLE `notification_templates` (
     `titleEn` VARCHAR(300) NULL,
     `bodyAr` TEXT NOT NULL,
     `bodyEn` TEXT NULL,
-    `category` ENUM('SYSTEM', 'SHIFT', 'DOCUMENT', 'COMPLIANCE', 'APPROVAL', 'ALERT', 'HR', 'GENERAL') NOT NULL DEFAULT 'GENERAL',
-    `isActive` BOOLEAN NOT NULL DEFAULT true,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
 
     UNIQUE INDEX `notification_templates_key_key`(`key`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `payroll_cycles` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `name` VARCHAR(200) NOT NULL,
+    `startDate` DATETIME(3) NOT NULL,
+    `endDate` DATETIME(3) NOT NULL,
+    `status` ENUM('OPEN', 'PROCESSING', 'COMPLETED', 'ARCHIVED') NOT NULL DEFAULT 'OPEN',
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `employee_payrolls` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `userId` INTEGER NOT NULL,
+    `cycleId` INTEGER NOT NULL,
+    `baseSalary` DECIMAL(10, 2) NOT NULL,
+    `totalRewards` DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    `totalPenalties` DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    `totalAdvances` DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    `netSalary` DECIMAL(10, 2) NOT NULL,
+    `isPaid` BOOLEAN NOT NULL DEFAULT false,
+    `paidAt` DATETIME(3) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    UNIQUE INDEX `employee_payrolls_userId_cycleId_key`(`userId`, `cycleId`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -518,7 +621,7 @@ CREATE TABLE `investigation_events` (
 CREATE TABLE `penalties` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `userId` INTEGER NOT NULL,
-    `type` ENUM('FINANCIAL', 'WARNING', 'SUSPENSION', 'TERMINATION', 'OTHER') NOT NULL DEFAULT 'WARNING',
+    `type` ENUM('FINANCIAL', 'WARNING', 'SUSPENSION', 'TERMINATION', 'ASSET_DAMAGE', 'MISCONDUCT', 'OTHER') NOT NULL DEFAULT 'WARNING',
     `amount` DECIMAL(10, 2) NULL,
     `reason` TEXT NOT NULL,
     `status` ENUM('PENDING', 'APPLIED', 'APPEALED', 'CANCELLED') NOT NULL DEFAULT 'PENDING',
@@ -630,6 +733,9 @@ CREATE TABLE `salary_advances` (
     `amount` DECIMAL(10, 2) NOT NULL,
     `reason` TEXT NOT NULL,
     `notes` TEXT NULL,
+    `numberOfMonths` INTEGER NULL DEFAULT 1,
+    `installmentAmount` DECIMAL(10, 2) NULL,
+    `deductFromCurrent` BOOLEAN NOT NULL DEFAULT false,
     `status` ENUM('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED') NOT NULL DEFAULT 'PENDING',
     `reviewedBy` INTEGER NULL,
     `reviewedAt` DATETIME(3) NULL,
@@ -715,6 +821,277 @@ CREATE TABLE `audit_logs` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- CreateTable
+CREATE TABLE `assets` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `nameAr` VARCHAR(150) NOT NULL,
+    `nameEn` VARCHAR(150) NULL,
+    `type` ENUM('MOTORCYCLE', 'SAFETY_EQUIPMENT', 'PHONE', 'SIM_CARD', 'LICENSE_CARD', 'THERMAL_BOX', 'OTHER') NOT NULL,
+    `description` TEXT NULL,
+    `isActive` BOOLEAN NOT NULL DEFAULT true,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `asset_assignments` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `assetId` INTEGER NOT NULL,
+    `userId` INTEGER NOT NULL,
+    `status` ENUM('ASSIGNED', 'RETURNED', 'DAMAGED', 'LOST') NOT NULL DEFAULT 'ASSIGNED',
+    `assignedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `returnedAt` DATETIME(3) NULL,
+    `condition` VARCHAR(100) NULL,
+    `assignPhotoUrl` VARCHAR(500) NULL,
+    `returnPhotoUrl` VARCHAR(500) NULL,
+    `notes` TEXT NULL,
+    `assignedBy` INTEGER NULL,
+    `returnedBy` INTEGER NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    INDEX `asset_assignments_assetId_idx`(`assetId`),
+    INDEX `asset_assignments_userId_idx`(`userId`),
+    INDEX `asset_assignments_status_idx`(`status`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `location_history` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `userId` INTEGER NOT NULL,
+    `latitude` DECIMAL(10, 7) NOT NULL,
+    `longitude` DECIMAL(10, 7) NOT NULL,
+    `accuracy` DECIMAL(8, 2) NULL,
+    `speed` DECIMAL(6, 2) NULL,
+    `heading` DECIMAL(5, 2) NULL,
+    `recordedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `location_history_userId_idx`(`userId`),
+    INDEX `location_history_recordedAt_idx`(`recordedAt`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `zones` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `nameAr` VARCHAR(150) NOT NULL,
+    `nameEn` VARCHAR(150) NULL,
+    `description` TEXT NULL,
+    `boundary` JSON NOT NULL,
+    `isRestricted` BOOLEAN NOT NULL DEFAULT false,
+    `isActive` BOOLEAN NOT NULL DEFAULT true,
+    `alertMessage` VARCHAR(500) NULL,
+    `createdBy` INTEGER NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `break_requests` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `shiftId` INTEGER NOT NULL,
+    `userId` INTEGER NOT NULL,
+    `reason` TEXT NOT NULL,
+    `status` ENUM('REQUESTED', 'APPROVED', 'REJECTED') NOT NULL DEFAULT 'REQUESTED',
+    `reviewedBy` INTEGER NULL,
+    `reviewedAt` DATETIME(3) NULL,
+    `reviewNotes` TEXT NULL,
+    `requestedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `break_requests_shiftId_idx`(`shiftId`),
+    INDEX `break_requests_userId_idx`(`userId`),
+    INDEX `break_requests_status_idx`(`status`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `complaints` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `type` ENUM('SUPERVISOR_COMPLAINT', 'EMPLOYEE_COMPLAINT') NOT NULL,
+    `filedById` INTEGER NOT NULL,
+    `subjectId` INTEGER NOT NULL,
+    `title` VARCHAR(300) NOT NULL,
+    `details` TEXT NOT NULL,
+    `status` ENUM('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED') NOT NULL DEFAULT 'PENDING',
+    `attachmentUrl` VARCHAR(500) NULL,
+    `reviewedBy` INTEGER NULL,
+    `reviewedAt` DATETIME(3) NULL,
+    `reviewNotes` TEXT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    INDEX `complaints_filedById_idx`(`filedById`),
+    INDEX `complaints_subjectId_idx`(`subjectId`),
+    INDEX `complaints_status_idx`(`status`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `admin_requests` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `userId` INTEGER NOT NULL,
+    `type` ENUM('BONUS', 'REVIEW', 'EXEMPTION', 'OBJECTION', 'VEHICLE_TRANSFER', 'SHIFT_TRANSFER', 'GOVERNMENT_ACTION', 'ASSET_RECEIPT', 'OTHER') NOT NULL,
+    `title` VARCHAR(300) NOT NULL,
+    `details` TEXT NOT NULL,
+    `attachmentUrl` VARCHAR(500) NULL,
+    `attachmentName` VARCHAR(255) NULL,
+    `status` ENUM('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED') NOT NULL DEFAULT 'PENDING',
+    `reviewedBy` INTEGER NULL,
+    `reviewedAt` DATETIME(3) NULL,
+    `reviewNotes` TEXT NULL,
+    `metadata` JSON NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    INDEX `admin_requests_userId_idx`(`userId`),
+    INDEX `admin_requests_type_idx`(`type`),
+    INDEX `admin_requests_status_idx`(`status`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `license_tests` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `userId` INTEGER NOT NULL,
+    `testDate` DATETIME(3) NULL,
+    `result` ENUM('ADVANCED', 'INTERMEDIATE', 'BEGINNER', 'FAIL') NULL,
+    `isRetest` BOOLEAN NOT NULL DEFAULT false,
+    `previousTestId` INTEGER NULL,
+    `notes` TEXT NULL,
+    `scheduledBy` INTEGER NULL,
+    `resultSetBy` INTEGER NULL,
+    `resultSetAt` DATETIME(3) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    INDEX `license_tests_userId_idx`(`userId`),
+    INDEX `license_tests_result_idx`(`result`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `canceled_order_logs` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `userId` INTEGER NOT NULL,
+    `orderRef` VARCHAR(100) NULL,
+    `reason` TEXT NOT NULL,
+    `invoiceUrl` VARCHAR(500) NULL,
+    `photoUrl` VARCHAR(500) NULL,
+    `discountAmount` DECIMAL(10, 2) NULL,
+    `platformName` VARCHAR(100) NULL,
+    `orderDate` DATETIME(3) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    INDEX `canceled_order_logs_userId_idx`(`userId`),
+    INDEX `canceled_order_logs_orderDate_idx`(`orderDate`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `trainees` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `traineeId` INTEGER NOT NULL,
+    `trainerId` INTEGER NOT NULL,
+    `startDate` DATETIME(3) NOT NULL,
+    `endDate` DATETIME(3) NULL,
+    `totalDays` INTEGER NOT NULL DEFAULT 30,
+    `isCompleted` BOOLEAN NOT NULL DEFAULT false,
+    `completedAt` DATETIME(3) NULL,
+    `rewardIssued` BOOLEAN NOT NULL DEFAULT false,
+    `rewardAmount` DECIMAL(10, 2) NULL,
+    `notes` TEXT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    INDEX `trainees_traineeId_idx`(`traineeId`),
+    INDEX `trainees_trainerId_idx`(`trainerId`),
+    INDEX `trainees_isCompleted_idx`(`isCompleted`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `substitute_vehicle_assignments` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `vehicleId` INTEGER NOT NULL,
+    `originalVehicleId` INTEGER NULL,
+    `userId` INTEGER NULL,
+    `startDate` DATETIME(3) NOT NULL,
+    `endDate` DATETIME(3) NULL,
+    `reason` TEXT NULL,
+    `isActive` BOOLEAN NOT NULL DEFAULT true,
+    `assignedBy` INTEGER NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    INDEX `substitute_vehicle_assignments_vehicleId_idx`(`vehicleId`),
+    INDEX `substitute_vehicle_assignments_isActive_idx`(`isActive`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `oil_change_logs` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `vehicleId` INTEGER NOT NULL,
+    `odometerAtChange` INTEGER NOT NULL,
+    `changeDate` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `nextDueOdometer` INTEGER NULL,
+    `maintenanceReqId` INTEGER NULL,
+    `notes` TEXT NULL,
+    `performedBy` INTEGER NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `oil_change_logs_vehicleId_idx`(`vehicleId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `vehicle_swap_requests` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `shiftId` INTEGER NOT NULL,
+    `userId` INTEGER NOT NULL,
+    `currentVehicleId` INTEGER NOT NULL,
+    `reason` TEXT NOT NULL,
+    `status` ENUM('REQUESTED', 'APPROVED', 'REJECTED') NOT NULL DEFAULT 'REQUESTED',
+    `newVehicleId` INTEGER NULL,
+    `reviewedBy` INTEGER NULL,
+    `reviewedAt` DATETIME(3) NULL,
+    `reviewNotes` TEXT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    INDEX `vehicle_swap_requests_shiftId_idx`(`shiftId`),
+    INDEX `vehicle_swap_requests_userId_idx`(`userId`),
+    INDEX `vehicle_swap_requests_status_idx`(`status`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `scheduled_reminders` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `targetUserId` INTEGER NOT NULL,
+    `createdById` INTEGER NOT NULL,
+    `title` VARCHAR(300) NOT NULL,
+    `body` TEXT NOT NULL,
+    `triggerDate` DATETIME(3) NOT NULL,
+    `isSent` BOOLEAN NOT NULL DEFAULT false,
+    `sentAt` DATETIME(3) NULL,
+    `category` VARCHAR(100) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    INDEX `scheduled_reminders_targetUserId_idx`(`targetUserId`),
+    INDEX `scheduled_reminders_triggerDate_idx`(`triggerDate`),
+    INDEX `scheduled_reminders_isSent_idx`(`isSent`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 -- AddForeignKey
 ALTER TABLE `users` ADD CONSTRAINT `users_cityId_fkey` FOREIGN KEY (`cityId`) REFERENCES `cities`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
@@ -722,7 +1099,13 @@ ALTER TABLE `users` ADD CONSTRAINT `users_cityId_fkey` FOREIGN KEY (`cityId`) RE
 ALTER TABLE `users` ADD CONSTRAINT `users_supervisorId_fkey` FOREIGN KEY (`supervisorId`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE `push_device_tokens` ADD CONSTRAINT `push_device_tokens_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `login_activities` ADD CONSTRAINT `login_activities_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `refresh_tokens` ADD CONSTRAINT `refresh_tokens_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `documents` ADD CONSTRAINT `documents_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -744,6 +1127,15 @@ ALTER TABLE `vehicle_assignments` ADD CONSTRAINT `vehicle_assignments_vehicleId_
 
 -- AddForeignKey
 ALTER TABLE `vehicle_assignments` ADD CONSTRAINT `vehicle_assignments_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `vehicle_odometer_logs` ADD CONSTRAINT `vehicle_odometer_logs_vehicleId_fkey` FOREIGN KEY (`vehicleId`) REFERENCES `vehicles`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `vehicle_odometer_logs` ADD CONSTRAINT `vehicle_odometer_logs_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `vehicle_odometer_logs` ADD CONSTRAINT `vehicle_odometer_logs_shiftId_fkey` FOREIGN KEY (`shiftId`) REFERENCES `shifts`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `shifts` ADD CONSTRAINT `shifts_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -803,6 +1195,12 @@ ALTER TABLE `report_screenshots` ADD CONSTRAINT `report_screenshots_reportId_fke
 ALTER TABLE `notifications` ADD CONSTRAINT `notifications_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE `employee_payrolls` ADD CONSTRAINT `employee_payrolls_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `employee_payrolls` ADD CONSTRAINT `employee_payrolls_cycleId_fkey` FOREIGN KEY (`cycleId`) REFERENCES `payroll_cycles`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `chat_messages` ADD CONSTRAINT `chat_messages_senderId_fkey` FOREIGN KEY (`senderId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -849,3 +1247,60 @@ ALTER TABLE `maintenance_requests` ADD CONSTRAINT `maintenance_requests_vehicleI
 
 -- AddForeignKey
 ALTER TABLE `audit_logs` ADD CONSTRAINT `audit_logs_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `asset_assignments` ADD CONSTRAINT `asset_assignments_assetId_fkey` FOREIGN KEY (`assetId`) REFERENCES `assets`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `asset_assignments` ADD CONSTRAINT `asset_assignments_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `location_history` ADD CONSTRAINT `location_history_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `break_requests` ADD CONSTRAINT `break_requests_shiftId_fkey` FOREIGN KEY (`shiftId`) REFERENCES `shifts`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `break_requests` ADD CONSTRAINT `break_requests_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `complaints` ADD CONSTRAINT `complaints_filedById_fkey` FOREIGN KEY (`filedById`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `complaints` ADD CONSTRAINT `complaints_subjectId_fkey` FOREIGN KEY (`subjectId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `admin_requests` ADD CONSTRAINT `admin_requests_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `license_tests` ADD CONSTRAINT `license_tests_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `canceled_order_logs` ADD CONSTRAINT `canceled_order_logs_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `trainees` ADD CONSTRAINT `trainees_traineeId_fkey` FOREIGN KEY (`traineeId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `trainees` ADD CONSTRAINT `trainees_trainerId_fkey` FOREIGN KEY (`trainerId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `substitute_vehicle_assignments` ADD CONSTRAINT `substitute_vehicle_assignments_vehicleId_fkey` FOREIGN KEY (`vehicleId`) REFERENCES `vehicles`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `oil_change_logs` ADD CONSTRAINT `oil_change_logs_vehicleId_fkey` FOREIGN KEY (`vehicleId`) REFERENCES `vehicles`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `vehicle_swap_requests` ADD CONSTRAINT `vehicle_swap_requests_shiftId_fkey` FOREIGN KEY (`shiftId`) REFERENCES `shifts`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `vehicle_swap_requests` ADD CONSTRAINT `vehicle_swap_requests_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `vehicle_swap_requests` ADD CONSTRAINT `vehicle_swap_requests_currentVehicleId_fkey` FOREIGN KEY (`currentVehicleId`) REFERENCES `vehicles`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `scheduled_reminders` ADD CONSTRAINT `scheduled_reminders_targetUserId_fkey` FOREIGN KEY (`targetUserId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `scheduled_reminders` ADD CONSTRAINT `scheduled_reminders_createdById_fkey` FOREIGN KEY (`createdById`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;

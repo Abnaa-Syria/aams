@@ -212,4 +212,23 @@ router.post('/:id/approve', ...adminPerm(P.SHIFTS_APPROVE), ShiftController.appr
  */
 router.post('/:id/reject', ...adminPerm(P.SHIFTS_APPROVE), ShiftController.reject);
 
+/**
+ * @openapi
+ * /shifts/{id}/approve-closure:
+ *   post:
+ *     tags: [Shifts]
+ *     summary: Approve ENDED shift closure (admin)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Shift closure APPROVED
+ */
+router.post('/:id/approve-closure', ...adminPerm(P.SHIFTS_APPROVE), ShiftController.approveClosure);
+
 module.exports = router;

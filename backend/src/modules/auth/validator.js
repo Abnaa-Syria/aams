@@ -10,8 +10,17 @@ const emptyBody = z.preprocess(
 
 const loginSchema = z.object({
   body: z.object({
-    identityNumber: z.string().trim().min(1, 'Identity number is required').max(20),
+    identityNumber: z.string().trim().max(20).optional(),
+    mobileNumber: z.string().trim().max(20).optional(),
+    iqamaNumber: z.string().trim().max(20).optional(),
     password: z.string().min(1, 'Password is required'),
+  }).superRefine((data, ctx) => {
+    if (!data.identityNumber && !data.mobileNumber && !data.iqamaNumber) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'identityNumber, mobileNumber, or iqamaNumber is required',
+      });
+    }
   }),
   query: emptyObject,
   params: emptyObject,

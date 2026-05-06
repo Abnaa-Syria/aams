@@ -48,6 +48,18 @@ enum DocumentType {
   PASSPORT
   WORK_CONTRACT
   RESIDENCE_PERMIT
+  BORDER_NUMBER
+  MUQEEM_ID
+  VISA
+  CONTRACT_WITH_SANAD
+  DRIVER_CARD
+  DRIVING_PERMIT
+  POLICE_CLEARANCE
+  WORK_INJURY
+  CLEARANCE_DOC
+  TERMINATION_DOC
+  HEALTH_CARD
+  MEDICAL_INSURANCE
   OTHER
 }
 
@@ -149,6 +161,8 @@ enum PenaltyType {
   WARNING
   SUSPENSION
   TERMINATION
+  ASSET_DAMAGE
+  MISCONDUCT
   OTHER
 }
 
@@ -220,6 +234,97 @@ enum PushProvider {
   CUSTOM
 }
 
+enum OdometerLogType {
+  START_SHIFT
+  END_SHIFT
+  MAINTENANCE
+  FUEL
+}
+
+enum PayrollStatus {
+  OPEN
+  PROCESSING
+  COMPLETED
+  ARCHIVED
+}
+
+enum EmploymentStatus {
+  ON_DUTY
+  ON_LEAVE
+  SUSPENDED
+  RUNAWAY
+  FINAL_EXIT
+}
+
+enum TransportType {
+  CAR
+  MOTORCYCLE
+  TRUCK
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  CASH
+}
+
+enum CashReceivedStatus {
+  RECEIVED
+  NOT_RECEIVED
+}
+
+enum AdminRequestType {
+  BONUS
+  REVIEW
+  EXEMPTION
+  OBJECTION
+  VEHICLE_TRANSFER
+  SHIFT_TRANSFER
+  GOVERNMENT_ACTION
+  ASSET_RECEIPT
+  OTHER
+}
+
+enum LicenseTestResult {
+  ADVANCED
+  INTERMEDIATE
+  BEGINNER
+  FAIL
+}
+
+enum ComplaintType {
+  SUPERVISOR_COMPLAINT
+  EMPLOYEE_COMPLAINT
+}
+
+enum AssetType {
+  MOTORCYCLE
+  SAFETY_EQUIPMENT
+  PHONE
+  SIM_CARD
+  LICENSE_CARD
+  THERMAL_BOX
+  OTHER
+}
+
+enum AssetStatus {
+  ASSIGNED
+  RETURNED
+  DAMAGED
+  LOST
+}
+
+enum BreakStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+}
+
+enum VehicleSwapStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+}
+
 // ============================================================
 // USERS (Drivers, Admins, Supervisors)
 // ============================================================
@@ -239,6 +344,19 @@ model User {
   role              UserRole          @default(DRIVER)
   accountStatus     AccountStatus     @default(PENDING_APPROVAL)
   availabilityStatus AvailabilityStatus @default(OFF_DUTY)
+  employmentStatus  EmploymentStatus  @default(ON_DUTY)
+  transportType     TransportType?
+
+  // Company identifier (رقم الـ 700)
+  sevenHundredNumber String?          @db.VarChar(50)
+
+  // Emergency contact (جهة اتصال الطوارئ)
+  emergencyName     String?           @db.VarChar(150)
+  emergencyRelation String?           @db.VarChar(100)
+  emergencyPhone    String?           @db.VarChar(20)
+
+  // Housing
+  roomNumber        String?           @db.VarChar(50)
 
   // Employment info
   employeeNumber    String?           @unique @db.VarChar(50)
@@ -298,11 +416,29 @@ model User {
   loginActivities   LoginActivity[]
   leaveBalances     LeaveBalance[]
   pushDeviceTokens  PushDeviceToken[]
+  refreshTokens     RefreshToken[]
+  odometerLogs      VehicleOdometerLog[]
+  payrolls          EmployeePayroll[]
+  assetAssignments  AssetAssignment[]
+  breakRequests     BreakRequest[]
+  complaints        Complaint[]       @relation("ComplaintSubject")
+  filedComplaints   Complaint[]       @relation("ComplaintFiler")
+  adminRequests     AdminRequest[]
+  licenseTests      LicenseTest[]
+  canceledOrders    CanceledOrderLog[]
+  traineeRecords    Trainee[]         @relation("TraineeUser")
+  trainerRecords    Trainee[]         @relation("TrainerUser")
+  vehicleSwapReqs   VehicleSwapRequest[]
+  scheduledReminders ScheduledReminder[] @relation("ReminderTarget")
+  createdReminders  ScheduledReminder[]  @relation("ReminderCreator")
+  locationHistory   LocationHistory[]
 
   @@index([accountStatus])
   @@index([role])
   @@index([supervisorId])
   @@index([cityId])
+  @@index([employmentStatus])
+  @@index([sevenHundredNumber])
   @@map("users")
 }
 
@@ -330,6 +466,19 @@ model LoginActivity {
 
   @@index([userId])
   @@map("login_activities")
+}
+
+model RefreshToken {
+  id        Int       @id @default(autoincrement())
+  token     String    @unique @db.VarChar(512)
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
 }
 
 // ============================================================
@@ -423,6 +572,10 @@ model BankAccount {
   verificationStatus  BankVerificationStatus @default(PENDING)
   proofFileUrl        String?               @db.VarChar(500)
   proofFileName       String?               @db.VarChar(255)
+  paymentMethod       PaymentMethod         @default(BANK_TRANSFER)
+  cashReceiptPhotoUrl String?               @db.VarChar(500)
+  receivedStatus      CashReceivedStatus?
+  receivedDate        DateTime?
   reviewedBy          Int?
   reviewedAt          DateTime?
   reviewNotes         String?               @db.Text
@@ -431,6 +584,7 @@ model BankAccount {
   deletedAt           DateTime?
 
   @@index([userId])
+  @@index([paymentMethod])
   @@map("bank_accounts")
 }
 
@@ -462,6 +616,11 @@ model PlatformAccount {
   status          PlatformAccountStatus @default(PENDING_VERIFICATION)
   notes           String?               @db.Text
   fileUrl         String?               @db.VarChar(500)
+  isAlternate     Boolean               @default(false)
+  alternateUsername String?             @db.VarChar(150)
+  receiptDate     DateTime?
+  returnDate      DateTime?
+  startWorkDate   DateTime?
   verifiedBy      Int?
   verifiedAt      DateTime?
   createdAt       DateTime              @default(now())
@@ -471,6 +630,7 @@ model PlatformAccount {
 
   @@index([userId])
   @@index([platformId])
+  @@index([username])
   @@map("platform_accounts")
 }
 
@@ -499,7 +659,10 @@ model Vehicle {
   registrationNumber  String?           @db.VarChar(100)
   registrationExpiry  DateTime?
   registrationFileUrl String?           @db.VarChar(500)
-
+  
+  tankCapacity        Int?              // in liters
+  fuelType            String?           @db.VarChar(50)  // 91, 95, Diesel
+  
   notes               String?           @db.Text
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
@@ -510,6 +673,10 @@ model Vehicle {
   fuelLogs            FuelLog[]
   violations          Violation[]
   maintenanceReqs     MaintenanceRequest[]
+  odometerLogs        VehicleOdometerLog[]
+  substituteAssigns   SubstituteVehicleAssignment[]
+  oilChangeLogs       OilChangeLog[]
+  vehicleSwapReqs     VehicleSwapRequest[]
 
   @@index([status])
   @@index([plateNumber])
@@ -530,6 +697,24 @@ model VehicleAssignment {
   @@index([vehicleId])
   @@index([userId])
   @@map("vehicle_assignments")
+}
+
+model VehicleOdometerLog {
+  id        Int             @id @default(autoincrement())
+  vehicleId Int
+  vehicle   Vehicle         @relation(fields: [vehicleId], references: [id])
+  userId    Int
+  user      User            @relation(fields: [userId], references: [id])
+  shiftId   Int?
+  shift     Shift?          @relation(fields: [shiftId], references: [id])
+  reading   Int
+  photoUrl  String?         @db.VarChar(500)
+  type      OdometerLogType
+  createdAt DateTime        @default(now())
+
+  @@index([vehicleId])
+  @@index([userId])
+  @@map("vehicle_odometer_logs")
 }
 
 // ============================================================
@@ -558,8 +743,17 @@ model Shift {
   cancellationReason String?      @db.Text
 
   startPhotoUrl     String?       @db.VarChar(500)
+  startOdometer     Int?
+  startAppPhotoUrl  String?       @db.VarChar(500)
   endPhotoUrl       String?       @db.VarChar(500)
+  endOdometer       Int?
+  endAppPhotoUrl    String?       @db.VarChar(500)
   notes             String?       @db.Text
+
+  // Shift closure request (طلب إقفال شفت)
+  closureRequested  Boolean       @default(false)
+  closureApprovedBy Int?
+  closureApprovedAt DateTime?
 
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
@@ -570,6 +764,9 @@ model Shift {
   incidents         Incident[]
   dailyReports      DailyReport[]
   shiftLogs         ShiftLog[]
+  odometerLogs      VehicleOdometerLog[]
+  breakRequests     BreakRequest[]
+  vehicleSwapReqs   VehicleSwapRequest[]
 
   @@index([userId])
   @@index([status])
@@ -653,6 +850,7 @@ model Violation {
   violationDate   DateTime?
   vehicleImageUrl String?         @db.VarChar(500)
   violationImageUrl String?       @db.VarChar(500)
+  bikeImageUrl    String?         @db.VarChar(500)
   status          ViolationStatus @default(REPORTED)
   reviewedBy      Int?
   reviewedAt      DateTime?
@@ -685,6 +883,11 @@ model Incident {
   location        String?           @db.VarChar(300)
   latitude        Decimal?          @db.Decimal(10, 8)
   longitude       Decimal?          @db.Decimal(11, 8)
+  
+  caseNumber      String?           @db.VarChar(100) // Najm/Police reference
+  insuranceClaimed Boolean          @default(false)
+  maintenanceRequestId Int?
+  
   status          IncidentStatus    @default(OPEN)
   resolvedAt      DateTime?
   resolvedBy      Int?
@@ -798,12 +1001,43 @@ model NotificationTemplate {
   titleEn     String?   @db.VarChar(300)
   bodyAr      String    @db.Text
   bodyEn      String?   @db.Text
-  category    NotificationCategory @default(GENERAL)
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
 
   @@map("notification_templates")
+}
+
+// ============================================================
+// PAYROLL & FINANCIAL CYCLES
+// ============================================================
+
+model PayrollCycle {
+  id        Int             @id @default(autoincrement())
+  name      String          @db.VarChar(200)
+  startDate DateTime
+  endDate   DateTime
+  status    PayrollStatus   @default(OPEN)
+  createdAt DateTime        @default(now())
+  payrolls  EmployeePayroll[]
+
+  @@map("payroll_cycles")
+}
+
+model EmployeePayroll {
+  id             Int          @id @default(autoincrement())
+  userId         Int
+  user           User         @relation(fields: [userId], references: [id])
+  cycleId        Int
+  cycle          PayrollCycle @relation(fields: [cycleId], references: [id])
+  baseSalary     Decimal      @db.Decimal(10, 2)
+  totalRewards   Decimal      @default(0) @db.Decimal(10, 2)
+  totalPenalties Decimal      @default(0) @db.Decimal(10, 2)
+  totalAdvances  Decimal      @default(0) @db.Decimal(10, 2)
+  netSalary      Decimal      @db.Decimal(10, 2)
+  isPaid         Boolean      @default(false)
+  paidAt         DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@unique([userId, cycleId])
+  @@map("employee_payrolls")
 }
 
 // ============================================================
@@ -1023,6 +1257,9 @@ model SalaryAdvance {
   amount        Decimal       @db.Decimal(10, 2)
   reason        String        @db.Text
   notes         String?       @db.Text
+  numberOfMonths  Int?          @default(1)
+  installmentAmount Decimal?  @db.Decimal(10, 2)
+  deductFromCurrent Boolean   @default(false)
   status        RequestStatus @default(PENDING)
   reviewedBy    Int?
   reviewedAt    DateTime?
@@ -1116,4 +1353,331 @@ model AuditLog {
   @@index([action])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// ============================================================
+// ASSET MANAGEMENT (العهد)
+// ============================================================
+
+model Asset {
+  id          Int         @id @default(autoincrement())
+  nameAr      String      @db.VarChar(150)
+  nameEn      String?     @db.VarChar(150)
+  type        AssetType
+  description String?     @db.Text
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  assignments AssetAssignment[]
+
+  @@map("assets")
+}
+
+model AssetAssignment {
+  id              Int         @id @default(autoincrement())
+  assetId         Int
+  asset           Asset       @relation(fields: [assetId], references: [id])
+  userId          Int
+  user            User        @relation(fields: [userId], references: [id])
+  status          AssetStatus @default(ASSIGNED)
+  assignedAt      DateTime    @default(now())
+  returnedAt      DateTime?
+  condition       String?     @db.VarChar(100)
+  assignPhotoUrl  String?     @db.VarChar(500)
+  returnPhotoUrl  String?     @db.VarChar(500)
+  notes           String?     @db.Text
+  assignedBy      Int?
+  returnedBy      Int?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([assetId])
+  @@index([userId])
+  @@index([status])
+  @@map("asset_assignments")
+}
+
+// ============================================================
+// LOCATION & GEOFENCING (التتبع اللحظي)
+// ============================================================
+
+model LocationHistory {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  latitude    Decimal   @db.Decimal(10, 7)
+  longitude   Decimal   @db.Decimal(10, 7)
+  accuracy    Decimal?  @db.Decimal(8, 2)
+  speed       Decimal?  @db.Decimal(6, 2)
+  heading     Decimal?  @db.Decimal(5, 2)
+  recordedAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([recordedAt])
+  @@map("location_history")
+}
+
+model Zone {
+  id          Int       @id @default(autoincrement())
+  nameAr      String    @db.VarChar(150)
+  nameEn      String?   @db.VarChar(150)
+  description String?   @db.Text
+  // GeoJSON polygon stored as JSON
+  boundary    Json
+  isRestricted Boolean  @default(false)
+  isActive    Boolean   @default(true)
+  alertMessage String?  @db.VarChar(500)
+  createdBy   Int?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("zones")
+}
+
+// ============================================================
+// BREAK REQUESTS (طلب استراحة)
+// ============================================================
+
+model BreakRequest {
+  id          Int         @id @default(autoincrement())
+  shiftId     Int
+  shift       Shift       @relation(fields: [shiftId], references: [id])
+  userId      Int
+  user        User        @relation(fields: [userId], references: [id])
+  reason      String      @db.Text
+  status      BreakStatus @default(REQUESTED)
+  reviewedBy  Int?
+  reviewedAt  DateTime?
+  reviewNotes String?     @db.Text
+  requestedAt DateTime    @default(now())
+  createdAt   DateTime    @default(now())
+
+  @@index([shiftId])
+  @@index([userId])
+  @@index([status])
+  @@map("break_requests")
+}
+
+// ============================================================
+// COMPLAINTS (شكاوى)
+// ============================================================
+
+model Complaint {
+  id          Int           @id @default(autoincrement())
+  type        ComplaintType
+  filedById   Int
+  filedBy     User          @relation("ComplaintFiler", fields: [filedById], references: [id])
+  subjectId   Int
+  subject     User          @relation("ComplaintSubject", fields: [subjectId], references: [id])
+  title       String        @db.VarChar(300)
+  details     String        @db.Text
+  status      RequestStatus @default(PENDING)
+  attachmentUrl String?     @db.VarChar(500)
+  reviewedBy  Int?
+  reviewedAt  DateTime?
+  reviewNotes String?       @db.Text
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([filedById])
+  @@index([subjectId])
+  @@index([status])
+  @@map("complaints")
+}
+
+// ============================================================
+// ADMIN REQUESTS (طلبات إدارية)
+// ============================================================
+
+model AdminRequest {
+  id            Int              @id @default(autoincrement())
+  userId        Int
+  user          User             @relation(fields: [userId], references: [id])
+  type          AdminRequestType
+  title         String           @db.VarChar(300)
+  details       String           @db.Text
+  attachmentUrl String?          @db.VarChar(500)
+  attachmentName String?         @db.VarChar(255)
+  status        RequestStatus    @default(PENDING)
+  reviewedBy    Int?
+  reviewedAt    DateTime?
+  reviewNotes   String?          @db.Text
+  metadata      Json?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@map("admin_requests")
+}
+
+// ============================================================
+// LICENSE TESTS (اختبار الرخصة)
+// ============================================================
+
+model LicenseTest {
+  id                Int               @id @default(autoincrement())
+  userId            Int
+  user              User              @relation(fields: [userId], references: [id])
+  testDate          DateTime?
+  result            LicenseTestResult?
+  isRetest          Boolean           @default(false)
+  previousTestId    Int?
+  notes             String?           @db.Text
+  scheduledBy       Int?
+  resultSetBy       Int?
+  resultSetAt       DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([userId])
+  @@index([result])
+  @@map("license_tests")
+}
+
+// ============================================================
+// CANCELED ORDER LOGS (طلبات ملغاة)
+// ============================================================
+
+model CanceledOrderLog {
+  id            Int       @id @default(autoincrement())
+  userId        Int
+  user          User      @relation(fields: [userId], references: [id])
+  orderRef      String?   @db.VarChar(100)
+  reason        String    @db.Text
+  invoiceUrl    String?   @db.VarChar(500)
+  photoUrl      String?   @db.VarChar(500)
+  discountAmount Decimal? @db.Decimal(10, 2)
+  platformName  String?   @db.VarChar(100)
+  orderDate     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([orderDate])
+  @@map("canceled_order_logs")
+}
+
+// ============================================================
+// TRAINEE TRACKING (المتدربون)
+// ============================================================
+
+model Trainee {
+  id              Int       @id @default(autoincrement())
+  traineeId       Int
+  trainee         User      @relation("TraineeUser", fields: [traineeId], references: [id])
+  trainerId       Int
+  trainer         User      @relation("TrainerUser", fields: [trainerId], references: [id])
+  startDate       DateTime
+  endDate         DateTime?
+  totalDays       Int       @default(30)
+  isCompleted     Boolean   @default(false)
+  completedAt     DateTime?
+  rewardIssued    Boolean   @default(false)
+  rewardAmount    Decimal?  @db.Decimal(10, 2)
+  notes           String?   @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([traineeId])
+  @@index([trainerId])
+  @@index([isCompleted])
+  @@map("trainees")
+}
+
+// ============================================================
+// SUBSTITUTE VEHICLE ASSIGNMENT (مركبة بديلة)
+// ============================================================
+
+model SubstituteVehicleAssignment {
+  id              Int       @id @default(autoincrement())
+  vehicleId       Int
+  vehicle         Vehicle   @relation(fields: [vehicleId], references: [id])
+  originalVehicleId Int?
+  userId          Int?
+  startDate       DateTime
+  endDate         DateTime?
+  reason          String?   @db.Text
+  isActive        Boolean   @default(true)
+  assignedBy      Int?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([vehicleId])
+  @@index([isActive])
+  @@map("substitute_vehicle_assignments")
+}
+
+// ============================================================
+// OIL CHANGE LOGS (سجل تغيير الزيت)
+// ============================================================
+
+model OilChangeLog {
+  id              Int       @id @default(autoincrement())
+  vehicleId       Int
+  vehicle         Vehicle   @relation(fields: [vehicleId], references: [id])
+  odometerAtChange Int
+  changeDate      DateTime  @default(now())
+  nextDueOdometer Int?
+  maintenanceReqId Int?
+  notes           String?   @db.Text
+  performedBy     Int?
+  createdAt       DateTime  @default(now())
+
+  @@index([vehicleId])
+  @@map("oil_change_logs")
+}
+
+// ============================================================
+// VEHICLE SWAP REQUESTS (طلب تبديل مركبة)
+// ============================================================
+
+model VehicleSwapRequest {
+  id              Int               @id @default(autoincrement())
+  shiftId         Int
+  shift           Shift             @relation(fields: [shiftId], references: [id])
+  userId          Int
+  user            User              @relation(fields: [userId], references: [id])
+  currentVehicleId Int
+  currentVehicle  Vehicle           @relation(fields: [currentVehicleId], references: [id])
+  reason          String            @db.Text
+  status          VehicleSwapStatus @default(REQUESTED)
+  newVehicleId    Int?
+  reviewedBy      Int?
+  reviewedAt      DateTime?
+  reviewNotes     String?           @db.Text
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([shiftId])
+  @@index([userId])
+  @@index([status])
+  @@map("vehicle_swap_requests")
+}
+
+// ============================================================
+// SCHEDULED REMINDERS (تنبيهات مواعيد)
+// ============================================================
+
+model ScheduledReminder {
+  id            Int       @id @default(autoincrement())
+  targetUserId  Int
+  targetUser    User      @relation("ReminderTarget", fields: [targetUserId], references: [id])
+  createdById   Int
+  createdBy     User      @relation("ReminderCreator", fields: [createdById], references: [id])
+  title         String    @db.VarChar(300)
+  body          String    @db.Text
+  triggerDate   DateTime
+  isSent        Boolean   @default(false)
+  sentAt        DateTime?
+  category      String?   @db.VarChar(100)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([targetUserId])
+  @@index([triggerDate])
+  @@index([isSent])
+  @@map("scheduled_reminders")
 }

@@ -157,6 +157,11 @@ router.post('/', authenticate, upload.single('file'), async (req, res, next) => 
       else await assertCanAccessDriverRecord(req, userId);
     }
     const data = { ...req.body, userId, platformId: parseInt(req.body.platformId, 10) };
+    // New fields for multi-account support
+    if (data.isAlternate !== undefined) data.isAlternate = data.isAlternate === 'true' || data.isAlternate === true;
+    if (data.receiptDate) data.receiptDate = new Date(data.receiptDate);
+    if (data.returnDate) data.returnDate = new Date(data.returnDate);
+    if (data.startWorkDate) data.startWorkDate = new Date(data.startWorkDate);
     if (req.file) data.fileUrl = normalizeStoredUploadPath(req.file.path);
     const item = await prisma.platformAccount.create({ data });
     return ApiResponse.created(res, item, 'Platform account created');
@@ -181,6 +186,11 @@ router.put('/:id', authenticate, upload.single('file'), async (req, res, next) =
       await assertCanAccessDriverRecord(req, newUid);
     }
     if (data.platformId) data.platformId = parseInt(data.platformId, 10);
+    // New fields for multi-account support
+    if (data.isAlternate !== undefined) data.isAlternate = data.isAlternate === 'true' || data.isAlternate === true;
+    if (data.receiptDate) data.receiptDate = new Date(data.receiptDate);
+    if (data.returnDate) data.returnDate = new Date(data.returnDate);
+    if (data.startWorkDate) data.startWorkDate = new Date(data.startWorkDate);
     if (req.file) data.fileUrl = normalizeStoredUploadPath(req.file.path);
     const item = await prisma.platformAccount.update({ where: { id: parseInt(req.params.id, 10) }, data });
     return ApiResponse.success(res, item, 'Platform account updated');

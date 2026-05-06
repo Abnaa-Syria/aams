@@ -33,6 +33,18 @@ const auditLogRoutes = require('../modules/auditLogs/routes');
 const dashboardRoutes = require('../modules/dashboard/routes');
 const reportsRoutes = require('../modules/reports/routes');
 const adminUserRoutes = require('../modules/adminUsers/routes');
+const assetRoutes = require('../modules/assets/routes');
+const geofencingRoutes = require('../modules/geofencing/routes');
+const complaintRoutes = require('../modules/complaints/routes');
+const adminRequestRoutes = require('../modules/adminRequests/routes');
+const breakRequestRoutes = require('../modules/breakRequests/routes');
+const vehicleSwapRoutes = require('../modules/vehicleSwaps/routes');
+const traineeRoutes = require('../modules/trainees/routes');
+const licenseTestRoutes = require('../modules/licenseTests/routes');
+const canceledOrderRoutes = require('../modules/canceledOrders/routes');
+const oilChangeLogRoutes = require('../modules/oilChangeLogs/routes');
+const substituteVehicleRoutes = require('../modules/substituteVehicles/routes');
+const scheduledReminderRoutes = require('../modules/scheduledReminders/routes');
 
 const v1RouteModules = [
   { segment: 'auth', router: authRoutes },
@@ -64,6 +76,18 @@ const v1RouteModules = [
   { segment: 'dashboard', router: dashboardRoutes },
   { segment: 'reports', router: reportsRoutes },
   { segment: 'admin-users', router: adminUserRoutes },
+  { segment: 'assets', router: assetRoutes },
+  { segment: 'geofencing', router: geofencingRoutes },
+  { segment: 'complaints', router: complaintRoutes },
+  { segment: 'admin-requests', router: adminRequestRoutes },
+  { segment: 'break-requests', router: breakRequestRoutes },
+  { segment: 'vehicle-swaps', router: vehicleSwapRoutes },
+  { segment: 'trainees', router: traineeRoutes },
+  { segment: 'license-tests', router: licenseTestRoutes },
+  { segment: 'canceled-orders', router: canceledOrderRoutes },
+  { segment: 'oil-change-logs', router: oilChangeLogRoutes },
+  { segment: 'substitute-vehicles', router: substituteVehicleRoutes },
+  { segment: 'scheduled-reminders', router: scheduledReminderRoutes },
 ];
 
 function mountV1Routes(app, apiV1Base = '/api/v1') {

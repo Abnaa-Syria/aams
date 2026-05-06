@@ -1,0 +1,51 @@
+const FuelLogService = require('./service');
+const ApiResponse = require('../../utils/response');
+
+class FuelLogController {
+  static async listLogs(req, res, next) {
+    try {
+      const result = await FuelLogService.list(req.query, req.user);
+      return ApiResponse.paginated(res, result.items, result.meta);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async getLog(req, res, next) {
+    try {
+      const log = await FuelLogService.getById(req.params.id, req.user);
+      return ApiResponse.success(res, log);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async createLog(req, res, next) {
+    try {
+      const log = await FuelLogService.create(req.user.id, req.body, req.file);
+      return ApiResponse.created(res, log, 'Fuel log submitted successfully');
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async reviewLog(req, res, next) {
+    try {
+      const log = await FuelLogService.review(req.params.id, req.user.id, req.body);
+      return ApiResponse.success(res, log, 'Fuel log reviewed successfully');
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async deleteLog(req, res, next) {
+    try {
+      await FuelLogService.delete(req.params.id, req.user.id);
+      return ApiResponse.success(res, null, 'Fuel log deleted successfully');
+    } catch (err) {
+      next(err);
+    }
+  }
+}
+
+module.exports = FuelLogController;

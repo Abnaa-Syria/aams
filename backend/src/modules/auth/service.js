@@ -76,17 +76,37 @@ function assertAccountCanAuthenticate(user) {
   }
 }
 
+async function storeRefreshToken(userId, token) {
+  const expiresAt = new Date();
+  const days = parseInt(config.jwt.refreshExpiresIn, 10) || 7;
+  expiresAt.setDate(expiresAt.getDate() + days);
+
+  await prisma.refreshToken.create({
+    data: {
+      userId,
+      token,
+      expiresAt,
+    },
+  });
+}
+
 class AuthService {
-  static async loginWithIdentityPassword(identityNumber, password, req) {
+  static async loginWithPassword(identifiers, password, req) {
     assertJwtSecrets();
     const { ipAddress, userAgent } = getClientMeta(req);
 
-    const user = await prisma.user.findFirst({
-      where: {
-        identityNumber,
-        deletedAt: null,
-      },
-    });
+    // Build dynamic where clause based on provided identifier
+    const whereClause = { deletedAt: null };
+    if (identifiers.identityNumber) {
+      whereClause.identityNumber = identifiers.identityNumber;
+    } else if (identifiers.mobileNumber) {
+      whereClause.mobileNumber = identifiers.mobileNumber;
+    } else if (identifiers.iqamaNumber) {
+      // iqamaNumber maps to identityNumber in the DB (Iqama IS the identity for residents)
+      whereClause.identityNumber = identifiers.iqamaNumber;
+    }
+
+    const user = await prisma.user.findFirst({ where: whereClause });
 
     if (!user) {
       throw new AuthenticationError('Invalid credentials');
@@ -113,6 +133,8 @@ class AuthService {
       where: { id: user.id },
       data: { lastLoginAt: new Date(), otpCode: null, otpExpiresAt: null },
     });
+
+    await storeRefreshToken(user.id, refreshToken);
 
     await recordLoginActivity(user.id, true, ipAddress, userAgent);
 
@@ -212,6 +234,8 @@ class AuthService {
       data: { lastLoginAt: new Date(), otpCode: null, otpExpiresAt: null },
     });
 
+    await storeRefreshToken(user.id, refreshToken);
+
     await recordLoginActivity(user.id, true, ipAddress, userAgent);
 
     return {
@@ -225,35 +249,40 @@ class AuthService {
   static async refreshTokens(refreshToken) {
     assertJwtSecrets();
 
+    const storedToken = await prisma.refreshToken.findUnique({
+      where: { token: refreshToken },
+      include: { user: true },
+    });
+
+    if (!storedToken || (storedToken.expiresAt < new Date()) || storedToken.revokedAt) {
+      if (storedToken) {
+        await prisma.refreshToken.delete({ where: { id: storedToken.id } });
+      }
+      throw new AuthenticationError('Invalid or expired refresh token');
+    }
+
     let decoded;
     try {
       decoded = jwt.verify(refreshToken, config.jwt.refreshSecret);
     } catch {
+      await prisma.refreshToken.delete({ where: { id: storedToken.id } });
       throw new AuthenticationError('Invalid or expired refresh token');
     }
 
-    if (decoded.type !== 'refresh' || !decoded.userId) {
-      throw new AuthenticationError('Invalid refresh token');
-    }
+    assertAccountCanAuthenticate(storedToken.user);
 
-    const user = await prisma.user.findFirst({
-      where: { id: decoded.userId, deletedAt: null },
-    });
-
-    if (!user) {
-      throw new AuthenticationError('User not found');
-    }
-
-    assertAccountCanAuthenticate(user);
-
-    const accessToken = jwt.sign({ userId: user.id }, config.jwt.secret, {
+    const accessToken = jwt.sign({ userId: storedToken.userId }, config.jwt.secret, {
       expiresIn: config.jwt.expiresIn,
     });
     const newRefreshToken = jwt.sign(
-      { userId: user.id, type: 'refresh' },
+      { userId: storedToken.userId, type: 'refresh' },
       config.jwt.refreshSecret,
       { expiresIn: config.jwt.refreshExpiresIn }
     );
+
+    // Rotate tokens: delete old one and store new one
+    await prisma.refreshToken.delete({ where: { id: storedToken.id } });
+    await storeRefreshToken(storedToken.userId, newRefreshToken);
 
     return {
       accessToken,
@@ -368,6 +397,8 @@ class AuthService {
       data: { lastLoginAt: new Date(), otpCode: null, otpExpiresAt: null },
     });
 
+    await storeRefreshToken(user.id, refreshToken);
+
     await recordLoginActivity(user.id, true, ipAddress, userAgent);
 
     await logAudit({
@@ -404,6 +435,13 @@ class AuthService {
         role: true,
         accountStatus: true,
         availabilityStatus: true,
+        employmentStatus: true,
+        transportType: true,
+        sevenHundredNumber: true,
+        emergencyName: true,
+        emergencyRelation: true,
+        emergencyPhone: true,
+        roomNumber: true,
         employeeNumber: true,
         joinDate: true,
         contractEndDate: true,
@@ -444,6 +482,12 @@ class AuthService {
 
   static async logout(userId, req) {
     const { ipAddress, userAgent } = getClientMeta(req);
+
+    // Revoke all tokens for this user on logout
+    await prisma.refreshToken.deleteMany({
+      where: { userId },
+    });
+
     await logAudit({
       userId,
       action: 'LOGOUT',

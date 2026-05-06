@@ -112,6 +112,9 @@ router.post('/', authenticate, async (req, res, next) => {
       amount: parseFloat(req.body.amount),
       reason: req.body.reason,
       notes: req.body.notes,
+      numberOfMonths: req.body.numberOfMonths ? parseInt(req.body.numberOfMonths, 10) : undefined,
+      installmentAmount: req.body.installmentAmount ? parseFloat(req.body.installmentAmount) : undefined,
+      deductFromCurrent: req.body.deductFromCurrent !== undefined ? req.body.deductFromCurrent === true || req.body.deductFromCurrent === 'true' : undefined,
     };
     const item = await prisma.salaryAdvance.create({ data });
     return ApiResponse.created(res, item, 'Salary advance requested');
@@ -152,6 +155,9 @@ router.patch('/:id/review', ...adminPerm(P.FINANCE_APPROVE), async (req, res, ne
         status: req.body.status,
         reviewedBy: req.user.id, reviewedAt: new Date(),
         reviewNotes: req.body.reviewNotes, financeNotes: req.body.financeNotes,
+        ...(req.body.numberOfMonths !== undefined && { numberOfMonths: parseInt(req.body.numberOfMonths, 10) }),
+        ...(req.body.installmentAmount !== undefined && { installmentAmount: parseFloat(req.body.installmentAmount) }),
+        ...(req.body.deductFromCurrent !== undefined && { deductFromCurrent: req.body.deductFromCurrent === true || req.body.deductFromCurrent === 'true' }),
       },
     });
     await logAudit({ userId: req.user.id, action: 'REVIEW_SALARY_ADVANCE', entity: 'SalaryAdvance', entityId: String(req.params.id) });

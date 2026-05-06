@@ -1,5 +1,8 @@
 const { z } = require('zod');
 
+const EMPLOYMENT_STATUSES = ['ON_DUTY', 'ON_LEAVE', 'SUSPENDED', 'RUNAWAY', 'FINAL_EXIT'];
+const TRANSPORT_TYPES = ['CAR', 'MOTORCYCLE', 'TRUCK'];
+
 const listUsersSchema = z.object({
   query: z.object({
     page: z.string().optional(),
@@ -7,8 +10,14 @@ const listUsersSchema = z.object({
     search: z.string().optional(),
     role: z.string().optional(),
     accountStatus: z.string().optional(),
+    employmentStatus: z.enum(EMPLOYMENT_STATUSES).optional(),
+    transportType: z.enum(TRANSPORT_TYPES).optional(),
     cityId: z.string().optional(),
     supervisorId: z.string().optional(),
+    sevenHundredNumber: z.string().optional(),
+    roomNumber: z.string().optional(),
+    hasBankAccount: z.enum(['true', 'false']).optional(),
+    paymentMethod: z.enum(['BANK_TRANSFER', 'CASH']).optional(),
     sortBy: z.string().optional(),
     sortOrder: z.enum(['asc', 'desc']).optional(),
   }),
@@ -29,6 +38,13 @@ const createUserSchema = z.object({
     nationality: z.string().max(80).optional(),
     role: z.enum(['SUPER_ADMIN', 'OPERATIONS_ADMIN', 'HR_ADMIN', 'FLEET_ADMIN', 'FINANCE_ADMIN', 'SUPERVISOR', 'DRIVER']).optional(),
     accountStatus: z.enum(['ACTIVE', 'TEMPORARILY_SUSPENDED', 'RESTRICTED', 'UNDER_INVESTIGATION', 'PENDING_APPROVAL', 'INCOMPLETE_PROFILE', 'ARCHIVED']).optional(),
+    employmentStatus: z.enum(EMPLOYMENT_STATUSES).optional(),
+    transportType: z.enum(TRANSPORT_TYPES).optional(),
+    sevenHundredNumber: z.string().max(50).optional(),
+    emergencyName: z.string().max(150).optional(),
+    emergencyRelation: z.string().max(100).optional(),
+    emergencyPhone: z.string().max(20).optional(),
+    roomNumber: z.string().max(50).optional(),
     employeeNumber: z.string().max(50).optional(),
     joinDate: z.string().optional(),
     contractEndDate: z.string().optional(),
@@ -52,6 +68,13 @@ const updateUserSchema = z.object({
     dateOfBirth: z.string().optional(),
     nationality: z.string().max(80).optional(),
     role: z.enum(['SUPER_ADMIN', 'OPERATIONS_ADMIN', 'HR_ADMIN', 'FLEET_ADMIN', 'FINANCE_ADMIN', 'SUPERVISOR', 'DRIVER']).optional(),
+    employmentStatus: z.enum(EMPLOYMENT_STATUSES).optional(),
+    transportType: z.enum(TRANSPORT_TYPES).nullable().optional(),
+    sevenHundredNumber: z.string().max(50).nullable().optional(),
+    emergencyName: z.string().max(150).nullable().optional(),
+    emergencyRelation: z.string().max(100).nullable().optional(),
+    emergencyPhone: z.string().max(20).nullable().optional(),
+    roomNumber: z.string().max(50).nullable().optional(),
     employeeNumber: z.string().max(50).optional(),
     joinDate: z.string().optional(),
     contractEndDate: z.string().optional(),

@@ -45,6 +45,7 @@ router.get('/', ...adminPerm(P.FINANCE_READ), async (req, res, next) => {
       deletedAt: null,
       ...(req.query.userId && { userId: parseInt(req.query.userId) }),
       ...(req.query.verificationStatus && { verificationStatus: req.query.verificationStatus }),
+      ...(req.query.paymentMethod && { paymentMethod: req.query.paymentMethod }),
     };
     const [items, total] = await Promise.all([
       prisma.bankAccount.findMany({ where, skip, take: limit, orderBy: { createdAt: 'desc' }, include: { user: { select: { id: true, fullNameAr: true, identityNumber: true } } } }),
@@ -137,21 +138,36 @@ router.get('/:id', authenticate, async (req, res, next) => {
  *       201:
  *         description: Created
  */
-router.post('/', authenticate, upload.single('proofFile'), async (req, res, next) => {
+router.post('/', authenticate, upload.fields([{ name: 'proofFile', maxCount: 1 }, { name: 'cashReceiptFile', maxCount: 1 }]), async (req, res, next) => {
   try {
     let userId = parseInt(req.body.userId, 10);
     if (!ADMIN_ROLES.has(req.user.role)) {
       if (req.user.role === 'DRIVER') userId = req.user.id;
       else await assertCanAccessDriverRecord(req, userId);
     }
-    const data = { ...req.body, userId, isDefault: req.body.isDefault === 'true' };
-    if (req.file) { data.proofFileUrl = normalizeStoredUploadPath(req.file.path); data.proofFileName = req.file.originalname; }
+    const data = {
+      ...req.body,
+      userId,
+      isDefault: req.body.isDefault === 'true',
+      paymentMethod: req.body.paymentMethod || 'BANK_TRANSFER',
+    };
+    // Handle receivedDate conversion
+    if (data.receivedDate) data.receivedDate = new Date(data.receivedDate);
+    // Handle file uploads
+    const files = req.files || {};
+    if (files.proofFile && files.proofFile[0]) {
+      data.proofFileUrl = normalizeStoredUploadPath(files.proofFile[0].path);
+      data.proofFileName = files.proofFile[0].originalname;
+    }
+    if (files.cashReceiptFile && files.cashReceiptFile[0]) {
+      data.cashReceiptPhotoUrl = normalizeStoredUploadPath(files.cashReceiptFile[0].path);
+    }
     const item = await prisma.bankAccount.create({ data });
     return ApiResponse.created(res, item, 'Bank account created');
   } catch (err) { next(err); }
 });
 
-router.put('/:id', authenticate, upload.single('proofFile'), async (req, res, next) => {
+router.put('/:id', authenticate, upload.fields([{ name: 'proofFile', maxCount: 1 }, { name: 'cashReceiptFile', maxCount: 1 }]), async (req, res, next) => {
   try {
     const existing = await prisma.bankAccount.findFirst({
       where: { id: parseInt(req.params.id, 10), deletedAt: null },
@@ -169,7 +185,16 @@ router.put('/:id', authenticate, upload.single('proofFile'), async (req, res, ne
       await assertCanAccessDriverRecord(req, newUid);
     }
     if (data.isDefault !== undefined) data.isDefault = data.isDefault === 'true' || data.isDefault === true;
-    if (req.file) { data.proofFileUrl = normalizeStoredUploadPath(req.file.path); data.proofFileName = req.file.originalname; }
+    if (data.receivedDate) data.receivedDate = new Date(data.receivedDate);
+    // Handle file uploads
+    const files = req.files || {};
+    if (files.proofFile && files.proofFile[0]) {
+      data.proofFileUrl = normalizeStoredUploadPath(files.proofFile[0].path);
+      data.proofFileName = files.proofFile[0].originalname;
+    }
+    if (files.cashReceiptFile && files.cashReceiptFile[0]) {
+      data.cashReceiptPhotoUrl = normalizeStoredUploadPath(files.cashReceiptFile[0].path);
+    }
     const item = await prisma.bankAccount.update({ where: { id: parseInt(req.params.id, 10) }, data });
     return ApiResponse.success(res, item, 'Bank account updated');
   } catch (err) { next(err); }

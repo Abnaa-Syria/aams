@@ -93,10 +93,33 @@ class ShiftService {
     const platformAccount = await prisma.platformAccount.findFirst({ where: { id: data.platformAccountId, userId, status: 'ACTIVE', deletedAt: null } });
     if (!platformAccount) throw new BusinessLogicError('Platform account not found or inactive');
 
+    // Odometer validation: must not be less than vehicle's last recorded odometer
+    if (data.startOdometer < (vehicle.odometerKm || 0)) {
+      throw new BusinessLogicError(`Start odometer (${data.startOdometer}) cannot be less than vehicle's last recorded reading (${vehicle.odometerKm})`);
+    }
+
     const shift = await prisma.shift.create({
       data: {
-        userId, vehicleId: data.vehicleId, platformAccountId: data.platformAccountId,
-        startPhotoUrl: data.startPhotoUrl, notes: data.notes, status: 'REQUESTED',
+        userId,
+        vehicleId: data.vehicleId,
+        platformAccountId: data.platformAccountId,
+        startPhotoUrl: data.startPhotoUrl,
+        startAppPhotoUrl: data.startAppPhotoUrl,
+        startOdometer: data.startOdometer,
+        notes: data.notes,
+        status: 'REQUESTED',
+      },
+    });
+
+    // Log the starting odometer
+    await prisma.vehicleOdometerLog.create({
+      data: {
+        vehicleId: data.vehicleId,
+        userId,
+        shiftId: shift.id,
+        reading: data.startOdometer,
+        photoUrl: data.startOdometerPhotoUrl || data.startPhotoUrl,
+        type: 'START_SHIFT',
       },
     });
 
@@ -155,13 +178,64 @@ class ShiftService {
     if (shift.userId !== userId) throw new BusinessLogicError('Not your shift');
     if (shift.status !== 'ACTIVE') throw new BusinessLogicError('Shift is not active');
 
+    // Odometer validation: must not be less than start odometer
+    if (data.endOdometer && data.endOdometer < (shift.startOdometer || 0)) {
+      throw new BusinessLogicError(`End odometer (${data.endOdometer}) cannot be less than start reading (${shift.startOdometer})`);
+    }
+
     const updated = await prisma.shift.update({
       where: { id: parseInt(shiftId) },
-      data: { status: 'ENDED', endedAt: new Date(), endPhotoUrl: data.endPhotoUrl, notes: data.notes },
+      data: {
+        status: 'ENDED',
+        endedAt: new Date(),
+        endPhotoUrl: data.endPhotoUrl,
+        endAppPhotoUrl: data.endAppPhotoUrl,
+        endOdometer: data.endOdometer,
+        notes: data.notes,
+        closureRequested: true,
+      },
     });
+
+    // Log the ending odometer and update vehicle current odometer
+    if (data.endOdometer) {
+      await prisma.vehicleOdometerLog.create({
+        data: {
+          vehicleId: shift.vehicleId,
+          userId,
+          shiftId: shift.id,
+          reading: data.endOdometer,
+          photoUrl: data.endOdometerPhotoUrl || data.endPhotoUrl,
+          type: 'END_SHIFT',
+        },
+      });
+
+      await prisma.vehicle.update({
+        where: { id: shift.vehicleId },
+        data: { odometerKm: data.endOdometer },
+      });
+    }
 
     await prisma.user.update({ where: { id: userId }, data: { availabilityStatus: 'AVAILABLE' } });
     await prisma.shiftLog.create({ data: { shiftId: parseInt(shiftId), action: 'SHIFT_ENDED', performedBy: userId } });
+    return updated;
+  }
+
+  static async approveClosure(shiftId, adminUser) {
+    const shift = await prisma.shift.findUnique({ where: { id: parseInt(shiftId) } });
+    if (!shift) throw new NotFoundError('Shift');
+    if (shift.status !== 'ENDED') throw new BusinessLogicError('Shift is not ENDED');
+    if (shift.closureApprovedAt) throw new BusinessLogicError('Closure already approved');
+
+    const updated = await prisma.shift.update({
+      where: { id: parseInt(shiftId) },
+      data: {
+        closureApprovedBy: adminUser.id,
+        closureApprovedAt: new Date(),
+      },
+    });
+
+    await prisma.shiftLog.create({ data: { shiftId: parseInt(shiftId), action: 'SHIFT_CLOSURE_APPROVED', performedBy: adminUser.id } });
+    await logAudit({ userId: adminUser.id, action: 'APPROVE_SHIFT_CLOSURE', entity: 'Shift', entityId: String(shiftId) });
     return updated;
   }
 

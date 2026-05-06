@@ -18,6 +18,13 @@ const USER_SELECT = {
   role: true,
   accountStatus: true,
   availabilityStatus: true,
+  employmentStatus: true,
+  transportType: true,
+  sevenHundredNumber: true,
+  emergencyName: true,
+  emergencyRelation: true,
+  emergencyPhone: true,
+  roomNumber: true,
   employeeNumber: true,
   joinDate: true,
   contractEndDate: true,
@@ -47,6 +54,9 @@ const USER_DETAIL_SELECT = {
       penalties: true,
       rewards: true,
       leaveRequests: true,
+      assetAssignments: true,
+      complaints: true,
+      adminRequests: true,
     },
   },
 };
@@ -55,16 +65,34 @@ class UserService {
   static async list(query) {
     const { page, limit, skip } = getPaginationParams(query);
     const orderBy = buildOrderBy(query, ['createdAt', 'fullNameAr', 'fullNameEn', 'identityNumber', 'employeeNumber']);
-    const searchFilter = buildSearchFilter(query, ['fullNameAr', 'fullNameEn', 'identityNumber', 'mobileNumber', 'email', 'employeeNumber']);
+    const searchFilter = buildSearchFilter(query, ['fullNameAr', 'fullNameEn', 'identityNumber', 'mobileNumber', 'email', 'employeeNumber', 'sevenHundredNumber']);
 
     const where = {
       deletedAt: null,
       ...searchFilter,
       ...(query.role && { role: query.role }),
       ...(query.accountStatus && { accountStatus: query.accountStatus }),
+      ...(query.employmentStatus && { employmentStatus: query.employmentStatus }),
+      ...(query.transportType && { transportType: query.transportType }),
       ...(query.cityId && { cityId: parseInt(query.cityId) }),
       ...(query.supervisorId && { supervisorId: parseInt(query.supervisorId) }),
+      ...(query.sevenHundredNumber && { sevenHundredNumber: query.sevenHundredNumber }),
+      ...(query.roomNumber && { roomNumber: query.roomNumber }),
     };
+
+    // Filter by bank account existence or payment method
+    if (query.hasBankAccount === 'true') {
+      where.bankAccounts = { some: {} };
+    } else if (query.hasBankAccount === 'false') {
+      where.bankAccounts = { none: {} };
+    }
+
+    if (query.paymentMethod) {
+      where.bankAccounts = {
+        ...(where.bankAccounts || {}),
+        some: { paymentMethod: query.paymentMethod },
+      };
+    }
 
     const [users, total] = await Promise.all([
       prisma.user.findMany({ where, select: USER_SELECT, skip, take: limit, orderBy }),

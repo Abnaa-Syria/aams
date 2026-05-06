@@ -32,6 +32,12 @@ class ShiftController {
       return ApiResponse.success(res, shift, 'Shift rejected');
     } catch (err) { next(err); }
   }
+  static async approveClosure(req, res, next) {
+    try {
+      const shift = await ShiftService.approveClosure(req.params.id, req.user);
+      return ApiResponse.success(res, shift, 'Shift closure approved');
+    } catch (err) { next(err); }
+  }
   static async startShift(req, res, next) {
     try {
       const shift = await ShiftService.startShift(req.params.id, req.user.id);
