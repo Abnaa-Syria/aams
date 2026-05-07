@@ -1,6 +1,8 @@
+const http = require('http');
 const app = require('./app');
 const config = require('./config');
 const prisma = require('./config/database');
+const { initSocket } = require('./socket');
 
 async function main() {
   try {
@@ -14,11 +16,17 @@ async function main() {
     await prisma.$connect();
     console.log('Database connected successfully');
 
-    app.listen(config.port, (req, res) => {
-      console.log(res);
+    // Create raw HTTP server so Socket.io can share the same port
+    const httpServer = http.createServer(app);
+
+    // Attach Socket.io
+    initSocket(httpServer);
+
+    httpServer.listen(config.port, () => {
       console.log(`Server running on port ${config.port}`);
       console.log(`Swagger docs: http://localhost:${config.port}/api-docs`);
-      console.log(`Environment: ${config.nodeEnv}`);
+      console.log(`Socket.io:    ws://localhost:${config.port}`);
+      console.log(`Environment:  ${config.nodeEnv}`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);

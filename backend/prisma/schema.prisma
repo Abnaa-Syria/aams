@@ -750,6 +750,11 @@ model Shift {
   endAppPhotoUrl    String?       @db.VarChar(500)
   notes             String?       @db.Text
 
+  // Real-time tracking — latest known position (التتبع اللحظي)
+  lastLat           Float?
+  lastLng           Float?
+  lastLocationAt    DateTime?
+
   // Shift closure request (طلب إقفال شفت)
   closureRequested  Boolean       @default(false)
   closureApprovedBy Int?
