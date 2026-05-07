@@ -77,88 +77,135 @@ export default function DashboardLayout() {
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
+    <div className="flex min-h-screen bg-bg-main font-alexandria overflow-hidden">
+      {/* Sidebar */}
       <aside
-        style={{
-          width: sidebarOpen ? 260 : 0,
-          minWidth: sidebarOpen ? 260 : 0,
-          background: 'var(--bg-sidebar)',
-          color: 'white',
-          transition: 'all 0.3s',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          position: 'sticky',
-          top: 0,
-          height: '100vh',
-        }}
+        className={`bg-white shadow-2xl border-l border-slate-100 flex flex-col sticky top-0 h-screen z-[100] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          sidebarOpen ? 'w-[280px] min-w-[280px]' : 'w-0 min-w-0 opacity-0'
+        }`}
       >
-        <div style={{ padding: '20px', borderBottom: '1px solid rgba(255,255,255,0.1)', textAlign: 'center' }}>
-          <h1 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#F97316' }}>AAMS</h1>
-          <p style={{ fontSize: '0.7rem', color: '#94A3B8', marginTop: 4 }}>نظام إدارة العمليات</p>
+        {/* Brand Logo Section */}
+        <div className="p-6 border-b border-slate-100 flex items-center gap-4">
+          <div className="w-11 h-11 bg-primary-light rounded-2xl flex items-center justify-center p-2 shadow-sm">
+            <img 
+              src="/Frame 6 (1).png" 
+              alt="Logo" 
+              className="w-full h-full object-contain"
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
+          </div>
+          <div className="flex flex-col">
+            <h1 className="text-2xl font-bold text-brand-primary leading-none tracking-tight">AAMS</h1>
+            <span className="text-[0.7rem] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Logistic</span>
+          </div>
         </div>
 
-        <nav style={{ flex: 1, overflowY: 'auto', padding: '12px 0' }}>
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto py-6 px-3 custom-scrollbar">
           {menuGroups.map((group) => (
-            <div key={group.label} style={{ marginBottom: 4 }}>
+            <div key={group.label} className="mb-6">
               <button
                 type="button"
                 onClick={() => toggleGroup(group.label)}
-                style={{
-                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '8px 16px', background: 'none', border: 'none', color: '#94A3B8',
-                  fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'Almarai',
-                }}
+                className="w-full flex items-center justify-between px-4 py-2 text-slate-400 text-[0.75rem] font-black uppercase tracking-widest hover:text-brand-primary transition-colors mb-2"
               >
                 {group.label}
-                <LuChevronDown size={12} style={{ transform: collapsedGroups[group.label] ? 'rotate(-90deg)' : 'none', transition: 'transform 0.2s' }} />
+                <LuChevronDown 
+                  size={14} 
+                  className={`transition-transform duration-300 ${collapsedGroups[group.label] ? '-rotate-90' : ''}`} 
+                />
               </button>
-              {!collapsedGroups[group.label] && group.items.map((item) => (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  end={item.path === '/'}
-                  style={({ isActive }) => ({
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '10px 20px', textDecoration: 'none', fontSize: '0.85rem',
-                    color: isActive ? '#F97316' : '#CBD5E1',
-                    background: isActive ? 'rgba(249,115,22,0.1)' : 'transparent',
-                    borderRight: isActive ? '3px solid #F97316' : '3px solid transparent',
-                    transition: 'all 0.2s',
-                  })}
-                >
-                  <item.icon size={18} />
-                  {item.label}
-                </NavLink>
-              ))}
+              
+              <div className={`space-y-1.5 overflow-hidden transition-all duration-500 ${collapsedGroups[group.label] ? 'max-h-0 opacity-0' : 'max-h-[2000px] opacity-100'}`}>
+                {group.items.map((item) => (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    end={item.path === '/'}
+                    className={({ isActive }) => `
+                      flex items-center gap-3 px-4 py-2.5 rounded-2xl text-[0.9rem] font-bold transition-all duration-300 group
+                      ${isActive 
+                        ? 'bg-primary text-white shadow-orange' 
+                        : 'text-slate-500 hover:bg-slate-50 hover:text-primary'
+                      }
+                    `}
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <item.icon size={20} className={`transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110 group-hover:rotate-3'}`} />
+                        <span className="truncate">{item.label}</span>
+                      </>
+                    )}
+                  </NavLink>
+                ))}
+              </div>
             </div>
           ))}
         </nav>
 
-        <div style={{ padding: '16px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-          <div style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: 4 }}>{user?.fullNameAr || '...'}</div>
-          <div style={{ fontSize: '0.7rem', color: '#94A3B8', marginBottom: 12 }}>{user?.role || ''}</div>
-          <button type="button" onClick={handleLogout} className="btn btn-sm" style={{ width: '100%', background: 'rgba(239,68,68,0.15)', color: '#EF4444', justifyContent: 'center' }}>
-            <LuLogOut size={14} /> تسجيل الخروج
+        {/* User Profile Section */}
+        <div className="p-6 bg-slate-50/50 border-t border-slate-100 mt-auto">
+          <div className="flex items-center gap-3 mb-5 group cursor-pointer">
+            <div className="w-11 h-11 rounded-full bg-brand-light text-brand-primary flex items-center justify-center font-black text-lg border-2 border-white shadow-sm ring-1 ring-brand-primary/5 group-hover:ring-brand-primary/20 transition-all">
+              {user?.fullNameAr?.charAt(0) || 'م'}
+            </div>
+            <div className="flex flex-col min-w-0">
+              <div className="text-[0.95rem] font-black text-slate-800 truncate leading-tight">{user?.fullNameAr || '...'}</div>
+              <div className="text-[0.7rem] font-bold text-slate-400 uppercase truncate mt-0.5 tracking-wider">{user?.role || ''}</div>
+            </div>
+          </div>
+          <button 
+            type="button" 
+            onClick={handleLogout} 
+            className="flex items-center justify-center gap-2 w-full py-2.5 bg-white border border-red-100 text-red-500 rounded-2xl text-[0.85rem] font-black shadow-sm hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all duration-300"
+          >
+            <LuLogOut size={16} /> تسجيل الخروج
           </button>
         </div>
       </aside>
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <header style={{
-          background: 'white', borderBottom: '1px solid var(--border)',
-          padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          position: 'sticky', top: 0, zIndex: 100,
-        }}>
-          <button type="button" onClick={() => setSidebarOpen(!sidebarOpen)} className="btn-icon">
-            {sidebarOpen ? <LuX size={18} /> : <LuMenu size={18} />}
-          </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>مرحباً، {user?.fullNameAr || 'المدير'}</span>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+        {/* Top Header */}
+        <header className="bg-white/80 backdrop-blur-md border-b border-slate-100 px-8 py-5 flex items-center justify-between sticky top-0 z-90 shadow-sm">
+          <div className="flex items-center gap-8">
+            <button 
+              type="button" 
+              onClick={() => setSidebarOpen(!sidebarOpen)} 
+              className="w-11 h-11 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-500 hover:bg-brand-light hover:text-brand-primary hover:shadow-sm transition-all duration-300"
+            >
+              {sidebarOpen ? <LuX size={20} /> : <LuMenu size={20} />}
+            </button>
+            <div className="relative group hidden md:block">
+              <LuSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-brand-primary transition-colors" size={18} />
+              <input 
+                type="text" 
+                placeholder="ابحث عن سائق، مركبة، أو طلب..." 
+                className="bg-slate-50 border-none rounded-2xl pr-12 pl-6 py-3 w-[380px] text-sm font-bold placeholder:text-slate-400 focus:ring-2 focus:ring-brand-light focus:bg-white transition-all shadow-inner"
+              />
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-5">
+            <button className="relative w-11 h-11 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-all">
+              <LuBell size={20} />
+              <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-brand-primary border-2 border-white rounded-full"></span>
+            </button>
+            <div className="w-px h-6 bg-slate-200 mx-1"></div>
+            <div className="flex items-center gap-3">
+              <div className="flex flex-col items-end hidden sm:flex">
+                <span className="text-[0.7rem] font-black text-slate-400 uppercase tracking-wider">مرحباً بك</span>
+                <span className="text-sm font-black text-slate-800">{user?.fullNameAr || 'المدير'}</span>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-slate-100 border border-white shadow-sm flex items-center justify-center font-black text-slate-500 overflow-hidden">
+                {user?.fullNameAr?.charAt(0) || 'م'}
+              </div>
+            </div>
           </div>
         </header>
 
-        <main style={{ flex: 1, overflow: 'auto' }}>
+        {/* Page Content */}
+        <main className="flex-1 overflow-y-auto custom-scrollbar bg-bg-main/30 animate-in fade-in duration-700">
           <Outlet />
         </main>
       </div>

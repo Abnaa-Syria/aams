@@ -7,7 +7,7 @@ import DataTable from '../../components/ui/DataTable';
 import Modal from '../../components/ui/Modal';
 import RowActions from '../../components/ui/RowActions';
 import toast from 'react-hot-toast';
-import { LuArrowRight, LuUser, LuUserPlus } from 'react-icons/lu';
+import { LuArrowRight, LuUser, LuUserPlus, LuPhone, LuMail, LuIdCard, LuUsers, LuCalendar, LuBriefcase, LuExternalLink, LuUserMinus, LuChevronLeft } from 'react-icons/lu';
 import { hasAnyPermission, PERMISSIONS as P } from '../../utils/rolePermissions';
 
 export default function SupervisorDetailPage() {
@@ -91,8 +91,8 @@ export default function SupervisorDetailPage() {
 
   if (loading || !supervisor) {
     return (
-      <div className="page-container">
-        <div className="loading-spinner"><div className="spinner" /></div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="w-12 h-12 border-4 border-brand-light border-t-brand-primary rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -107,99 +107,214 @@ export default function SupervisorDetailPage() {
     ...(canWrite
       ? [{
         key: '__unlink',
-        label: 'إجراء',
+        label: 'الإجراءات التشغيلية',
         stopRowClick: true,
         render: (_, row) => (
-          <RowActions>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => navigate(`/drivers/${row.id}`)}>
-              عرض
+          <div className="flex items-center gap-2">
+            <button 
+              type="button" 
+              className="p-2 rounded-xl bg-slate-100 text-slate-500 hover:bg-brand-light hover:text-brand-primary transition-all shadow-sm" 
+              onClick={() => navigate(`/drivers/${row.id}`)}
+              title="عرض ملف السائق"
+            >
+              <LuExternalLink size={16} />
             </button>
-            <button type="button" className="btn btn-danger btn-sm" onClick={() => unassignDriver(row.id)}>
-              إلغاء الربط
+            <button 
+              type="button" 
+              className="p-2 rounded-xl bg-red-50 text-red-500 hover:bg-red-100 transition-all shadow-sm" 
+              onClick={() => unassignDriver(row.id)}
+              title="إلغاء الربط"
+            >
+              <LuUserMinus size={16} />
             </button>
-          </RowActions>
+          </div>
         ),
       }]
       : []),
   ];
 
   return (
-    <div className="page-container">
-      <div className="page-header" style={{ flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => navigate('/supervisors')}>
-            <LuArrowRight size={16} /> العودة للقائمة
-          </button>
-          <h2 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <LuUser /> {supervisor.fullNameAr}
-          </h2>
-          <StatusBadge status={supervisor.accountStatus} />
-        </div>
-        {canWrite && (
-          <button type="button" className="btn btn-primary btn-sm" onClick={openAssignModal}>
-            <LuUserPlus size={16} /> ربط سائقين
-          </button>
-        )}
-      </div>
+    <div className="page-container animate-in fade-in slide-in-from-bottom-4 duration-500">
+      
+      {/* Premium Profile Header */}
+      <div className="bg-white rounded-[2.5rem] p-8 shadow-premium border border-slate-100 mb-8 relative overflow-hidden group">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50/40 rounded-full blur-3xl -mr-32 -mt-32 opacity-60 pointer-events-none"></div>
+        
+        <div className="flex flex-col lg:flex-row items-center lg:items-end gap-8 relative z-10">
+          {/* Avatar Section */}
+          <div className="relative">
+            <div className="w-32 h-32 rounded-[2rem] bg-slate-50 border-4 border-white shadow-lg overflow-hidden flex items-center justify-center ring-1 ring-slate-100 group-hover:scale-105 transition-transform duration-500">
+              <LuUser size={48} className="text-slate-300" />
+            </div>
+            <div className="absolute -bottom-2 -right-2">
+               <StatusBadge status={supervisor.accountStatus} />
+            </div>
+          </div>
 
-      <div className="grid-2" style={{ marginBottom: 16 }}>
-        <div className="card">
-          <div className="card-header"><h4 className="card-title">بيانات المشرف</h4></div>
-          <div style={{ padding: 16, fontSize: '0.9rem', lineHeight: 1.8 }}>
-            <p><strong>رقم الهوية:</strong> {supervisor.identityNumber}</p>
-            <p><strong>الاسم بالإنجليزي:</strong> {supervisor.fullNameEn || '—'}</p>
-            <p><strong>الجوال:</strong> {supervisor.mobileNumber || '—'}</p>
-            <p><strong>البريد:</strong> {supervisor.email || '—'}</p>
-            <p><strong>المسمى الوظيفي:</strong> {supervisor.jobTitle || '—'}</p>
-            <p><strong>تاريخ الإنشاء:</strong> {supervisor.createdAt ? new Date(supervisor.createdAt).toLocaleDateString('ar-SA') : '—'}</p>
+          {/* Info Section */}
+          <div className="flex-1 text-center lg:text-right">
+            <div className="flex flex-col lg:flex-row items-center lg:items-center gap-4 mb-4">
+              <h2 className="text-3xl font-black text-slate-900 tracking-tight">{supervisor.fullNameAr}</h2>
+              <span className="text-[0.65rem] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full uppercase tracking-widest ring-1 ring-blue-100">مشرف عمليات</span>
+            </div>
+            
+            <div className="flex flex-wrap justify-center lg:justify-start gap-6 text-[0.85rem] font-bold text-slate-500">
+               <div className="flex items-center gap-2 hover:text-brand-primary transition-colors cursor-default">
+                  <LuPhone size={16} />
+                  <span>{supervisor.mobileNumber || '—'}</span>
+               </div>
+               <div className="flex items-center gap-2 hover:text-brand-primary transition-colors cursor-default">
+                  <LuMail size={16} />
+                  <span>{supervisor.email || '—'}</span>
+               </div>
+               <div className="flex items-center gap-2 hover:text-brand-primary transition-colors cursor-default">
+                  <LuBriefcase size={16} />
+                  <span>{supervisor.jobTitle || 'مشرف'}</span>
+               </div>
+            </div>
+          </div>
+
+          {/* Action Section */}
+          <div className="flex gap-3">
+             {canWrite && (
+                <button 
+                  onClick={openAssignModal}
+                  className="btn btn-primary !rounded-2xl shadow-orange"
+                >
+                  <LuUserPlus size={18} />
+                  ربط سائقين جدد
+                </button>
+             )}
+             <button 
+               onClick={() => navigate('/supervisors')}
+               className="btn bg-slate-100 text-slate-600 hover:bg-slate-200 !rounded-2xl"
+             >
+               <LuChevronLeft size={18} />
+               عودة
+             </button>
           </div>
         </div>
-        <div className="card">
-          <div className="card-header"><h4 className="card-title">ملخص</h4></div>
-          <div style={{ padding: 16, fontSize: '0.9rem', lineHeight: 1.8 }}>
-            <p><strong>عدد السائقين المرتبطين:</strong> {assigned.length}</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Supervisor Details Card */}
+        <div className="lg:col-span-1 space-y-6">
+          <div className="card !p-8 border-none ring-1 ring-slate-200/50">
+            <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
+              <LuIdCard className="text-brand-primary" size={20} />
+              البيانات التعريفية
+            </h3>
+            <div className="space-y-4">
+               <DetailItem label="رقم الهوية" value={supervisor.identityNumber} />
+               <DetailItem label="الاسم الدولي" value={supervisor.fullNameEn} />
+               <DetailItem label="تاريخ الانضمام" value={supervisor.createdAt ? new Date(supervisor.createdAt).toLocaleDateString('ar-SA') : '—'} />
+            </div>
+          </div>
+
+          <div className="card !p-8 border-none ring-1 ring-slate-200/50 bg-gradient-to-br from-brand-primary to-brand-active text-white">
+            <h3 className="text-lg font-black mb-6 flex items-center gap-2">
+              <LuUsers size={20} />
+              إحصائيات الإشراف
+            </h3>
+            <div className="text-center py-4">
+               <div className="text-5xl font-black mb-2">{assigned.length}</div>
+               <div className="text-xs font-bold uppercase tracking-widest opacity-80">سائق تحت الإشراف المباشر</div>
+            </div>
+            <div className="mt-6 pt-6 border-t border-white/10 text-[0.7rem] font-medium leading-relaxed opacity-70 italic text-center">
+              يتم تحديث هذه البيانات تلقائياً بناءً على تعيينات السائقين في النظام.
+            </div>
+          </div>
+        </div>
+
+        {/* Managed Drivers Table */}
+        <div className="lg:col-span-2">
+          <div className="bg-white rounded-[2rem] shadow-premium border border-slate-100 overflow-hidden">
+            <div className="px-8 py-6 border-b border-slate-50 flex justify-between items-center">
+               <h3 className="text-xl font-black text-slate-800 tracking-tight">قائمة السائقين المدارين</h3>
+               <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{assigned.length} سائق</span>
+            </div>
+            <DataTable 
+              columns={driverColumns} 
+              data={assigned} 
+              loading={false} 
+              emptyMessage="لا يوجد سائقون مرتبطون بهذا المشرف حالياً" 
+              onRowClick={(row) => navigate(`/drivers/${row.id}`)}
+            />
           </div>
         </div>
       </div>
 
-      <div className="card">
-        <div className="card-header"><h4 className="card-title">السائقون تحت إشرافه</h4></div>
-        <DataTable columns={driverColumns} data={assigned} loading={false} emptyMessage="لا يوجد سائقون مرتبطون" />
-      </div>
-
-      <Modal isOpen={showAssign} onClose={() => setShowAssign(false)} title="ربط سائقين بالمشرف">
-        <form onSubmit={submitAssign}>
-          <p style={{ marginBottom: 12, fontSize: '0.9rem', color: 'var(--text-muted, #666)' }}>
-            اختر السائقين لربطهم بهذا المشرف (يمكن اختيار عدة سائقين).
-          </p>
+      {/* Assign Modal */}
+      <Modal isOpen={showAssign} onClose={() => setShowAssign(false)} title="إدارة تعيين السائقين">
+        <form onSubmit={submitAssign} className="space-y-6">
+          <div className="p-4 bg-brand-light/30 rounded-2xl border border-brand-primary/10 flex items-start gap-3">
+            <LuUserPlus className="text-brand-primary mt-1" size={20} />
+            <p className="text-[0.85rem] font-bold text-brand-active leading-relaxed">
+              اختر السائقين من القائمة أدناه لربطهم بـ {supervisor.fullNameAr}. سيتم نقل السائقين من مشرفيهم الحاليين إذا وجدوا.
+            </p>
+          </div>
+          
           {poolLoading ? (
-            <div className="loading-spinner"><div className="spinner" /></div>
+            <div className="flex items-center justify-center py-10">
+               <div className="w-8 h-8 border-3 border-brand-light border-t-brand-primary rounded-full animate-spin"></div>
+            </div>
           ) : (
-            <div style={{ maxHeight: 320, overflowY: 'auto', border: '1px solid var(--border, #e5e5e5)', borderRadius: 8, padding: 8 }}>
+            <div className="max-h-80 overflow-y-auto custom-scrollbar border border-slate-100 rounded-2xl p-2 space-y-1">
               {driversPool.map((d) => (
                 <label
                   key={d.id}
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 4px', cursor: 'pointer' }}
+                  className={`
+                    flex items-center justify-between p-4 rounded-xl cursor-pointer transition-all
+                    ${selectedIds.has(d.id) ? 'bg-brand-light/20 ring-1 ring-brand-primary/10' : 'hover:bg-slate-50'}
+                  `}
                 >
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(d.id)}
-                    onChange={() => toggleDriver(d.id)}
-                  />
-                  <span>{d.fullNameAr} — {d.identityNumber}</span>
+                  <div className="flex items-center gap-4">
+                    <input
+                      type="checkbox"
+                      className="w-5 h-5 rounded-lg border-slate-300 text-brand-primary focus:ring-brand-primary transition-all cursor-pointer"
+                      checked={selectedIds.has(d.id)}
+                      onChange={() => toggleDriver(d.id)}
+                    />
+                    <div>
+                       <div className="text-[0.9rem] font-bold text-slate-700">{d.fullNameAr}</div>
+                       <div className="text-[0.7rem] font-medium text-slate-400 tracking-tight">{d.identityNumber}</div>
+                    </div>
+                  </div>
                   {d.supervisorId != null && d.supervisorId !== Number(id) && (
-                    <span style={{ fontSize: '0.75rem', color: '#b45309' }}>(لديه مشرف آخر — سيتم نقله)</span>
+                    <span className="text-[0.65rem] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-md uppercase tracking-wider ring-1 ring-amber-100">إعادة تعيين</span>
                   )}
                 </label>
               ))}
             </div>
           )}
-          <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
-            <button type="submit" className="btn btn-primary" disabled={!canWrite || poolLoading}>تأكيد الربط</button>
-            <button type="button" className="btn btn-secondary" onClick={() => setShowAssign(false)}>إلغاء</button>
+
+          <div className="flex gap-3 pt-4">
+            <button 
+              type="submit" 
+              className="btn btn-primary flex-1 !rounded-2xl justify-center shadow-orange" 
+              disabled={!canWrite || poolLoading || selectedIds.size === 0}
+            >
+              تأكيد عملية الربط
+            </button>
+            <button 
+              type="button" 
+              className="btn bg-slate-100 text-slate-500 flex-1 !rounded-2xl justify-center" 
+              onClick={() => setShowAssign(false)}
+            >
+              إلغاء
+            </button>
           </div>
         </form>
       </Modal>
+    </div>
+  );
+}
+
+function DetailItem({ label, value }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[0.65rem] font-black text-slate-400 uppercase tracking-widest">{label}</span>
+      <span className="text-[0.95rem] font-bold text-slate-700">{value || '—'}</span>
     </div>
   );
 }
