@@ -3,6 +3,8 @@ const app = require('./app');
 const config = require('./config');
 const prisma = require('./config/database');
 const { initSocket } = require('./socket');
+const fs = require('fs');
+const path = require('path');
 
 async function main() {
   try {
@@ -10,6 +12,11 @@ async function main() {
       const { bucket, publicBaseUrl } = config.storage.s3;
       if (!bucket || !publicBaseUrl) {
         throw new Error('STORAGE_DRIVER=s3 requires S3_BUCKET and S3_PUBLIC_BASE_URL');
+      }
+    } else {
+      const uploadRoot = path.resolve(__dirname, '..', config.upload.dir);
+      if (!fs.existsSync(uploadRoot)) {
+        fs.mkdirSync(uploadRoot, { recursive: true });
       }
     }
 

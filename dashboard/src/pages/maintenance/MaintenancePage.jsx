@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import GenericListPage from '../../components/ui/GenericListPage';
 import StatusBadge from '../../components/ui/StatusBadge';
 
@@ -12,7 +13,9 @@ const columns = [
 ];
 
 export default function MaintenancePage() {
-  return <GenericListPage title="طلبات الصيانة" apiUrl="/maintenance-requests" columns={columns} filters={[
+  const navigate = useNavigate();
+
+  return <GenericListPage title="طلبات الصيانة" apiUrl="/maintenance-requests" columns={columns} onRowClick={(row) => navigate(`/maintenance-requests/${row.id}`)} filters={[
     { key: 'status', type: 'select', placeholder: 'الحالة', options: [{ value: 'REQUESTED', label: 'مطلوب' }, { value: 'APPROVED', label: 'مقبول' }, { value: 'IN_PROGRESS', label: 'قيد التنفيذ' }, { value: 'COMPLETED', label: 'مكتمل' }] },
     { key: 'priority', type: 'select', placeholder: 'الأولوية', options: [{ value: 'LOW', label: 'منخفض' }, { value: 'MEDIUM', label: 'متوسط' }, { value: 'HIGH', label: 'عالي' }, { value: 'URGENT', label: 'عاجل' }] },
   ]} />;

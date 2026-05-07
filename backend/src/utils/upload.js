@@ -1,5 +1,6 @@
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const config = require('../config');
 
@@ -26,9 +27,13 @@ function buildStorage() {
     const { createS3MulterStorage } = require('./s3MulterStorage');
     return createS3MulterStorage(config);
   }
+  const uploadRoot = path.resolve(__dirname, '..', '..', config.upload.dir);
+  if (!fs.existsSync(uploadRoot)) {
+    fs.mkdirSync(uploadRoot, { recursive: true });
+  }
   return multer.diskStorage({
     destination: (req, file, cb) => {
-      cb(null, config.upload.dir);
+      cb(null, uploadRoot);
     },
     filename: (req, file, cb) => {
       const ext = path.extname(file.originalname);

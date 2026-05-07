@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { Toaster } from 'react-hot-toast';
 import { store } from './store';
@@ -14,7 +14,9 @@ import SupervisorsPage from './pages/supervisors/SupervisorsPage';
 import SupervisorDetailPage from './pages/supervisors/SupervisorDetailPage';
 import VehiclesPage from './pages/vehicles/VehiclesPage';
 import DocumentsPage from './pages/documents/DocumentsPage';
+import DocumentDetailPage from './pages/documents/DocumentDetailPage';
 import LicensesPage from './pages/licenses/LicensesPage';
+import LicenseDetailPage from './pages/licenses/LicenseDetailPage';
 import BankAccountsPage from './pages/bank-accounts/BankAccountsPage';
 import PlatformAccountsPage from './pages/platform-accounts/PlatformAccountsPage';
 import ShiftsPage from './pages/shifts/ShiftsPage';
@@ -31,6 +33,7 @@ import RewardsPage from './pages/rewards/RewardsPage';
 import LeavesPage from './pages/leaves/LeavesPage';
 import SalaryAdvancesPage from './pages/salary-advances/SalaryAdvancesPage';
 import MaintenancePage from './pages/maintenance/MaintenancePage';
+import MaintenanceRequestDetailPage from './pages/maintenance/MaintenanceRequestDetailPage';
 import AnalyticsPage from './pages/analytics/AnalyticsPage';
 import SettingsPage from './pages/settings/SettingsPage';
 import AdminsPage from './pages/admins/AdminsPage';
@@ -51,7 +54,9 @@ export default function App() {
             <Route path="supervisors/:id" element={<SupervisorDetailPage />} />
             <Route path="vehicles" element={<VehiclesPage />} />
             <Route path="documents" element={<DocumentsPage />} />
+            <Route path="documents/:id" element={<DocumentDetailPage />} />
             <Route path="licenses" element={<LicensesPage />} />
+            <Route path="licenses/:id" element={<LicenseDetailPage />} />
             <Route path="bank-accounts" element={<BankAccountsPage />} />
             <Route path="platform-accounts" element={<PlatformAccountsPage />} />
             <Route path="shifts" element={<ShiftsPage />} />
@@ -67,7 +72,9 @@ export default function App() {
             <Route path="rewards" element={<RewardsPage />} />
             <Route path="leaves" element={<LeavesPage />} />
             <Route path="salary-advances" element={<SalaryAdvancesPage />} />
-            <Route path="maintenance" element={<MaintenancePage />} />
+            <Route path="maintenance" element={<Navigate to="/maintenance-requests" replace />} />
+            <Route path="maintenance-requests" element={<MaintenancePage />} />
+            <Route path="maintenance-requests/:id" element={<MaintenanceRequestDetailPage />} />
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="admins" element={<AdminsPage />} />

@@ -20,7 +20,7 @@ export const NAV_GROUPS = [
     label: 'الأسطول',
     items: [
       { path: '/vehicles', label: 'المركبات', iconKey: 'vehicles', anyOf: [P.FLEET_READ] },
-      { path: '/maintenance', label: 'طلبات الصيانة', iconKey: 'maintenance', anyOf: [P.FLEET_READ] },
+      { path: '/maintenance-requests', label: 'طلبات الصيانة', iconKey: 'maintenance', anyOf: [P.FLEET_READ] },
     ],
   },
   {
