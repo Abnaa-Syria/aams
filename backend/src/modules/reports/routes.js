@@ -29,6 +29,7 @@ const ReportController = require('./controller');
  *         description: Composite summary JSON object
  */
 router.get('/driver-summary/:userId', ...adminPerm(...DASHBOARD_VIEW_PERMISSIONS), ReportController.getDriverSummary);
+router.get('/dashboard-overview', ...adminPerm(...DASHBOARD_VIEW_PERMISSIONS), ReportController.getDashboardOverview);
 
 
 /**

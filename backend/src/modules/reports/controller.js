@@ -33,6 +33,15 @@ class ReportController {
       next(err);
     }
   }
+
+  static async getDashboardOverview(req, res, next) {
+    try {
+      const overview = await ReportService.getDashboardOverview();
+      return ApiResponse.success(res, overview, 'Dashboard overview retrieved successfully.');
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 module.exports = ReportController;

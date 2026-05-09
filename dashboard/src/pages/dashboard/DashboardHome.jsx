@@ -4,7 +4,8 @@ import KpiCard from '../../components/ui/KpiCard';
 import StatusBadge from '../../components/ui/StatusBadge';
 import {
   LuUsers, LuTruck, LuClock, LuCircleAlert, LuFileText, LuCalendarOff,
-  LuDollarSign, LuWrench, LuSearch, LuTriangleAlert, LuActivity
+  LuDollarSign, LuWrench, LuSearch, LuTriangleAlert, LuActivity,
+  LuShield, LuIdCard
 } from 'react-icons/lu';
 
 export default function DashboardHome() {
@@ -95,9 +96,9 @@ export default function DashboardHome() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <AlertSquare icon={LuCircleAlert} label="حوادث اليوم" value={alerts.todayIncidents} color="red" />
-            <AlertSquare icon={LuSearch} label="تحقيقات مفتوحة" value={alerts.openInvestigations} color="orange" />
+            <AlertSquare icon={LuShield} label="تحقيقات مفتوحة" value={alerts.openInvestigations} color="orange" />
             <AlertSquare icon={LuTriangleAlert} label="مستندات تنتهي قريباً" value={alerts.expiringDocuments} color="orange" />
-            <AlertSquare icon={LuTriangleAlert} label="رخص تنتهي قريباً" value={alerts.expiringLicenses} color="red" />
+            <AlertSquare icon={LuIdCard} label="رخص تنتهي قريباً" value={alerts.expiringLicenses} color="red" />
           </div>
         </div>
       </div>
@@ -173,13 +174,15 @@ function PendingActionItem({ icon: Icon, label, value, color, bg }) {
 
 function AlertSquare({ icon: Icon, label, value, color }) {
   const isRed = color === 'red';
-  const bg = isRed ? 'bg-red-50' : 'bg-brand-light';
-  const textColor = isRed ? 'text-red-600' : 'text-brand-primary';
-  const ringColor = isRed ? 'ring-red-100' : 'ring-brand-primary/10';
+  const isOrange = color === 'orange';
+  
+  const bg = isRed ? 'bg-red-50' : isOrange ? 'bg-orange-50' : 'bg-brand-light';
+  const textColor = isRed ? 'text-red-600' : isOrange ? 'text-orange-600' : 'text-brand-primary';
+  const ringColor = isRed ? 'ring-red-100' : isOrange ? 'ring-orange-100' : 'ring-brand-primary/10';
 
   return (
     <div className={`${bg} ring-1 ${ringColor} rounded-[2rem] p-6 flex flex-col items-center justify-center text-center gap-4 transition-all duration-500 hover:shadow-premium hover:-translate-y-2 group relative overflow-hidden`}>
-      <div className={`text-white bg-white w-14 h-14 rounded-full flex items-center justify-center shadow-md group-hover:scale-110 transition-transform ${textColor}`}>
+      <div className={`bg-white w-14 h-14 rounded-full flex items-center justify-center shadow-md group-hover:scale-110 transition-transform ${textColor}`}>
         <Icon size={28} />
       </div>
       <div className={`text-3xl font-black ${textColor} leading-none tracking-tight`}>
