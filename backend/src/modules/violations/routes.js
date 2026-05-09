@@ -4,6 +4,16 @@ const { adminPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const upload = require('../../utils/upload');
 const ViolationController = require('./controller');
+const prisma = require('../../config/database');
+const { NotFoundError } = require('../../utils/errors');
+const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
+const { streamAttachmentDownload } = require('../../utils/streamAttachment');
+
+const VIOLATION_KIND_TO_FIELD = {
+  vehicle: 'vehicleImageUrl',
+  violation: 'violationImageUrl',
+  bike: 'bikeImageUrl',
+};
 
 /**
  * @openapi
@@ -15,6 +25,27 @@ const ViolationController = require('./controller');
  *       - bearerAuth: []
  */
 router.get('/', authenticate, ViolationController.listViolations);
+
+router.get('/:id/files/:kind/download', authenticate, async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const field = VIOLATION_KIND_TO_FIELD[req.params.kind];
+    if (!field) {
+      return res.status(400).json({ success: false, message: 'نوع الملف غير صالح' });
+    }
+    const violation = await prisma.violation.findUnique({
+      where: { id },
+      select: { userId: true, [field]: true },
+    });
+    if (!violation) throw new NotFoundError('Violation');
+    await assertCanAccessDriverRecord(req, violation.userId);
+    const fileUrl = violation[field];
+    const fallbackName = `${req.params.kind}${(fileUrl && String(fileUrl).match(/\.[a-z0-9]+$/i))?.[0] || ''}` || `${req.params.kind}-file`;
+    await streamAttachmentDownload(res, fileUrl, fallbackName);
+  } catch (err) {
+    next(err);
+  }
+});
 
 /**
  * @openapi

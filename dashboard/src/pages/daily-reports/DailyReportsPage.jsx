@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import GenericListPage from '../../components/ui/GenericListPage';
 import StatusBadge from '../../components/ui/StatusBadge';
 
@@ -12,7 +13,8 @@ const columns = [
 ];
 
 export default function DailyReportsPage() {
-  return <GenericListPage title="التقارير اليومية" apiUrl="/daily-reports" columns={columns} filters={[
+  const navigate = useNavigate();
+  return <GenericListPage title="التقارير اليومية" apiUrl="/daily-reports" columns={columns} onRowClick={(row) => navigate(`/daily-reports/${row.id}`)} filters={[
     { key: 'status', type: 'select', placeholder: 'الحالة', options: [{ value: 'SUBMITTED', label: 'مقدم' }, { value: 'UNDER_REVIEW', label: 'قيد المراجعة' }, { value: 'APPROVED', label: 'مقبول' }, { value: 'REJECTED', label: 'مرفوض' }, { value: 'NEEDS_REVISION', label: 'يحتاج تعديل' }] },
     { key: 'dateFrom', type: 'date', placeholder: 'من تاريخ' },
     { key: 'dateTo', type: 'date', placeholder: 'إلى تاريخ' },

@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import GenericListPage from '../../components/ui/GenericListPage';
 import StatusBadge from '../../components/ui/StatusBadge';
 
@@ -12,7 +13,8 @@ const columns = [
 ];
 
 export default function ViolationsPage() {
-  return <GenericListPage title="المخالفات" apiUrl="/violations" columns={columns} filters={[
+  const navigate = useNavigate();
+  return <GenericListPage title="المخالفات" apiUrl="/violations" columns={columns} onRowClick={(row) => navigate(`/violations/${row.id}`)} filters={[
     { key: 'status', type: 'select', placeholder: 'الحالة', options: [{ value: 'REPORTED', label: 'مبلغ عنه' }, { value: 'UNDER_REVIEW', label: 'قيد المراجعة' }, { value: 'CONFIRMED', label: 'مؤكد' }, { value: 'DISMISSED', label: 'مرفوض' }, { value: 'PENALIZED', label: 'معاقب' }] },
   ]} />;
 }

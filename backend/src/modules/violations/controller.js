@@ -1,5 +1,6 @@
 const ViolationService = require('./service');
 const ApiResponse = require('../../utils/response');
+const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
 
 class ViolationController {
   static async listViolations(req, res, next) {
@@ -13,7 +14,8 @@ class ViolationController {
 
   static async getViolation(req, res, next) {
     try {
-      const violation = await ViolationService.getById(req.params.id, req.user);
+      const violation = await ViolationService.getById(req.params.id);
+      await assertCanAccessDriverRecord(req, violation.userId);
       return ApiResponse.success(res, violation);
     } catch (err) {
       next(err);

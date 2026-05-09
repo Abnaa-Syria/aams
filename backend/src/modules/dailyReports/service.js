@@ -43,7 +43,7 @@ class DailyReportService {
     return { items, meta: buildPaginationMeta(total, page, limit) };
   }
 
-  static async getById(id, currentUser) {
+  static async getById(id) {
     const report = await prisma.dailyReport.findUnique({
       where: { id: parseInt(id) },
       include: {
@@ -55,11 +55,6 @@ class DailyReportService {
     });
 
     if (!report) throw new NotFoundError('Daily Report');
-
-    // Access control
-    if (currentUser.role === 'DRIVER' && report.userId !== currentUser.id) {
-      throw new NotFoundError('Daily Report');
-    }
 
     return report;
   }

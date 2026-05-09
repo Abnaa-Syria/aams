@@ -561,7 +561,7 @@ async function main() {
         status: 'APPROVED',
         reviewedBy: opsAdmin.id,
         reviewedAt: new Date(),
-        receiptUrl: DEMO.img.receipt,
+        receiptUrl: i === 0 ? DEMO.pdf.contract : DEMO.img.receipt,
       },
     });
 
@@ -596,6 +596,14 @@ async function main() {
     await prisma.incidentAttachment.create({
       data: { incidentId: incident.id, fileUrl: DEMO.img.incident, fileName: 'incident.jpg', fileType: 'image/jpeg' },
     });
+    await prisma.incidentAttachment.create({
+      data: {
+        incidentId: incident.id,
+        fileUrl: DEMO.pdf.contract,
+        fileName: 'incident-report.pdf',
+        fileType: 'application/pdf',
+      },
+    });
 
     const report = await prisma.dailyReport.create({
       data: {
@@ -615,6 +623,9 @@ async function main() {
     });
     await prisma.reportScreenshot.create({
       data: { reportId: report.id, fileUrl: DEMO.img.report, fileName: 'report.png' },
+    });
+    await prisma.reportScreenshot.create({
+      data: { reportId: report.id, fileUrl: DEMO.pdf.leave, fileName: 'eod-summary.pdf' },
     });
 
     await prisma.leaveBalance.upsert({

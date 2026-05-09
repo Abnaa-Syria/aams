@@ -40,7 +40,7 @@ class IncidentService {
     return { items, meta: buildPaginationMeta(total, page, limit) };
   }
 
-  static async getById(id, currentUser) {
+  static async getById(id) {
     const item = await prisma.incident.findUnique({
       where: { id: parseInt(id) },
       include: {
@@ -51,11 +51,6 @@ class IncidentService {
     });
 
     if (!item) throw new NotFoundError('Incident');
-    
-    // Access control
-    if (currentUser.role === 'DRIVER' && item.userId !== currentUser.id) {
-      throw new NotFoundError('Incident');
-    }
 
     return item;
   }
@@ -123,7 +118,14 @@ class IncidentService {
       newValue: { type: data.type, severity: data.severity },
     });
 
-    return incident;
+    return prisma.incident.findUnique({
+      where: { id: incident.id },
+      include: {
+        user: { select: { id: true, fullNameAr: true, fullNameEn: true, mobileNumber: true } },
+        shift: { include: { vehicle: true } },
+        attachments: true,
+      },
+    });
   }
 
   static async convertToMaintenance(id, adminId, maintenanceData) {

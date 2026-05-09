@@ -1,5 +1,6 @@
 const IncidentService = require('./service');
 const ApiResponse = require('../../utils/response');
+const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
 
 class IncidentController {
   static async listIncidents(req, res, next) {
@@ -13,7 +14,8 @@ class IncidentController {
 
   static async getIncident(req, res, next) {
     try {
-      const incident = await IncidentService.getById(req.params.id, req.user);
+      const incident = await IncidentService.getById(req.params.id);
+      await assertCanAccessDriverRecord(req, incident.userId);
       return ApiResponse.success(res, incident);
     } catch (err) {
       next(err);
