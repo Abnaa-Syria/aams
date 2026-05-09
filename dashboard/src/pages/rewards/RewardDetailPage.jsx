@@ -89,6 +89,8 @@ export default function RewardDetailPage() {
           <Field label="المبلغ" value={row.amount ? `${row.amount} ر.س` : '—'} />
           <Field label="النقاط" value={row.points} />
           <Field label="السبب" value={row.reason} />
+          <Field label="من تاريخ" value={formatDate(row.periodStart)} />
+          <Field label="إلى تاريخ" value={formatDate(row.periodEnd)} />
           <Field label="الحالة" value={<StatusBadge status={row.status} />} />
         </Section>
 

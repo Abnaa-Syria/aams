@@ -1,6 +1,12 @@
+import { useState } from 'react';
 import GenericListPage from '../../components/ui/GenericListPage';
 import StatusBadge from '../../components/ui/StatusBadge';
+import Modal from '../../components/ui/Modal';
+import UserSelect from '../../components/ui/UserSelect';
+import { apiService } from '../../services/api';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import { LuPlus } from 'react-icons/lu';
 
 const columns = [
   { key: 'user', label: 'الموظف', render: (v) => v?.fullNameAr || '—' },
@@ -12,8 +18,113 @@ const columns = [
 
 export default function SalaryAdvancesPage() {
   const navigate = useNavigate();
+  const [showCreate, setShowCreate] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({
+    userId: '',
+    amount: '',
+    reason: '',
+    notes: '',
+    numberOfMonths: '1',
+    installmentAmount: '',
+    deductFromCurrent: false,
+  });
 
-  return <GenericListPage title="طلبات السلف" apiUrl="/salary-advances" columns={columns} onRowClick={(row) => navigate(`/salary-advances/${row.id}`)} filters={[
-    { key: 'status', type: 'select', placeholder: 'الحالة', options: [{ value: 'PENDING', label: 'معلق' }, { value: 'APPROVED', label: 'مقبول' }, { value: 'REJECTED', label: 'مرفوض' }] },
-  ]} />;
+  const handleChange = (field) => (e) => {
+    const val = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    setForm((f) => ({ ...f, [field]: val }));
+  };
+
+  const handleCreate = async (e) => {
+    e.preventDefault();
+    if (!form.userId || !form.amount || !form.reason) {
+      toast.error('يرجى تعبئة جميع الحقول المطلوبة');
+      return;
+    }
+    setLoading(true);
+    try {
+      await apiService.post('/salary-advances', {
+        userId: form.userId,
+        amount: parseFloat(form.amount),
+        reason: form.reason,
+        notes: form.notes || undefined,
+        numberOfMonths: form.numberOfMonths ? parseInt(form.numberOfMonths, 10) : undefined,
+        installmentAmount: form.installmentAmount ? parseFloat(form.installmentAmount) : undefined,
+        deductFromCurrent: form.deductFromCurrent,
+      });
+      toast.success('تم إنشاء طلب السلف بنجاح');
+      setShowCreate(false);
+      setForm({ userId: '', amount: '', reason: '', notes: '', numberOfMonths: '1', installmentAmount: '', deductFromCurrent: false });
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'حدث خطأ');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createButton = (
+    <button onClick={() => setShowCreate(true)} className="btn btn-primary flex items-center gap-2">
+      <LuPlus size={18} />
+      <span>إضافة سلفة</span>
+    </button>
+  );
+
+  return (
+    <>
+      <GenericListPage
+        title="طلبات السلف"
+        apiUrl="/salary-advances"
+        columns={columns}
+        onRowClick={(row) => navigate(`/salary-advances/${row.id}`)}
+        createButton={createButton}
+        filters={[
+          { key: 'status', type: 'select', placeholder: 'الحالة', options: [{ value: 'PENDING', label: 'معلق' }, { value: 'APPROVED', label: 'مقبول' }, { value: 'REJECTED', label: 'مرفوض' }] },
+        ]}
+      />
+
+      <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="إضافة طلب سلفة جديد">
+        <form onSubmit={handleCreate} className="space-y-5">
+          <UserSelect value={form.userId} onChange={(v) => setForm((f) => ({ ...f, userId: v }))} required />
+
+          <div>
+            <label className="block text-sm font-bold text-slate-600 mb-2">المبلغ (ر.س)</label>
+            <input type="number" step="0.01" className="form-input" value={form.amount} onChange={handleChange('amount')} required placeholder="0.00" />
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-slate-600 mb-2">السبب</label>
+            <textarea className="form-input" rows="3" value={form.reason} onChange={handleChange('reason')} required placeholder="اكتب سبب طلب السلفة..." />
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-slate-600 mb-2">ملاحظات</label>
+            <input type="text" className="form-input" value={form.notes} onChange={handleChange('notes')} placeholder="ملاحظات إضافية (اختياري)" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-slate-600 mb-2">عدد الأشهر</label>
+              <input type="number" min="1" className="form-input" value={form.numberOfMonths} onChange={handleChange('numberOfMonths')} />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-600 mb-2">قسط شهري (ر.س)</label>
+              <input type="number" step="0.01" className="form-input" value={form.installmentAmount} onChange={handleChange('installmentAmount')} placeholder="0.00" />
+            </div>
+          </div>
+
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" className="form-checkbox" checked={form.deductFromCurrent} onChange={handleChange('deductFromCurrent')} />
+            <span className="text-sm font-bold text-slate-600">خصم من الراتب الحالي</span>
+          </label>
+
+          <div className="flex gap-4 pt-4">
+            <button type="submit" disabled={loading} className="btn btn-primary flex-1">
+              {loading ? 'جارٍ الإنشاء...' : 'إنشاء'}
+            </button>
+            <button type="button" className="btn bg-slate-100 text-slate-500" onClick={() => setShowCreate(false)}>إلغاء</button>
+          </div>
+        </form>
+      </Modal>
+    </>
+  );
 }
