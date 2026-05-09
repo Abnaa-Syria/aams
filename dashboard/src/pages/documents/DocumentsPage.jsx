@@ -1,5 +1,6 @@
 import GenericListPage from '../../components/ui/GenericListPage';
 import StatusBadge from '../../components/ui/StatusBadge';
+import { useNavigate } from 'react-router-dom';
 
 const typeLabels = { NATIONAL_ID: 'هوية وطنية', IQAMA: 'إقامة', PASSPORT: 'جواز سفر', WORK_CONTRACT: 'عقد عمل', RESIDENCE_PERMIT: 'تصريح إقامة', OTHER: 'أخرى' };
 
@@ -13,11 +14,13 @@ const columns = [
 ];
 
 export default function DocumentsPage() {
+  const navigate = useNavigate();
   return (
     <GenericListPage
       title="إدارة المستندات"
       apiUrl="/documents"
       columns={columns}
+      onRowClick={(row) => row?.id && navigate(`/documents/${row.id}`)}
       filters={[
         { key: 'type', type: 'select', placeholder: 'نوع المستند', options: Object.entries(typeLabels).map(([v, l]) => ({ value: v, label: l })) },
         { key: 'status', type: 'select', placeholder: 'الحالة', options: [

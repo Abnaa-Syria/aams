@@ -12,6 +12,9 @@ const { ADMIN_ROLES } = require('../../utils/listScope');
 const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
 const { AuthorizationError } = require('../../utils/errors');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
+const config = require('../../config');
+const path = require('path');
+const fs = require('fs');
 
 /**
  * @openapi
@@ -134,6 +137,43 @@ router.get('/:id', authenticate, async (req, res, next) => {
     if (!item) throw new NotFoundError('License');
     await assertCanAccessDriverRecord(req, item.userId);
     return ApiResponse.success(res, item);
+  } catch (err) { next(err); }
+});
+
+router.get('/:id/download', authenticate, async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const item = await prisma.license.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true, userId: true, fileUrl: true, fileName: true, title: true },
+    });
+    if (!item) throw new NotFoundError('License');
+    await assertCanAccessDriverRecord(req, item.userId);
+    if (!item.fileUrl) throw new NotFoundError('License file');
+
+    const safeName = (item.fileName || `license-${item.id}`).replace(/[\\/\r\n"]/g, '_');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`);
+
+    if (/^https?:\/\//i.test(item.fileUrl)) {
+      const upstream = await fetch(item.fileUrl);
+      if (!upstream.ok) {
+        return res.status(502).json({ success: false, message: 'تعذر تنزيل الملف من المصدر' });
+      }
+      const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
+      res.setHeader('Content-Type', contentType);
+
+      const ab = await upstream.arrayBuffer();
+      return res.send(Buffer.from(ab));
+    }
+
+    const uploadRoot = path.resolve(path.join(__dirname, '..', '..', config.upload.dir));
+    const relative = String(item.fileUrl).replace(/\\/g, '/').replace(/^\/+/, '');
+    const abs = path.resolve(path.join(uploadRoot, relative));
+    if (!abs.startsWith(uploadRoot + path.sep)) {
+      return res.status(400).json({ success: false, message: 'مسار ملف غير صالح' });
+    }
+    if (!fs.existsSync(abs)) throw new NotFoundError('File');
+    return res.download(abs, safeName);
   } catch (err) { next(err); }
 });
 

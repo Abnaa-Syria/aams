@@ -1,4 +1,6 @@
 const bcrypt = require('bcryptjs');
+const fs = require('fs');
+const path = require('path');
 
 require('dotenv').config();
 const prisma = require('../src/config/database');
@@ -70,8 +72,79 @@ async function resetDemoData(demoUserIds) {
   await prisma.pushDeviceToken?.deleteMany?.({ where: { userId: { in: demoUserIds } } });
 }
 
+function ensureDirSync(dir) {
+  fs.mkdirSync(dir, { recursive: true });
+}
+
+function writeFileIfMissing(absPath, buf) {
+  if (fs.existsSync(absPath)) return;
+  ensureDirSync(path.dirname(absPath));
+  fs.writeFileSync(absPath, buf);
+}
+
+function ensureDemoUploadFiles() {
+  const backendRoot = path.resolve(__dirname, '..');
+  const uploadDir = process.env.UPLOAD_DIR || 'uploads';
+  const demoDir = path.join(backendRoot, uploadDir, 'demo');
+
+  // Tiny valid PDF (single page) — good enough for preview/download demos
+  const pdfBytes = Buffer.from(
+    `%PDF-1.4\n` +
+    `1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n` +
+    `2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n` +
+    `3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n` +
+    `4 0 obj\n<< /Length 93 >>\nstream\nBT\n/F1 24 Tf\n72 720 Td\n(Seed demo PDF attachment) Tj\nET\nendstream\nendobj\n` +
+    `5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n` +
+    `xref\n0 6\n0000000000 65535 f \n` +
+    `0000000009 00000 n \n` +
+    `0000000058 00000 n \n` +
+    `0000000115 00000 n \n` +
+    `0000000271 00000 n \n` +
+    `0000000414 00000 n \n` +
+    `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n` +
+    `484\n%%EOF\n`,
+    'utf8'
+  );
+
+  // 1x1 PNG (transparent)
+  const png1x1 = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMB/6X7n3cAAAAASUVORK5CYII=',
+    'base64'
+  );
+
+  // 1x1 JPEG (white)
+  const jpg1x1 = Buffer.from(
+    '/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAALCAAaABoBAREA/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAb/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwC0A//Z',
+    'base64'
+  );
+
+  // 1x1 WebP (lossy)
+  const webp1x1 = Buffer.from(
+    'UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEAAUAmJaQAA3AA/v89WAAAAA==',
+    'base64'
+  );
+
+  // PDFs referenced by seed data
+  writeFileIfMissing(path.join(demoDir, 'iqama.pdf'), pdfBytes);
+  writeFileIfMissing(path.join(demoDir, 'contract.pdf'), pdfBytes);
+  writeFileIfMissing(path.join(demoDir, 'license.pdf'), pdfBytes);
+  writeFileIfMissing(path.join(demoDir, 'iban.pdf'), pdfBytes);
+  writeFileIfMissing(path.join(demoDir, 'leave.pdf'), pdfBytes);
+
+  // Images referenced by seed data
+  writeFileIfMissing(path.join(demoDir, 'shift_start.jpg'), jpg1x1);
+  writeFileIfMissing(path.join(demoDir, 'receipt.jpg'), jpg1x1);
+  writeFileIfMissing(path.join(demoDir, 'incident.jpg'), jpg1x1);
+  writeFileIfMissing(path.join(demoDir, 'maint.jpg'), jpg1x1);
+  writeFileIfMissing(path.join(demoDir, 'report.png'), png1x1);
+  writeFileIfMissing(path.join(demoDir, 'midshift.webp'), webp1x1);
+
+  console.log(`Demo upload files ensured at: ${demoDir}`);
+}
+
 async function main() {
   console.log('Seeding database...');
+  ensureDemoUploadFiles();
 
   // Create Super Admin
   const adminPassword = await bcrypt.hash('admin123', 12);

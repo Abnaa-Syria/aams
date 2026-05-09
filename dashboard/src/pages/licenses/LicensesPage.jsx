@@ -1,5 +1,6 @@
 import GenericListPage from '../../components/ui/GenericListPage';
 import StatusBadge from '../../components/ui/StatusBadge';
+import { useNavigate } from 'react-router-dom';
 
 const columns = [
   { key: 'user', label: 'الموظف', render: (v) => v?.fullNameAr || '—' },
@@ -11,8 +12,18 @@ const columns = [
 ];
 
 export default function LicensesPage() {
-  return <GenericListPage title="الرخص والشهادات" apiUrl="/licenses" columns={columns} filters={[
-    { key: 'type', type: 'select', placeholder: 'النوع', options: [{ value: 'DRIVING_LICENSE', label: 'رخصة قيادة' }, { value: 'TRANSPORT_LICENSE', label: 'رخصة نقل' }, { value: 'MEDICAL_CERTIFICATE', label: 'شهادة طبية' }] },
-    { key: 'status', type: 'select', placeholder: 'الحالة', options: [{ value: 'PENDING', label: 'معلق' }, { value: 'VALID', label: 'صالح' }, { value: 'EXPIRED', label: 'منتهي' }] },
-  ]} />;
+  const navigate = useNavigate();
+
+  return (
+    <GenericListPage
+      title="الرخص والشهادات"
+      apiUrl="/licenses"
+      columns={columns}
+      onRowClick={(row) => navigate(`/licenses/${row.id}`)}
+      filters={[
+        { key: 'type', type: 'select', placeholder: 'النوع', options: [{ value: 'DRIVING_LICENSE', label: 'رخصة قيادة' }, { value: 'TRANSPORT_LICENSE', label: 'رخصة نقل' }, { value: 'MEDICAL_CERTIFICATE', label: 'شهادة طبية' }] },
+        { key: 'status', type: 'select', placeholder: 'الحالة', options: [{ value: 'PENDING', label: 'معلق' }, { value: 'VALID', label: 'صالح' }, { value: 'EXPIRED', label: 'منتهي' }] },
+      ]}
+    />
+  );
 }
