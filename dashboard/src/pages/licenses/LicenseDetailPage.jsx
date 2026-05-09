@@ -77,6 +77,7 @@ export default function LicenseDetailPage() {
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState('');
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -116,6 +117,31 @@ export default function LicenseDetailPage() {
       setDownloading(false);
     }
   }, [id, item?.fileName]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let objectUrl = '';
+
+    async function loadPdfBlob() {
+      if (!id || fileKind !== 'pdf') {
+        setPdfPreviewUrl('');
+        return;
+      }
+      try {
+        const res = await api.get(`/licenses/${id}/download`, { responseType: 'blob' });
+        objectUrl = window.URL.createObjectURL(res.data);
+        if (!cancelled) setPdfPreviewUrl(objectUrl);
+      } catch {
+        if (!cancelled) setPdfPreviewUrl('');
+      }
+    }
+
+    loadPdfBlob();
+    return () => {
+      cancelled = true;
+      if (objectUrl) window.URL.revokeObjectURL(objectUrl);
+    };
+  }, [fileKind, id]);
 
   if (loading) {
     return (
@@ -195,7 +221,7 @@ export default function LicenseDetailPage() {
                 <div className="rounded-3xl overflow-hidden border border-slate-100 bg-slate-50">
                   <iframe
                     title={item.title || 'License preview'}
-                    src={fileSrc}
+                    src={pdfPreviewUrl || ''}
                     className="w-full h-[70vh]"
                   />
                 </div>

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { LuChevronLeft, LuDownload, LuFileText, LuUser, LuCalendar } from 'react-icons/lu';
 
-import { apiService } from '../../services/api';
+import api, { apiService } from '../../services/api';
 import StatusBadge from '../../components/ui/StatusBadge';
 import { resolveUploadUrl } from '../../utils/apiOrigin';
 
@@ -46,12 +46,40 @@ function Field({ label, value }) {
   );
 }
 
+function pickFilename({ contentDisposition, fallback }) {
+  const cd = contentDisposition || '';
+  const mStar = cd.match(/filename\*\s*=\s*UTF-8''([^;]+)/i);
+  if (mStar?.[1]) {
+    try {
+      return decodeURIComponent(mStar[1].replace(/(^"|"$)/g, ''));
+    } catch {
+      return mStar[1].replace(/(^"|"$)/g, '');
+    }
+  }
+  const m = cd.match(/filename\s*=\s*("?)([^";]+)\1/i);
+  if (m?.[2]) return m[2];
+  return fallback || 'download';
+}
+
+function downloadBlob({ blob, filename }) {
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename || 'download';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
+
 export default function DocumentDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
 
   const [doc, setDoc] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState('');
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -75,6 +103,48 @@ export default function DocumentDetailPage() {
     [doc?.fileUrl, doc?.fileName],
   );
 
+  const onDownload = useCallback(async () => {
+    if (!id) return;
+    setDownloading(true);
+    try {
+      const res = await api.get(`/documents/${id}/download`, { responseType: 'blob' });
+      const filename = pickFilename({
+        contentDisposition: res.headers?.['content-disposition'],
+        fallback: doc?.fileName,
+      });
+      downloadBlob({ blob: res.data, filename });
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'تعذر تنزيل الملف');
+    } finally {
+      setDownloading(false);
+    }
+  }, [doc?.fileName, id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let objectUrl = '';
+
+    async function loadPdfBlob() {
+      if (!id || fileKind !== 'pdf') {
+        setPdfPreviewUrl('');
+        return;
+      }
+      try {
+        const res = await api.get(`/documents/${id}/download`, { responseType: 'blob' });
+        objectUrl = window.URL.createObjectURL(res.data);
+        if (!cancelled) setPdfPreviewUrl(objectUrl);
+      } catch (err) {
+        if (!cancelled) setPdfPreviewUrl('');
+      }
+    }
+
+    loadPdfBlob();
+    return () => {
+      cancelled = true;
+      if (objectUrl) window.URL.revokeObjectURL(objectUrl);
+    };
+  }, [fileKind, id]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -97,18 +167,15 @@ export default function DocumentDetailPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          {fileSrc && (
-            <a
-              href={fileSrc}
-              download={doc.fileName || undefined}
-              target="_blank"
-              rel="noreferrer"
-              className="btn btn-primary !rounded-2xl flex items-center gap-2"
-            >
-              <LuDownload size={18} />
-              تنزيل
-            </a>
-          )}
+          <button
+            type="button"
+            onClick={onDownload}
+            disabled={!doc.fileUrl || downloading}
+            className="btn btn-primary !rounded-2xl flex items-center gap-2 disabled:opacity-60"
+          >
+            <LuDownload size={18} />
+            {downloading ? 'جارٍ التنزيل...' : 'تنزيل'}
+          </button>
           <button
             type="button"
             onClick={() => navigate('/documents')}
@@ -156,7 +223,7 @@ export default function DocumentDetailPage() {
                 <div className="rounded-3xl overflow-hidden border border-slate-100 bg-slate-50">
                   <iframe
                     title={doc.title || 'Document preview'}
-                    src={fileSrc}
+                    src={pdfPreviewUrl || ''}
                     className="w-full h-[70vh]"
                   />
                 </div>
