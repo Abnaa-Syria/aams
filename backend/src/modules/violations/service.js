@@ -3,6 +3,7 @@ const { NotFoundError, BusinessLogicError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
+const { mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
 
 class ViolationService {
   static async list(query, currentUser) {
@@ -20,6 +21,8 @@ class ViolationService {
     } else if (currentUser.role === 'SUPERVISOR') {
       where.user = { supervisorId: currentUser.id };
     }
+
+    where = mergeDriverNameIntoUserWhere(where, query);
 
     const [items, total] = await Promise.all([
       prisma.violation.findMany({

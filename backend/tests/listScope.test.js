@@ -1,6 +1,10 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { applyUserOwnedListScope, applyMidShiftListScope } = require('../src/utils/listScope');
+const {
+  applyUserOwnedListScope,
+  applyMidShiftListScope,
+  mergeDriverNameIntoUserWhere,
+} = require('../src/utils/listScope');
 
 describe('listScope', () => {
   it('scopes DRIVER to own userId', () => {
@@ -35,5 +39,20 @@ describe('listScope', () => {
       query: {},
     });
     assert.deepEqual(where.shift, { userId: 9 });
+  });
+
+  it('merges driver name filter with existing user scope', () => {
+    const where = mergeDriverNameIntoUserWhere(
+      { status: 'PENDING', user: { supervisorId: 3, role: 'DRIVER' } },
+      { driverName: 'Ali' },
+    );
+
+    assert.equal(where.status, 'PENDING');
+    assert.equal(where.user.supervisorId, 3);
+    assert.equal(where.user.role, 'DRIVER');
+    assert.deepEqual(where.user.OR, [
+      { fullNameAr: { contains: 'Ali' } },
+      { fullNameEn: { contains: 'Ali' } },
+    ]);
   });
 });

@@ -528,6 +528,7 @@ async function main() {
     const driver = driverUsers[i];
     const vehicle = vehicleRows[i % vehicleRows.length];
     const pAcc = platformAccounts[i % platformAccounts.length];
+    const baseOdometer = 10000 + i * 750;
 
     const requested = await prisma.shift.create({
       data: {
@@ -537,6 +538,7 @@ async function main() {
         status: 'REQUESTED',
         notes: 'seed requested shift',
         startPhotoUrl: DEMO.img.shiftStart,
+        startOdometer: baseOdometer,
       },
     });
     await prisma.shiftLog.create({ data: { shiftId: requested.id, action: 'SHIFT_REQUESTED', performedBy: driver.id } });
@@ -551,6 +553,7 @@ async function main() {
         approvedBy: opsAdmin.id,
         notes: 'seed approved shift',
         startPhotoUrl: DEMO.img.report,
+        startOdometer: baseOdometer + 25,
       },
     });
     await prisma.shiftLog.create({ data: { shiftId: approved.id, action: 'SHIFT_APPROVED', performedBy: opsAdmin.id } });
@@ -567,9 +570,40 @@ async function main() {
         startPhotoUrl: DEMO.img.shiftStart,
         endPhotoUrl: DEMO.img.incident,
         notes: 'seed active shift',
+        startOdometer: baseOdometer + 50,
       },
     });
     await prisma.shiftLog.create({ data: { shiftId: active.id, action: 'SHIFT_STARTED', performedBy: driver.id } });
+
+    const endedStart = daysFromNow(-1);
+    endedStart.setHours(9, 0, 0, 0);
+    const endedEnd = daysFromNow(-1);
+    endedEnd.setHours(18, 30, 0, 0);
+    const ended = await prisma.shift.create({
+      data: {
+        userId: driver.id,
+        vehicleId: vehicle.id,
+        platformAccountId: pAcc.id,
+        status: 'ENDED',
+        approvedAt: daysFromNow(-2),
+        approvedBy: opsAdmin.id,
+        startedAt: endedStart,
+        endedAt: endedEnd,
+        startPhotoUrl: DEMO.img.shiftStart,
+        endPhotoUrl: DEMO.img.shiftStart,
+        notes: 'seed ended shift (detailed)',
+        startOdometer: baseOdometer + 120,
+        endOdometer: baseOdometer + 265,
+        closureRequested: true,
+        closureApprovedBy: opsAdmin.id,
+        closureApprovedAt: new Date(),
+      },
+    });
+    await prisma.shiftLog.create({ data: { shiftId: ended.id, action: 'SHIFT_REQUESTED', performedBy: driver.id } });
+    await prisma.shiftLog.create({ data: { shiftId: ended.id, action: 'SHIFT_APPROVED', performedBy: opsAdmin.id } });
+    await prisma.shiftLog.create({ data: { shiftId: ended.id, action: 'SHIFT_STARTED', performedBy: driver.id } });
+    await prisma.shiftLog.create({ data: { shiftId: ended.id, action: 'SHIFT_ENDED', performedBy: driver.id } });
+    await prisma.shiftLog.create({ data: { shiftId: ended.id, action: 'SHIFT_CLOSURE_APPROVED', performedBy: opsAdmin.id } });
 
     await prisma.midShiftRecord.create({
       data: {
@@ -584,7 +618,7 @@ async function main() {
       data: {
         userId: driver.id,
         vehicleId: vehicle.id,
-        shiftId: active.id,
+        shiftId: ended.id,
         amount: '120.50',
         liters: '25.30',
         fuelDate: daysFromNow(-1),
@@ -703,7 +737,7 @@ async function main() {
     const incident = await prisma.incident.create({
       data: {
         userId: driver.id,
-        shiftId: active.id,
+        shiftId: ended.id,
         type: 'BREAKDOWN',
         severity: 'MEDIUM',
         title: 'عطل بسيط',
@@ -732,9 +766,9 @@ async function main() {
     const report = await prisma.dailyReport.create({
       data: {
         userId: driver.id,
-        shiftId: active.id,
+        shiftId: ended.id,
         reportDate: daysFromNow(-1),
-        totalHours: '9.5',
+        totalHours: '9.50',
         totalOrders: 22,
         status: 'APPROVED',
         reviewedBy: opsAdmin.id,
@@ -742,8 +776,12 @@ async function main() {
         notes: 'seed daily report',
       },
     });
-    await prisma.reportAppBreakdown.create({
-      data: { reportId: report.id, platformName: 'Keeta', orders: 10, hours: '4.0', earnings: '120.00' },
+    await prisma.reportAppBreakdown.createMany({
+      data: [
+        { reportId: report.id, platformName: 'Keeta', orders: 10, hours: '4.00', earnings: '120.00' },
+        { reportId: report.id, platformName: 'Jahez', orders: 7, hours: '3.00', earnings: '95.00' },
+        { reportId: report.id, platformName: 'HungerStation', orders: 5, hours: '2.50', earnings: '60.00' },
+      ],
     });
     await prisma.reportScreenshot.create({
       data: { reportId: report.id, fileUrl: DEMO.img.report, fileName: DEMO_IMAGE_FILE_NAME },
@@ -841,6 +879,14 @@ async function main() {
         investigationId: inv.id,
         fileUrl: DEMO.pdf.leave,
         fileName: 'investigation-attachment.pdf',
+        uploadedBy: opsAdmin.id,
+      },
+    });
+    await prisma.investigationAttachment.create({
+      data: {
+        investigationId: inv.id,
+        fileUrl: DEMO.img.receipt,
+        fileName: 'investigation-photo.jpg',
         uploadedBy: opsAdmin.id,
       },
     });
@@ -1052,16 +1098,20 @@ async function main() {
 
   // Create System Settings
   const settings = [
-    { key: 'max_shift_hours', value: '12', description: 'Maximum shift duration in hours', group: 'shifts' },
-    { key: 'document_expiry_alert_days', value: '30', description: 'Days before expiry to alert', group: 'documents' },
-    { key: 'max_fuel_logs_per_day', value: '5', description: 'Maximum fuel logs per day per driver', group: 'fuel' },
-    { key: 'annual_leave_days', value: '30', description: 'Default annual leave days', group: 'leaves' },
-    { key: 'company_name_ar', value: 'شركة النقل المتقدمة', description: 'Company name in Arabic', group: 'general' },
-    { key: 'company_name_en', value: 'Advanced Asset Management System', description: 'Company name in English', group: 'general' },
+    { key: 'max_shift_hours', value: '12', labelAr: 'الحد الأقصى لعدد ساعات الشفت', descriptionAr: 'الحد الأقصى لمدة الشفت', type: 'number', category: 'shifts', sortOrder: 1 },
+    { key: 'document_expiry_alert_days', value: '30', labelAr: 'أيام تنبيه انتهاء المستند', descriptionAr: 'عدد الأيام قبل الانتهاء للتنبيه', type: 'number', category: 'documents', sortOrder: 1 },
+    { key: 'max_fuel_logs_per_day', value: '5', labelAr: 'الحد الأقصى لتعبئات الوقود', descriptionAr: 'الحد الأقصى لتعبئات الوقود يومياً للسائق', type: 'number', category: 'fuel', sortOrder: 1 },
+    { key: 'annual_leave_days', value: '30', labelAr: 'أيام الإجازة السنوية', descriptionAr: 'عدد أيام الإجازة السنوية الافتراضية', type: 'number', category: 'leaves', sortOrder: 1 },
+    { key: 'company_name_ar', value: 'شركة النقل المتقدمة', labelAr: 'اسم الشركة (عربي)', descriptionAr: 'اسم الشركة بالعربية', type: 'text', category: 'company', sortOrder: 1 },
+    { key: 'company_name_en', value: 'Advanced Asset Management System', labelAr: 'اسم الشركة (إنجليزي)', descriptionAr: 'اسم الشركة بالإنجليزية', type: 'text', category: 'company', sortOrder: 2 },
   ];
 
   for (const setting of settings) {
-    await prisma.systemSetting.upsert({ where: { key: setting.key }, update: {}, create: setting });
+    await prisma.systemSetting.upsert({ 
+      where: { key: setting.key }, 
+      update: {}, 
+      create: { ...setting, isVisible: true, isEditable: true }
+    });
   }
   console.log('System settings created');
 

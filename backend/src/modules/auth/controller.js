@@ -123,6 +123,25 @@ class AuthController {
       return next(err);
     }
   }
+
+  static async updateMe(req, res, next) {
+    try {
+      const user = await AuthService.updateMe(req.user.id, req.body);
+      return ApiResponse.success(res, user, 'Profile updated');
+    } catch (err) {
+      return next(err);
+    }
+  }
+
+  static async updateUser(req, res, next) {
+    try {
+      const userId = parseInt(req.params.userId);
+      const user = await AuthService.updateUser(userId, req.body);
+      return ApiResponse.success(res, user, 'User updated');
+    } catch (err) {
+      return next(err);
+    }
+  }
 }
 
 module.exports = AuthController;

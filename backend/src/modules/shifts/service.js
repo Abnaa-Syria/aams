@@ -2,6 +2,7 @@ const prisma = require('../../config/database');
 const { NotFoundError, BusinessLogicError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta, buildOrderBy } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
+const { buildDriverNameUserFilter } = require('../../utils/listScope');
 
 const BLOCKED_STATUSES = ['TEMPORARILY_SUSPENDED', 'RESTRICTED', 'ARCHIVED'];
 
@@ -21,6 +22,10 @@ class ShiftService {
           ? { user: { supervisorId: currentUser.id, role: 'DRIVER' } }
           : {};
 
+    const nameFilter = buildDriverNameUserFilter(query);
+
+    const scopedUserWhere = scope.user && typeof scope.user === 'object' ? scope.user : null;
+
     const where = {
       ...scope,
       ...((isAdmin || isSupervisor) && query.userId && { userId: parseInt(query.userId) }),
@@ -28,6 +33,7 @@ class ShiftService {
       ...(query.vehicleId && { vehicleId: parseInt(query.vehicleId) }),
       ...(query.dateFrom && { requestedAt: { gte: new Date(query.dateFrom) } }),
       ...(query.dateTo && { requestedAt: { ...((query.dateFrom && { gte: new Date(query.dateFrom) }) || {}), lte: new Date(query.dateTo) } }),
+      ...(nameFilter && { user: { ...(scopedUserWhere || {}), ...nameFilter } }),
     };
 
     const [items, total] = await Promise.all([
@@ -55,7 +61,10 @@ class ShiftService {
         fuelLogs: true,
         violations: true,
         incidents: true,
-        dailyReports: true,
+        dailyReports: {
+          include: { appBreakdowns: true },
+          orderBy: { reportDate: 'desc' },
+        },
         shiftLogs: { orderBy: { createdAt: 'desc' } },
       },
     });
@@ -74,7 +83,80 @@ class ShiftService {
       });
       if (!driver) throw new NotFoundError('Shift');
     }
-    return shift;
+
+    const kilometersDriven =
+      typeof shift.startOdometer === 'number' && typeof shift.endOdometer === 'number'
+        ? shift.endOdometer - shift.startOdometer
+        : null;
+
+    const breakdownMap = new Map();
+    let totalOrders = null;
+    let totalHours = null;
+
+    if (Array.isArray(shift.dailyReports) && shift.dailyReports.length > 0) {
+      let ordersSum = 0;
+      let hoursSum = 0;
+      let hasAnyOrders = false;
+      let hasAnyHours = false;
+
+      for (const report of shift.dailyReports) {
+        if (typeof report.totalOrders === 'number') {
+          ordersSum += report.totalOrders;
+          hasAnyOrders = true;
+        }
+
+        if (report.totalHours != null) {
+          const v = typeof report.totalHours === 'number' ? report.totalHours : Number(report.totalHours);
+          if (!Number.isNaN(v)) {
+            hoursSum += v;
+            hasAnyHours = true;
+          }
+        }
+
+        if (Array.isArray(report.appBreakdowns)) {
+          for (const b of report.appBreakdowns) {
+            const key = b.platformName || '—';
+            const prev = breakdownMap.get(key) || { platformName: key, orders: 0, hours: 0, hasOrders: false, hasHours: false };
+
+            if (typeof b.orders === 'number') {
+              prev.orders += b.orders;
+              prev.hasOrders = true;
+            }
+
+            if (b.hours != null) {
+              const hv = typeof b.hours === 'number' ? b.hours : Number(b.hours);
+              if (!Number.isNaN(hv)) {
+                prev.hours += hv;
+                prev.hasHours = true;
+              }
+            }
+
+            breakdownMap.set(key, prev);
+          }
+        }
+      }
+
+      totalOrders = hasAnyOrders ? ordersSum : null;
+      totalHours = hasAnyHours ? Number(hoursSum.toFixed(2)) : null;
+    }
+
+    const platformBreakdown = Array.from(breakdownMap.values())
+      .map((b) => ({
+        platformName: b.platformName,
+        orders: b.hasOrders ? b.orders : null,
+        hours: b.hasHours ? Number(b.hours.toFixed(2)) : null,
+      }))
+      .sort((a, b) => String(a.platformName).localeCompare(String(b.platformName), 'ar'));
+
+    return {
+      ...shift,
+      kilometersDriven,
+      platformBreakdown,
+      totals: {
+        totalOrders,
+        totalHours,
+      },
+    };
   }
 
   static async requestStart(userId, data) {

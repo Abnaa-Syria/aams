@@ -123,10 +123,15 @@ router.put('/:id', ...adminPerm(P.SETTINGS_WRITE), async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.delete('/:id', ...adminPerm(P.SETTINGS_WRITE), async (req, res, next) => {
+router.patch('/:id/toggle', ...adminPerm(P.SETTINGS_WRITE), async (req, res, next) => {
   try {
-    await prisma.platform.delete({ where: { id: parseInt(req.params.id) } });
-    return ApiResponse.success(res, null, 'Platform deleted');
+    const platform = await prisma.platform.findUnique({ where: { id: parseInt(req.params.id) } });
+    if (!platform) throw new NotFoundError('Platform');
+    const item = await prisma.platform.update({
+      where: { id: parseInt(req.params.id) },
+      data: { isActive: !platform.isActive },
+    });
+    return ApiResponse.success(res, item, item.isActive ? 'Platform activated' : 'Platform deactivated');
   } catch (err) { next(err); }
 });
 

@@ -3,6 +3,7 @@ const { NotFoundError, BusinessLogicError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
+const { mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
 
 class DailyReportService {
   static async list(query, currentUser) {
@@ -33,6 +34,8 @@ class DailyReportService {
       if (query.dateFrom) where.reportDate.gte = new Date(query.dateFrom);
       if (query.dateTo) where.reportDate.lte = new Date(query.dateTo);
     }
+
+    where = mergeDriverNameIntoUserWhere(where, query);
 
     const [items, total] = await Promise.all([
       prisma.dailyReport.findMany({
