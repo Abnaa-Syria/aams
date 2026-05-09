@@ -3,6 +3,15 @@ const { authenticate } = require('../../middlewares/auth');
 const { adminPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const upload = require('../../utils/upload');
+const prisma = require('../../config/database');
+const ApiResponse = require('../../utils/response');
+const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
+const { logAudit } = require('../../utils/auditLogger');
+const { ADMIN_ROLES, applyUserOwnedListScope } = require('../../utils/listScope');
+const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
+const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
+const { NotFoundError } = require('../../utils/errors');
+const { streamAttachmentDownload } = require('../../utils/streamAttachment');
 const LeaveRequestController = require('./controller');
 
 /**
@@ -37,6 +46,22 @@ router.get('/balances/:userId', authenticate, LeaveRequestController.getBalances
  *       - bearerAuth: []
  */
 router.get('/:id', authenticate, LeaveRequestController.getById);
+
+router.get('/:id/files/attachment/download', authenticate, async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const leaveReq = await prisma.leaveRequest.findUnique({
+      where: { id },
+      select: { userId: true, attachmentUrl: true },
+    });
+    if (!leaveReq) throw new NotFoundError('Leave Request');
+    await assertCanAccessDriverRecord(req, leaveReq.userId);
+    const fallbackName = 'leave-attachment';
+    await streamAttachmentDownload(res, leaveReq.attachmentUrl, fallbackName);
+  } catch (err) {
+    next(err);
+  }
+});
 
 /**
  * @openapi

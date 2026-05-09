@@ -21,6 +21,7 @@ export default function LicensesPage() {
       columns={columns}
       onRowClick={(row) => navigate(`/licenses/${row.id}`)}
       filters={[
+        { key: 'driverName', type: 'text', placeholder: 'اسم السائق' },
         { key: 'type', type: 'select', placeholder: 'النوع', options: [{ value: 'DRIVING_LICENSE', label: 'رخصة قيادة' }, { value: 'TRANSPORT_LICENSE', label: 'رخصة نقل' }, { value: 'MEDICAL_CERTIFICATE', label: 'شهادة طبية' }] },
         { key: 'status', type: 'select', placeholder: 'الحالة', options: [{ value: 'PENDING', label: 'معلق' }, { value: 'VALID', label: 'صالح' }, { value: 'EXPIRED', label: 'منتهي' }] },
       ]}

@@ -480,6 +480,66 @@ class AuthService {
     return { message: deleted.count ? 'Push token removed' : 'Token not found' };
   }
 
+  static async updateMe(userId, data) {
+    const allowedFields = [
+      'fullNameAr', 'fullNameEn', 'mobileNumber', 'email',
+      'emergencyName', 'emergencyRelation', 'emergencyPhone',
+      'profileImageUrl', 'gender', 'dateOfBirth', 'nationality'
+    ];
+    const updateData = {};
+    for (const field of allowedFields) {
+      if (data[field] !== undefined) {
+        updateData[field] = data[field];
+      }
+    }
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: {
+        id: true, identityNumber: true, mobileNumber: true, email: true,
+        fullNameAr: true, fullNameEn: true, gender: true, dateOfBirth: true,
+        nationality: true, profileImageUrl: true, role: true, accountStatus: true,
+        emergencyName: true, emergencyRelation: true, emergencyPhone: true,
+        employeeNumber: true, jobTitle: true, joinDate: true, lastLoginAt: true,
+      },
+    });
+    return user;
+  }
+
+  static async updateUser(userId, data) {
+    const allowedFields = [
+      'fullNameAr', 'fullNameEn', 'mobileNumber', 'email',
+      'emergencyName', 'emergencyRelation', 'emergencyPhone',
+      'profileImageUrl', 'gender', 'dateOfBirth', 'nationality',
+      'role', 'accountStatus', 'availabilityStatus', 'employmentStatus',
+      'jobTitle', 'employeeNumber', 'joinDate', 'contractEndDate',
+      'cityId', 'regionId', 'branchId', 'supervisorId', 'transportType',
+      'sevenHundredNumber', 'roomNumber'
+    ];
+    const updateData = {};
+    for (const field of allowedFields) {
+      if (data[field] !== undefined) {
+        updateData[field] = data[field];
+      }
+    }
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: {
+        id: true, identityNumber: true, mobileNumber: true, email: true,
+        fullNameAr: true, fullNameEn: true, gender: true, dateOfBirth: true,
+        nationality: true, profileImageUrl: true, role: true, accountStatus: true,
+        availabilityStatus: true, employmentStatus: true, transportType: true,
+        sevenHundredNumber: true, emergencyName: true, emergencyRelation: true,
+        emergencyPhone: true, roomNumber: true, employeeNumber: true,
+        joinDate: true, contractEndDate: true, jobTitle: true,
+        cityId: true, regionId: true, branchId: true, supervisorId: true,
+        lastLoginAt: true, createdAt: true, updatedAt: true,
+      },
+    });
+    return user;
+  }
+
   static async logout(userId, req) {
     const { ipAddress, userAgent } = getClientMeta(req);
 

@@ -405,6 +405,9 @@ router.post('/admin/login', validate(adminLoginSchema), AuthController.adminLogi
  */
 router.get('/me', authenticate, validate(meSchema), AuthController.me);
 
+router.put('/me', authenticate, AuthController.updateMe);
+router.put('/users/:userId', authenticate, AuthController.updateUser);
+
 /**
  * @openapi
  * /auth/logout:

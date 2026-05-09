@@ -2,18 +2,28 @@ const prisma = require('../../config/database');
 const { NotFoundError, BusinessLogicError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta, buildOrderBy, buildSearchFilter } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
+const { buildDriverNameUserFilter } = require('../../utils/listScope');
 
 class VehicleService {
   static async list(query) {
     const { page, limit, skip } = getPaginationParams(query);
     const orderBy = buildOrderBy(query, ['createdAt', 'plateNumber', 'manufacturer']);
     const searchFilter = buildSearchFilter(query, ['plateNumber', 'manufacturer', 'model']);
+    const driverNameFilter = buildDriverNameUserFilter(query);
 
     const where = {
       deletedAt: null,
       ...searchFilter,
       ...(query.status && { status: query.status }),
       ...(query.ownershipStatus && { ownershipStatus: query.ownershipStatus }),
+      ...(driverNameFilter && {
+        assignments: {
+          some: {
+            isActive: true,
+            user: driverNameFilter,
+          },
+        },
+      }),
     };
 
     const [vehicles, total] = await Promise.all([

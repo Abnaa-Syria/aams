@@ -1,5 +1,6 @@
 import GenericListPage from '../../components/ui/GenericListPage';
 import StatusBadge from '../../components/ui/StatusBadge';
+import { useNavigate } from 'react-router-dom';
 
 const columns = [
   { key: 'id', label: '#' },
@@ -13,13 +14,32 @@ const columns = [
 ];
 
 export default function ShiftsPage() {
-  return <GenericListPage title="إدارة الشفتات" apiUrl="/shifts" columns={columns} filters={[
-    { key: 'status', type: 'select', placeholder: 'الحالة', options: [
-      { value: 'REQUESTED', label: 'مطلوب' }, { value: 'APPROVED', label: 'مقبول' },
-      { value: 'ACTIVE', label: 'نشط' }, { value: 'ENDED', label: 'منتهي' },
-      { value: 'REJECTED', label: 'مرفوض' }, { value: 'CANCELLED', label: 'ملغي' },
-    ]},
-    { key: 'dateFrom', type: 'date', placeholder: 'من تاريخ' },
-    { key: 'dateTo', type: 'date', placeholder: 'إلى تاريخ' },
-  ]} />;
+  const navigate = useNavigate();
+
+  return (
+    <GenericListPage
+      title="إدارة الشفتات"
+      apiUrl="/shifts"
+      columns={columns}
+      onRowClick={(row) => navigate(`/shifts/${row.id}`)}
+      filters={[
+        { key: 'driverName', type: 'text', placeholder: 'اسم السائق' },
+        {
+          key: 'status',
+          type: 'select',
+          placeholder: 'الحالة',
+          options: [
+            { value: 'REQUESTED', label: 'مطلوب' },
+            { value: 'APPROVED', label: 'مقبول' },
+            { value: 'ACTIVE', label: 'نشط' },
+            { value: 'ENDED', label: 'منتهي' },
+            { value: 'REJECTED', label: 'مرفوض' },
+            { value: 'CANCELLED', label: 'ملغي' },
+          ],
+        },
+        { key: 'dateFrom', type: 'date', placeholder: 'من تاريخ' },
+        { key: 'dateTo', type: 'date', placeholder: 'إلى تاريخ' },
+      ]}
+    />
+  );
 }

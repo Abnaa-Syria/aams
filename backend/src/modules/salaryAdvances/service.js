@@ -2,7 +2,7 @@ const prisma = require('../../config/database');
 const { NotFoundError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
-const { ADMIN_ROLES } = require('../../utils/listScope');
+const { ADMIN_ROLES, mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
 
 class SalaryAdvanceService {
   static async list(query, currentUser) {
@@ -22,6 +22,8 @@ class SalaryAdvanceService {
         where.userId = -1;
       }
     }
+
+    where = mergeDriverNameIntoUserWhere(where, query);
 
     const [items, total] = await Promise.all([
       prisma.salaryAdvance.findMany({

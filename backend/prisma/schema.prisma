@@ -1333,14 +1333,32 @@ model MaintenanceRequestAttachment {
 // ============================================================
 
 model SystemSetting {
-  id          Int       @id @default(autoincrement())
-  key         String    @unique @db.VarChar(100)
-  value       String    @db.Text
-  description String?   @db.VarChar(300)
-  group       String?   @db.VarChar(50)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id             Int        @id @default(autoincrement())
+  key            String     @unique @db.VarChar(100)
+  value          String     @db.Text
+  
+  // Arabic localization fields
+  labelAr        String?    @db.VarChar(200)
+  descriptionAr  String?    @db.VarChar(500)
+  
+  // English fields (for reference)
+  labelEn        String?    @db.VarChar(200)
+  descriptionEn  String?    @db.VarChar(500)
+  
+  // Configuration
+  type           String     @default("text") @db.VarChar(20) // text, boolean, number, select, json
+  options        String?    @db.Text // JSON array for select options: [{"value": "opt1", "label": "Option 1"}]
+  category       String?    @db.VarChar(50) // general, security, notifications, etc.
+  group          String?    @db.VarChar(50) // deprecated, use category
+  sortOrder      Int        @default(0)
+  isVisible      Boolean    @default(true)
+  isEditable     Boolean    @default(true)
+  
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
+  @@index([category])
+  @@index([isVisible])
   @@map("system_settings")
 }
 

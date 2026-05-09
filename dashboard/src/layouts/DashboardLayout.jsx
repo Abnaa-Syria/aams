@@ -177,14 +177,14 @@ export default function DashboardLayout() {
             >
               {sidebarOpen ? <LuX size={20} /> : <LuMenu size={20} />}
             </button>
-            <div className="relative group hidden md:block">
+            {/* <div className="relative group hidden md:block">
               <LuSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-brand-primary transition-colors" size={18} />
               <input 
                 type="text" 
                 placeholder="ابحث عن سائق، مركبة، أو طلب..." 
                 className="bg-slate-50 border-none rounded-2xl pr-12 pl-6 py-3 w-[380px] text-sm font-bold placeholder:text-slate-400 focus:ring-2 focus:ring-brand-light focus:bg-white transition-all shadow-inner"
               />
-            </div>
+            </div> */}
           </div>
           
           <div className="flex items-center gap-5">

@@ -17,6 +17,7 @@ const columns = [
 export default function IncidentsPage() {
   const navigate = useNavigate();
   return <GenericListPage title="الحوادث والطوارئ" apiUrl="/incidents" columns={columns} onRowClick={(row) => navigate(`/incidents/${row.id}`)} filters={[
+    { key: 'driverName', type: 'text', placeholder: 'اسم السائق' },
     { key: 'type', type: 'select', placeholder: 'النوع', options: Object.entries(typeLabels).map(([v, l]) => ({ value: v, label: l })) },
     { key: 'severity', type: 'select', placeholder: 'الخطورة', options: [{ value: 'LOW', label: 'منخفض' }, { value: 'MEDIUM', label: 'متوسط' }, { value: 'HIGH', label: 'عالي' }, { value: 'CRITICAL', label: 'حرج' }] },
     { key: 'status', type: 'select', placeholder: 'الحالة', options: [{ value: 'OPEN', label: 'مفتوح' }, { value: 'IN_PROGRESS', label: 'قيد التنفيذ' }, { value: 'RESOLVED', label: 'تم الحل' }, { value: 'CLOSED', label: 'مغلق' }] },

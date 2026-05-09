@@ -38,7 +38,12 @@ const ApiResponse = require('../../utils/response');
  */
 router.get('/', ...adminPerm(P.SETTINGS_READ), async (req, res, next) => {
   try {
-    const items = await prisma.systemSetting.findMany({ orderBy: { group: 'asc' } });
+    const { includeHidden } = req.query;
+    const where = includeHidden === 'true' ? {} : { isVisible: true };
+    const items = await prisma.systemSetting.findMany({ 
+      where,
+      orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { key: 'asc' }]
+    });
     return ApiResponse.success(res, items);
   } catch (err) { next(err); }
 });
@@ -69,10 +74,36 @@ router.get('/:key', authenticate, async (req, res, next) => {
 
 router.post('/', ...adminPerm(P.SETTINGS_WRITE), async (req, res, next) => {
   try {
+    const { key, value, labelAr, descriptionAr, labelEn, descriptionEn, type, options, category, group, sortOrder, isVisible, isEditable } = req.body;
+    
+    // Validate value based on type
+    if (type === 'number' && value !== undefined && value !== null && value !== '') {
+      if (isNaN(Number(value))) {
+        return ApiResponse.badRequest(res, 'القيمة يجب أن تكون رقماً');
+      }
+    }
+    
+    if (type === 'boolean') {
+      if (value !== 'true' && value !== 'false') {
+        return ApiResponse.badRequest(res, 'القيمة يجب أن تكون true أو false');
+      }
+    }
+    
+    if (type === 'select' && options) {
+      try {
+        const parsedOptions = JSON.parse(options);
+        if (!Array.isArray(parsedOptions)) {
+          return ApiResponse.badRequest(res, 'الخيارات يجب أن تكون مصفوفة');
+        }
+      } catch {
+        return ApiResponse.badRequest(res, 'تنسيق الخيارات غير صحيح');
+      }
+    }
+    
     const item = await prisma.systemSetting.upsert({
-      where: { key: req.body.key },
-      create: req.body,
-      update: { value: req.body.value, description: req.body.description, group: req.body.group },
+      where: { key },
+      create: { key, value, labelAr, descriptionAr, labelEn, descriptionEn, type, options, category: category || group, group, sortOrder: sortOrder || 0, isVisible: isVisible !== false, isEditable: isEditable !== false },
+      update: { value, labelAr, descriptionAr, labelEn, descriptionEn, type, options, category: category || group, group, sortOrder: sortOrder ?? undefined, isVisible: isVisible ?? undefined, isEditable: isEditable ?? undefined },
     });
     return ApiResponse.success(res, item, 'Setting saved');
   } catch (err) { next(err); }
