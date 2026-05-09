@@ -9,7 +9,7 @@ import {
   LuBanknote, LuSmartphone, LuClock, LuFuel, LuTriangleAlert, LuCircleAlert,
   LuClipboardList, LuBell, LuMessageSquare, LuSearch, LuBan, LuStar,
   LuGift, LuCalendarOff, LuDollarSign, LuWrench, LuChartColumnIncreasing, LuSettings,
-  LuUserPlus, LuHistory, LuLogOut, LuMenu, LuX, LuChevronDown,
+  LuUserPlus, LuHistory, LuLogOut, LuMenu, LuX, LuChevronDown, LuTicket
 } from 'react-icons/lu';
 
 const ICON_MAP = {
@@ -39,6 +39,7 @@ const ICON_MAP = {
   settings: LuSettings,
   admins: LuUserPlus,
   audit: LuHistory,
+  tickets: LuTicket,
 };
 
 export default function DashboardLayout() {

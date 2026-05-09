@@ -47,6 +47,7 @@ export const NAV_GROUPS = [
     items: [
       { path: '/notifications', label: 'الإشعارات', iconKey: 'notifications', anyOf: [P.COMPLIANCE_READ, P.SETTINGS_READ] },
       { path: '/chat', label: 'المحادثات', iconKey: 'chat', anyOf: [P.COMPLIANCE_READ] },
+      { path: '/tickets', label: 'تذاكر الدعم', iconKey: 'tickets', anyOf: [P.COMPLIANCE_READ] },
     ],
   },
   {

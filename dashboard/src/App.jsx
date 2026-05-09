@@ -30,6 +30,8 @@ import IncidentDetailPage from './pages/incidents/IncidentDetailPage';
 import DailyReportsPage from './pages/daily-reports/DailyReportsPage';
 import DailyReportDetailPage from './pages/daily-reports/DailyReportDetailPage';
 import NotificationsPage from './pages/notifications/NotificationsPage';
+import TicketsPage from './pages/tickets/TicketsPage';
+import TicketDetailPage from './pages/tickets/TicketDetailPage';
 import ChatPage from './pages/chat/ChatPage';
 import InvestigationsPage from './pages/investigations/InvestigationsPage';
 import PenaltiesPage from './pages/penalties/PenaltiesPage';
@@ -75,6 +77,8 @@ export default function App() {
             <Route path="daily-reports" element={<DailyReportsPage />} />
             <Route path="daily-reports/:id" element={<DailyReportDetailPage />} />
             <Route path="notifications" element={<NotificationsPage />} />
+            <Route path="tickets" element={<TicketsPage />} />
+            <Route path="tickets/:id" element={<TicketDetailPage />} />
             <Route path="chat" element={<ChatPage />} />
             <Route path="investigations" element={<InvestigationsPage />} />
             <Route path="penalties" element={<PenaltiesPage />} />

@@ -22,6 +22,7 @@ const dailyReportRoutes = require('../modules/dailyReports/routes');
 const notificationRoutes = require('../modules/notifications/routes');
 const chatRoutes = require('../modules/chat/routes');
 const investigationRoutes = require('../modules/investigations/routes');
+const ticketRoutes = require('../modules/tickets/routes');
 const penaltyRoutes = require('../modules/penalties/routes');
 const ratingRoutes = require('../modules/ratings/routes');
 const rewardRoutes = require('../modules/rewards/routes');
@@ -65,6 +66,7 @@ const v1RouteModules = [
   { segment: 'notifications', router: notificationRoutes },
   { segment: 'chat', router: chatRoutes },
   { segment: 'investigations', router: investigationRoutes },
+  { segment: 'tickets', router: ticketRoutes },
   { segment: 'penalties', router: penaltyRoutes },
   { segment: 'ratings', router: ratingRoutes },
   { segment: 'rewards', router: rewardRoutes },
