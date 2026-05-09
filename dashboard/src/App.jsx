@@ -20,6 +20,7 @@ import LicenseDetailPage from './pages/licenses/LicenseDetailPage';
 import BankAccountsPage from './pages/bank-accounts/BankAccountsPage';
 import PlatformAccountsPage from './pages/platform-accounts/PlatformAccountsPage';
 import ShiftsPage from './pages/shifts/ShiftsPage';
+import ShiftDetailPage from './pages/shifts/ShiftDetailPage';
 import FuelLogsPage from './pages/fuel/FuelLogsPage';
 import FuelLogDetailPage from './pages/fuel/FuelLogDetailPage';
 import ViolationsPage from './pages/violations/ViolationsPage';
@@ -64,6 +65,7 @@ export default function App() {
             <Route path="bank-accounts" element={<BankAccountsPage />} />
             <Route path="platform-accounts" element={<PlatformAccountsPage />} />
             <Route path="shifts" element={<ShiftsPage />} />
+            <Route path="shifts/:id" element={<ShiftDetailPage />} />
             <Route path="fuel" element={<FuelLogsPage />} />
             <Route path="fuel/:id" element={<FuelLogDetailPage />} />
             <Route path="violations" element={<ViolationsPage />} />
