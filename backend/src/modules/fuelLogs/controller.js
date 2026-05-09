@@ -40,6 +40,15 @@ class FuelLogController {
     }
   }
 
+  static async updateLog(req, res, next) {
+    try {
+      const log = await FuelLogService.update(req.params.id, req.user.id, req.body);
+      return ApiResponse.success(res, log, 'Fuel log updated successfully');
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static async deleteLog(req, res, next) {
     try {
       await FuelLogService.delete(req.params.id, req.user.id);

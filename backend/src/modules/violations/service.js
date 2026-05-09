@@ -30,7 +30,6 @@ class ViolationService {
         include: {
           user: { select: { id: true, fullNameAr: true, identityNumber: true, accountStatus: true } },
           vehicle: { select: { id: true, plateNumber: true, model: true } },
-          penalty: true,
         },
       }),
       prisma.violation.count({ where }),
@@ -46,7 +45,6 @@ class ViolationService {
         user: { select: { id: true, fullNameAr: true, fullNameEn: true, accountStatus: true } },
         vehicle: true,
         shift: { select: { id: true, status: true, startedAt: true } },
-        penalty: true,
       },
     });
 
@@ -94,11 +92,17 @@ class ViolationService {
     const violation = await prisma.violation.findUnique({ where: { id: parseInt(id) } });
     if (!violation) throw new NotFoundError('Violation');
 
-    const updateData = { ...data };
+    const updateData = {};
+    const allowedFields = ['reason', 'amount', 'location', 'violationDate', 'status', 'reviewNotes', 'internalNotes'];
+    
+    allowedFields.forEach(field => {
+      if (data[field] !== undefined) {
+        updateData[field] = data[field];
+      }
+    });
+
     if (updateData.amount) updateData.amount = parseFloat(updateData.amount);
-    if (updateData.userId) updateData.userId = parseInt(updateData.userId);
-    if (updateData.vehicleId) updateData.vehicleId = parseInt(updateData.vehicleId);
-    if (updateData.penaltyId) updateData.penaltyId = parseInt(updateData.penaltyId);
+    if (updateData.violationDate) updateData.violationDate = new Date(updateData.violationDate);
 
     const updated = await prisma.violation.update({
       where: { id: parseInt(id) },
