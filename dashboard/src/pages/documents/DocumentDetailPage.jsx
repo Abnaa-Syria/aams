@@ -5,6 +5,7 @@ import { LuChevronLeft, LuDownload, LuFileText, LuUser, LuCalendar } from 'react
 
 import api, { apiService } from '../../services/api';
 import StatusBadge from '../../components/ui/StatusBadge';
+import PdfViewer from '../../components/pdf/PdfViewer';
 import { resolveUploadUrl } from '../../utils/apiOrigin';
 
 const typeLabels = {
@@ -81,7 +82,7 @@ export default function DocumentDetailPage() {
   const [doc, setDoc] = useState(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
-  const [pdfPreviewUrl, setPdfPreviewUrl] = useState('');
+  const [pdfBlob, setPdfBlob] = useState(null);
   const [pdfPreviewLoading, setPdfPreviewLoading] = useState(false);
 
   const load = useCallback(async () => {
@@ -125,21 +126,19 @@ export default function DocumentDetailPage() {
 
   useEffect(() => {
     let cancelled = false;
-    let objectUrl = '';
 
     async function loadPdfBlob() {
       if (!id || fileKind !== 'pdf') {
-        setPdfPreviewUrl('');
+        setPdfBlob(null);
         setPdfPreviewLoading(false);
         return;
       }
       setPdfPreviewLoading(true);
       try {
         const res = await api.get(`/documents/${id}/download`, { responseType: 'blob' });
-        objectUrl = window.URL.createObjectURL(res.data);
-        if (!cancelled) setPdfPreviewUrl(objectUrl);
-      } catch (err) {
-        if (!cancelled) setPdfPreviewUrl('');
+        if (!cancelled) setPdfBlob(res.data);
+      } catch {
+        if (!cancelled) setPdfBlob(null);
       } finally {
         if (!cancelled) setPdfPreviewLoading(false);
       }
@@ -148,7 +147,6 @@ export default function DocumentDetailPage() {
     loadPdfBlob();
     return () => {
       cancelled = true;
-      if (objectUrl) window.URL.revokeObjectURL(objectUrl);
     };
   }, [fileKind, id]);
 
@@ -227,21 +225,16 @@ export default function DocumentDetailPage() {
                   />
                 </div>
               ) : fileKind === 'pdf' ? (
-                <div className="rounded-3xl overflow-hidden border border-slate-100 bg-slate-50">
+                <div className="rounded-3xl overflow-hidden border border-slate-100 bg-slate-50 max-h-[80vh] overflow-y-auto">
                   {pdfPreviewLoading ? (
                     <div className="flex items-center justify-center h-[70vh]">
                       <div className="w-10 h-10 border-4 border-brand-light border-t-brand-primary rounded-full animate-spin" />
                     </div>
-                  ) : pdfPreviewUrl ? (
-                    <iframe
-                      title={doc.title || 'Document preview'}
-                      src={pdfPreviewUrl}
-                      className="w-full h-[70vh]"
-                    />
                   ) : (
-                    <div className="flex items-center justify-center h-[70vh] px-6 text-center">
-                      <div className="text-sm font-bold text-slate-500">تعذر تحميل معاينة PDF. جرّب التنزيل.</div>
-                    </div>
+                    <PdfViewer
+                      file={pdfBlob}
+                      emptyLabel="تعذر تحميل معاينة PDF. جرّب التنزيل."
+                    />
                   )}
                 </div>
               ) : (

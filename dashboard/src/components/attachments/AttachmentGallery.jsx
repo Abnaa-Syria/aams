@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { LuChevronLeft, LuChevronRight, LuDownload, LuFileQuestion } from 'react-icons/lu';
 
 import api from '../../services/api';
+import PdfViewer from '../pdf/PdfViewer';
 import { resolveUploadUrl } from '../../utils/apiOrigin';
 import { guessFileKind, pickFilename, downloadBlob } from '../../utils/attachments';
 
@@ -12,7 +13,7 @@ import { guessFileKind, pickFilename, downloadBlob } from '../../utils/attachmen
 function AttachmentGalleryInner({ list, title = 'المرفقات' }) {
   const [index, setIndex] = useState(0);
   const [downloading, setDownloading] = useState(false);
-  const [pdfPreviewUrl, setPdfPreviewUrl] = useState('');
+  const [pdfBlob, setPdfBlob] = useState(null);
   const [pdfLoading, setPdfLoading] = useState(false);
 
   const safeIndex = list.length ? Math.min(index, list.length - 1) : 0;
@@ -34,22 +35,20 @@ function AttachmentGalleryInner({ list, title = 'المرفقات' }) {
 
   useEffect(() => {
     let cancelled = false;
-    let objectUrl = '';
 
     async function loadPdf() {
       if (!current || kind !== 'pdf' || !current.downloadUrl) {
-        setPdfPreviewUrl('');
+        setPdfBlob(null);
         setPdfLoading(false);
         return;
       }
       setPdfLoading(true);
       try {
         const res = await api.get(current.downloadUrl, { responseType: 'blob' });
-        objectUrl = window.URL.createObjectURL(res.data);
-        if (!cancelled) setPdfPreviewUrl(objectUrl);
+        if (!cancelled) setPdfBlob(res.data);
       } catch {
         if (!cancelled) {
-          setPdfPreviewUrl('');
+          setPdfBlob(null);
           toast.error('تعذر معاينة ملف PDF');
         }
       } finally {
@@ -60,7 +59,6 @@ function AttachmentGalleryInner({ list, title = 'المرفقات' }) {
     loadPdf();
     return () => {
       cancelled = true;
-      if (objectUrl) window.URL.revokeObjectURL(objectUrl);
     };
   }, [current, kind, current?.downloadUrl]);
 
@@ -143,18 +141,13 @@ function AttachmentGalleryInner({ list, title = 'المرفقات' }) {
           </div>
         )}
         {kind === 'pdf' && (
-          <div className="rounded-2xl overflow-hidden border border-slate-100 bg-slate-50">
+          <div className="rounded-2xl overflow-hidden border border-slate-100 bg-slate-50 max-h-[75vh] overflow-y-auto">
             {pdfLoading ? (
               <div className="flex items-center justify-center h-[50vh]">
                 <div className="w-10 h-10 border-4 border-brand-light border-t-brand-primary rounded-full animate-spin" />
               </div>
-            ) : pdfPreviewUrl ? (
-              <iframe title={current.label} src={pdfPreviewUrl} className="w-full h-[70vh]" />
             ) : (
-              <div className="flex flex-col items-center justify-center h-40 text-slate-400 gap-2">
-                <LuFileQuestion size={32} />
-                <span className="text-xs font-bold">تعذر عرض المعاينة</span>
-              </div>
+              <PdfViewer file={pdfBlob} emptyLabel="تعذر عرض المعاينة" />
             )}
           </div>
         )}

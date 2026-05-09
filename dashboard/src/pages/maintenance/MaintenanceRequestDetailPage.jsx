@@ -3,13 +3,12 @@ import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { apiService } from '../../services/api';
 import StatusBadge from '../../components/ui/StatusBadge';
-import { resolveUploadUrl } from '../../utils/apiOrigin';
+import AttachmentGallery from '../../components/attachments/AttachmentGallery';
 import {
   LuChevronLeft,
   LuUser,
   LuTruck,
   LuWrench,
-  LuPaperclip,
   LuClock,
   LuText,
   LuHash,
@@ -22,11 +21,6 @@ function formatDateTime(v) {
   } catch {
     return '—';
   }
-}
-
-function isImageUrl(url) {
-  if (!url) return false;
-  return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(url.split('?')[0]);
 }
 
 function LabelValue({ label, value, icon: Icon }) {
@@ -65,12 +59,37 @@ export default function MaintenanceRequestDetailPage() {
     }
   }, [id, navigate]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mount data fetch
+    void load();
+  }, [load]);
 
-  const attachment = useMemo(() => {
-    const url = item?.attachmentUrl ? resolveUploadUrl(item.attachmentUrl) : '';
-    return url ? { url, isImage: isImageUrl(url) } : null;
-  }, [item?.attachmentUrl]);
+  const galleryItems = useMemo(() => {
+    if (!item || !id) return [];
+    if (item.attachments?.length) {
+      return item.attachments.map((att, idx) => ({
+        key: `att-${att.id ?? idx}`,
+        label: att.fileName || `مرفق ${idx + 1}`,
+        fileUrl: att.fileUrl,
+        fileName: att.fileName,
+        mimeType: att.fileType,
+        downloadUrl: `/maintenance-requests/${id}/attachments/${att.id}/download`,
+      }));
+    }
+    if (item.attachmentUrl) {
+      const name = String(item.attachmentUrl).split('/').pop() || 'attachment';
+      return [
+        {
+          key: 'legacy',
+          label: 'مرفق الطلب',
+          fileUrl: item.attachmentUrl,
+          fileName: name,
+          downloadUrl: `/maintenance-requests/${id}/attachment/download`,
+        },
+      ];
+    }
+    return [];
+  }, [item, id]);
 
   if (loading) {
     return (
@@ -87,7 +106,6 @@ export default function MaintenanceRequestDetailPage() {
 
   return (
     <div className="page-container animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Header */}
       <div className="bg-white rounded-[2.5rem] p-8 shadow-premium border border-slate-100 mb-8 relative overflow-hidden group">
         <div className="absolute top-0 right-0 w-64 h-64 bg-brand-light/40 rounded-full blur-3xl -mr-32 -mt-32 opacity-60 pointer-events-none"></div>
 
@@ -125,9 +143,7 @@ export default function MaintenanceRequestDetailPage() {
         </div>
       </div>
 
-      {/* Details */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Request */}
         <div className="lg:col-span-2 space-y-6">
           <div className="card !p-8 border-none ring-1 ring-slate-200/50">
             <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
@@ -165,42 +181,9 @@ export default function MaintenanceRequestDetailPage() {
             )}
           </div>
 
-          {/* Attachment */}
-          <div className="card !p-8 border-none ring-1 ring-slate-200/50">
-            <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
-              <LuPaperclip className="text-brand-primary" size={20} />
-              المرفقات
-            </h3>
-
-            {!attachment ? (
-              <div className="text-[0.9rem] font-bold text-slate-500">لا يوجد مرفقات</div>
-            ) : (
-              <div className="space-y-4">
-                {attachment.isImage ? (
-                  <div className="rounded-3xl overflow-hidden ring-1 ring-slate-200/50 bg-slate-50">
-                    <img
-                      src={attachment.url}
-                      alt=""
-                      className="w-full max-h-[420px] object-contain"
-                      loading="lazy"
-                    />
-                  </div>
-                ) : null}
-                <a
-                  href={attachment.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-slate-100 text-slate-700 hover:bg-brand-light hover:text-brand-primary transition-all font-black text-[0.85rem]"
-                >
-                  <LuPaperclip size={16} />
-                  فتح / تنزيل المرفق
-                </a>
-              </div>
-            )}
-          </div>
+          <AttachmentGallery items={galleryItems} title="مرفقات الطلب" />
         </div>
 
-        {/* Side cards */}
         <div className="space-y-6">
           <div className="card !p-8 border-none ring-1 ring-slate-200/50">
             <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
@@ -229,4 +212,3 @@ export default function MaintenanceRequestDetailPage() {
     </div>
   );
 }
-

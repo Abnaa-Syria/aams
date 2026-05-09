@@ -4,6 +4,10 @@ const { adminPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const upload = require('../../utils/upload');
 const MaintenanceRequestController = require('./controller');
+const prisma = require('../../config/database');
+const { NotFoundError } = require('../../utils/errors');
+const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
+const { streamAttachmentDownload } = require('../../utils/streamAttachment');
 
 /**
  * @openapi
@@ -15,6 +19,41 @@ const MaintenanceRequestController = require('./controller');
  *       - bearerAuth: []
  */
 router.get('/', authenticate, MaintenanceRequestController.listRequests);
+
+router.get('/:id/attachment/download', authenticate, async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const row = await prisma.maintenanceRequest.findUnique({
+      where: { id },
+      select: { userId: true, attachmentUrl: true },
+    });
+    if (!row) throw new NotFoundError('Maintenance Request');
+    await assertCanAccessDriverRecord(req, row.userId);
+    const fallbackName =
+      (row.attachmentUrl && String(row.attachmentUrl).split('/').pop()) || 'attachment';
+    await streamAttachmentDownload(res, row.attachmentUrl, fallbackName);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/:id/attachments/:attachmentId/download', authenticate, async (req, res, next) => {
+  try {
+    const requestId = parseInt(req.params.id, 10);
+    const attachmentId = parseInt(req.params.attachmentId, 10);
+    const att = await prisma.maintenanceRequestAttachment.findFirst({
+      where: { id: attachmentId, maintenanceRequestId: requestId },
+      include: { maintenanceRequest: { select: { userId: true } } },
+    });
+    if (!att) throw new NotFoundError('Attachment');
+    await assertCanAccessDriverRecord(req, att.maintenanceRequest.userId);
+    const fallbackName =
+      att.fileName || (att.fileUrl && String(att.fileUrl).split('/').pop()) || 'attachment';
+    await streamAttachmentDownload(res, att.fileUrl, fallbackName);
+  } catch (err) {
+    next(err);
+  }
+});
 
 /**
  * @openapi
@@ -32,11 +71,19 @@ router.get('/:id', authenticate, MaintenanceRequestController.getRequest);
  * /maintenance-requests:
  *   post:
  *     tags: [Maintenance Requests]
- *     summary: Submit maintenance request (multipart attachment)
+ *     summary: Submit maintenance request (multipart attachments)
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', authenticate, upload.single('attachment'), MaintenanceRequestController.createRequest);
+router.post(
+  '/',
+  authenticate,
+  upload.fields([
+    { name: 'attachments', maxCount: 10 },
+    { name: 'attachment', maxCount: 1 },
+  ]),
+  MaintenanceRequestController.createRequest,
+);
 
 /**
  * @openapi
@@ -59,7 +106,5 @@ router.patch('/:id/status', ...adminPerm(P.FLEET_WRITE), MaintenanceRequestContr
  *       - bearerAuth: []
  */
 router.delete('/:id', ...adminPerm(P.FLEET_WRITE), MaintenanceRequestController.deleteRequest);
-
-module.exports = router;
 
 module.exports = router;
