@@ -210,7 +210,6 @@ export default function MaintenanceRequestDetailPage() {
             <div className="space-y-5">
               <LabelValue label="الاسم (عربي)" value={user?.fullNameAr || '—'} />
               <LabelValue label="الاسم (إنجليزي)" value={user?.fullNameEn || '—'} />
-              <LabelValue label="المعرف" value={user?.id ?? '—'} icon={LuHash} />
             </div>
           </div>
 
@@ -223,7 +222,6 @@ export default function MaintenanceRequestDetailPage() {
               <LabelValue label="رقم اللوحة" value={vehicle?.plateNumber || '—'} />
               <LabelValue label="الموديل" value={vehicle?.model || '—'} />
               <LabelValue label="الحالة" value={<StatusBadge status={vehicle?.status} />} />
-              <LabelValue label="المعرف" value={vehicle?.id ?? '—'} icon={LuHash} />
             </div>
           </div>
         </div>
