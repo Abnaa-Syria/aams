@@ -14,11 +14,20 @@ class MaintenanceRequestService {
       ...(query.priority && { priority: query.priority }),
     };
 
-    // Scoping
+    // Scoping logic (Drivers see only theirs, Supervisors see their team)
     if (currentUser.role === 'DRIVER') {
       where.userId = currentUser.id;
     } else if (currentUser.role === 'SUPERVISOR') {
-      where.user = { supervisorId: currentUser.id };
+      // If supervisor specifies a userId, it must be one of their drivers
+      if (query.userId) {
+        where.userId = parseInt(query.userId);
+        where.user = { supervisorId: currentUser.id };
+      } else {
+        where.user = { supervisorId: currentUser.id };
+      }
+    } else if (query.userId) {
+      // Admins and other roles can filter by userId freely
+      where.userId = parseInt(query.userId);
     }
 
     const [items, total] = await Promise.all([
@@ -128,6 +137,32 @@ class MaintenanceRequestService {
     });
 
     return result;
+  }
+
+  static async update(id, adminId, data) {
+    const existing = await prisma.maintenanceRequest.findUnique({ where: { id: parseInt(id) } });
+    if (!existing) throw new NotFoundError('Maintenance Request');
+
+    const updateData = {};
+    const allowedFields = ['issueType', 'description', 'priority', 'status', 'cost', 'odometerReading', 'internalNotes', 'workshopName', 'completionDate'];
+    
+    allowedFields.forEach(field => {
+      if (data[field] !== undefined) {
+        updateData[field] = data[field];
+      }
+    });
+
+    if (updateData.odometerReading) updateData.odometerReading = parseInt(updateData.odometerReading);
+    if (updateData.cost) updateData.cost = parseFloat(updateData.cost);
+    if (updateData.completionDate) updateData.completionDate = new Date(updateData.completionDate);
+
+    const updated = await prisma.maintenanceRequest.update({
+      where: { id: parseInt(id) },
+      data: updateData,
+    });
+
+    await logAudit({ userId: adminId, action: 'UPDATE_MAINTENANCE_REQUEST', entity: 'MaintenanceRequest', entityId: String(id), newValue: updateData });
+    return updated;
   }
 
   static async delete(id, adminId) {

@@ -203,6 +203,40 @@ router.put('/:id', authenticate, upload.single('file'), async (req, res, next) =
 
 /**
  * @openapi
+ * /licenses/{id}:
+ *   patch:
+ *     tags: [Licenses]
+ *     summary: Update license (admin)
+ *     security:
+ *       - bearerAuth: []
+ */
+router.patch('/:id', authenticate, upload.single('file'), async (req, res, next) => {
+  try {
+    const existing = await prisma.license.findFirst({
+      where: { id: parseInt(req.params.id, 10), deletedAt: null },
+      select: { userId: true },
+    });
+    if (!existing) throw new NotFoundError('License');
+    await assertCanAccessDriverRecord(req, existing.userId);
+    const data = { ...req.body };
+    if (data.issueDate) data.issueDate = new Date(data.issueDate);
+    if (data.expiryDate) data.expiryDate = new Date(data.expiryDate);
+    if (data.userId !== undefined) {
+      const newUid = parseInt(data.userId, 10);
+      if (!ADMIN_ROLES.has(req.user.role) && newUid !== existing.userId) {
+        throw new AuthorizationError('لا يمكن نقل الرخصة لمستخدم آخر');
+      }
+      data.userId = newUid;
+      await assertCanAccessDriverRecord(req, newUid);
+    }
+    if (req.file) { data.fileUrl = normalizeStoredUploadPath(req.file.path); data.fileName = req.file.originalname; }
+    const item = await prisma.license.update({ where: { id: parseInt(req.params.id, 10) }, data });
+    return ApiResponse.success(res, item, 'License updated');
+  } catch (err) { next(err); }
+});
+
+/**
+ * @openapi
  * /licenses/{id}/review:
  *   patch:
  *     tags: [Licenses]

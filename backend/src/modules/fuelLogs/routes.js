@@ -40,6 +40,17 @@ router.post('/', authenticate, upload.single('receipt'), FuelLogController.creat
 
 /**
  * @openapi
+ * /fuel-logs/{id}:
+ *   patch:
+ *     tags: [Fuel Logs]
+ *     summary: Update fuel log (admin)
+ *     security:
+ *       - bearerAuth: []
+ */
+router.patch('/:id', ...adminPerm(P.COMPLIANCE_WRITE), FuelLogController.updateLog);
+
+/**
+ * @openapi
  * /fuel-logs/{id}/review:
  *   patch:
  *     tags: [Fuel Logs]

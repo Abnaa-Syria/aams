@@ -60,6 +60,17 @@ router.put('/:id', ...adminPerm(P.COMPLIANCE_WRITE), ViolationController.updateV
 
 /**
  * @openapi
+ * /violations/{id}:
+ *   patch:
+ *     tags: [Violations]
+ *     summary: Update violation (admin)
+ *     security:
+ *       - bearerAuth: []
+ */
+router.patch('/:id', ...adminPerm(P.COMPLIANCE_WRITE), ViolationController.updateViolation);
+
+/**
+ * @openapi
  * /violations/{id}/review:
  *   patch:
  *     tags: [Violations]

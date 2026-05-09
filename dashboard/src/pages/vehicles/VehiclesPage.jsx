@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { apiService } from '../../services/api';
 import toast from 'react-hot-toast';
 import { useSelector } from 'react-redux';
@@ -9,7 +10,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import RowActions from '../../components/ui/RowActions';
 import PermissionGate from '../../components/auth/PermissionGate';
 import { PERMISSIONS as P, hasAnyPermission } from '../../utils/rolePermissions';
-import { LuPencil, LuPlus, LuTrash2 } from 'react-icons/lu';
+import { LuPencil, LuPlus, LuTrash2, LuEye } from 'react-icons/lu';
 
 const statusFilter = {
   key: 'status', type: 'select', placeholder: 'حالة المركبة',
@@ -21,6 +22,7 @@ const statusFilter = {
 };
 
 export default function VehiclesPage() {
+  const navigate = useNavigate();
   const authUser = useSelector((s) => s.auth.user);
   const canWrite = hasAnyPermission(authUser?.role, [P.FLEET_WRITE]);
 
@@ -110,6 +112,9 @@ export default function VehiclesPage() {
       render: (_, row) => (
         <PermissionGate anyOf={[P.FLEET_WRITE]}>
           <RowActions>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => navigate(`/vehicles/${row.id}`)}>
+              <LuEye size={16} />
+            </button>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEdit(row)}>
               <LuPencil size={16} />
             </button>
@@ -129,6 +134,7 @@ export default function VehiclesPage() {
         apiUrl="/vehicles"
         columns={columns}
         reloadToken={reloadToken}
+        onRowClick={(row) => navigate(`/vehicles/${row.id}`)}
         filters={[{ key: 'search', placeholder: 'بحث برقم اللوحة...' }, statusFilter]}
         createButton={(
           <PermissionGate anyOf={[P.FLEET_WRITE]}>

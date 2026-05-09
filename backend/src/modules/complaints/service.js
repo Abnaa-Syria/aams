@@ -12,10 +12,20 @@ class ComplaintService {
       ...(query.type && { type: query.type }),
     };
 
+    // Scoping logic (Drivers see only theirs, Supervisors see their team)
     if (currentUser.role === 'DRIVER') {
       where.userId = currentUser.id;
     } else if (currentUser.role === 'SUPERVISOR') {
-      where.user = { supervisorId: currentUser.id };
+      // If supervisor specifies a userId, it must be one of their drivers
+      if (query.userId) {
+        where.userId = parseInt(query.userId);
+        where.user = { supervisorId: currentUser.id };
+      } else {
+        where.user = { supervisorId: currentUser.id };
+      }
+    } else if (query.userId) {
+      // Admins and other roles can filter by userId freely
+      where.userId = parseInt(query.userId);
     }
 
     const [items, total] = await Promise.all([

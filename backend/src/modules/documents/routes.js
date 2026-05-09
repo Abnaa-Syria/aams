@@ -137,6 +137,17 @@ router.put('/:id', authenticate, upload.single('file'), DocumentController.updat
 
 /**
  * @openapi
+ * /documents/{id}:
+ *   patch:
+ *     tags: [Documents]
+ *     summary: Update document fields (admin)
+ *     security:
+ *       - bearerAuth: []
+ */
+router.patch('/:id', authenticate, upload.single('file'), DocumentController.update);
+
+/**
+ * @openapi
  * /documents/{id}/review:
  *   patch:
  *     tags: [Documents]

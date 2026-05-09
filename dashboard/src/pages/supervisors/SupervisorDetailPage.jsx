@@ -44,7 +44,10 @@ export default function SupervisorDetailPage() {
     setSelectedIds(new Set());
     try {
       const { data } = await apiService.get('/users', { role: 'DRIVER', limit: 500, page: 1 });
-      setDriversPool(Array.isArray(data.data) ? data.data : []);
+      const allDrivers = Array.isArray(data.data) ? data.data : [];
+      // Filter out drivers already assigned to this supervisor
+      const assignedIds = new Set(supervisor.assignedDrivers?.map(d => d.id) || []);
+      setDriversPool(allDrivers.filter(d => !assignedIds.has(d.id)));
     } catch {
       toast.error('تعذر تحميل قائمة السائقين');
       setDriversPool([]);
