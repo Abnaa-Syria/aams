@@ -565,21 +565,110 @@ async function main() {
       },
     });
 
-    await prisma.violation.create({
+    const demoPenalty = await prisma.penalty.create({
       data: {
         userId: driver.id,
-        vehicleId: vehicle.id,
-        shiftId: active.id,
-        reason: 'تجاوز سرعة',
-        amount: '150.00',
-        location: 'الرياض',
-        violationDate: daysFromNow(-2),
-        status: 'UNDER_REVIEW',
+        type: 'FINANCIAL',
+        amount: '100.00',
+        reason: 'جزاء مرتبط بمخالفة ديمو',
+        status: 'APPLIED',
+        penaltyDate: daysFromNow(-10),
+        createdBy: opsAdmin.id,
+        approvedBy: opsAdmin.id,
+        approvedAt: new Date(),
+      },
+    });
+
+    const violationRows = [
+      {
+        reason: 'تجاوز إشارة ضوئية حمراء',
+        amount: '500.00',
+        location: 'طريق الملك فهد، الرياض',
+        violationDate: daysFromNow(-1),
+        status: 'REPORTED',
         vehicleImageUrl: DEMO.img.shiftStart,
         violationImageUrl: DEMO.img.incident,
         bikeImageUrl: DEMO.img.maint,
       },
-    });
+      {
+        reason: 'تجاوز السرعة المحددة',
+        amount: '150.00',
+        location: 'الرياض',
+        violationDate: daysFromNow(-2),
+        status: 'UNDER_REVIEW',
+        vehicleImageUrl: DEMO.img.report,
+        violationImageUrl: DEMO.img.incident,
+        bikeImageUrl: DEMO.img.shiftStart,
+      },
+      {
+        reason: 'وقوف غير نظامي',
+        amount: '100.00',
+        location: 'جدة — كورنيش',
+        violationDate: daysFromNow(-8),
+        status: 'CONFIRMED',
+        reviewedBy: opsAdmin.id,
+        reviewedAt: daysFromNow(-6),
+        reviewNotes: 'تأكيد المخالفة بعد مراجعة الصور',
+        vehicleImageUrl: DEMO.img.midshift,
+        violationImageUrl: DEMO.img.report,
+        bikeImageUrl: DEMO.img.receipt,
+      },
+      {
+        reason: 'التحقق من لوحة — لم تثبت المخالفة',
+        amount: '200.00',
+        location: 'الدمام',
+        violationDate: daysFromNow(-20),
+        status: 'DISMISSED',
+        reviewedBy: opsAdmin.id,
+        reviewedAt: daysFromNow(-18),
+        reviewNotes: 'مرفوضة: صورة غير واضحة',
+        vehicleImageUrl: DEMO.img.maint,
+        violationImageUrl: DEMO.img.shiftStart,
+        bikeImageUrl: DEMO.img.incident,
+      },
+      {
+        reason: 'مخالفة مرورية — تم تطبيق الجزاء',
+        amount: '250.00',
+        location: 'الرياض',
+        violationDate: daysFromNow(-12),
+        status: 'PENALIZED',
+        reviewedBy: opsAdmin.id,
+        reviewedAt: daysFromNow(-11),
+        reviewNotes: 'إحالة للجزاء المالي',
+        penaltyId: demoPenalty.id,
+        vehicleImageUrl: DEMO.img.shiftStart,
+        violationImageUrl: DEMO.img.midshift,
+        bikeImageUrl: DEMO.img.maint,
+      },
+    ];
+
+    for (const row of violationRows) {
+      await prisma.violation.create({
+        data: {
+          userId: driver.id,
+          vehicleId: vehicle.id,
+          shiftId: active.id,
+          ...row,
+        },
+      });
+    }
+
+    if (i === 0) {
+      await prisma.violation.create({
+        data: {
+          userId: driver.id,
+          vehicleId: vehicle.id,
+          shiftId: null,
+          reason: 'مخالفة بدون شفت (اختبار)',
+          amount: '75.00',
+          location: 'مكة المكرمة',
+          violationDate: daysFromNow(-3),
+          status: 'REPORTED',
+          vehicleImageUrl: DEMO.img.report,
+          violationImageUrl: DEMO.img.receipt,
+        },
+      });
+    }
 
     const incident = await prisma.incident.create({
       data: {
@@ -665,20 +754,6 @@ async function main() {
         description: 'طلب صيانة ديمو',
         status: 'REQUESTED',
         attachmentUrl: DEMO.img.maint,
-      },
-    });
-
-    await prisma.penalty.create({
-      data: {
-        userId: driver.id,
-        type: 'FINANCIAL',
-        amount: '100.00',
-        reason: 'جزاء ديمو',
-        status: 'APPLIED',
-        penaltyDate: daysFromNow(-10),
-        createdBy: opsAdmin.id,
-        approvedBy: opsAdmin.id,
-        approvedAt: new Date(),
       },
     });
 
