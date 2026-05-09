@@ -87,6 +87,17 @@ router.post(
 
 /**
  * @openapi
+ * /maintenance-requests/{id}:
+ *   patch:
+ *     tags: [Maintenance Requests]
+ *     summary: Update maintenance request (admin)
+ *     security:
+ *       - bearerAuth: []
+ */
+router.patch('/:id', ...adminPerm(P.FLEET_WRITE), MaintenanceRequestController.updateRequest);
+
+/**
+ * @openapi
  * /maintenance-requests/{id}/status:
  *   patch:
  *     tags: [Maintenance Requests]

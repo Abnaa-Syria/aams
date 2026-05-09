@@ -113,11 +113,21 @@ class UserService {
 
   static async create(data) {
     const existing = await prisma.user.findUnique({ where: { identityNumber: data.identityNumber } });
-    if (existing) throw new ConflictError('Identity number already exists');
+    if (existing) throw new ConflictError('رقم الهوية مسجل مسبقاً لمستخدم آخر');
 
     if (data.mobileNumber) {
       const existingMobile = await prisma.user.findUnique({ where: { mobileNumber: data.mobileNumber } });
-      if (existingMobile) throw new ConflictError('Mobile number already exists');
+      if (existingMobile) throw new ConflictError('رقم الجوال مسجل مسبقاً لمستخدم آخر');
+    }
+
+    if (data.email) {
+      const existingEmail = await prisma.user.findFirst({ where: { email: data.email, deletedAt: null } });
+      if (existingEmail) throw new ConflictError('البريد الإلكتروني مسجل مسبقاً لمستخدم آخر');
+    }
+
+    if (data.employeeNumber) {
+      const existingEmp = await prisma.user.findUnique({ where: { employeeNumber: data.employeeNumber } });
+      if (existingEmp) throw new ConflictError('رقم الموظف مسجل مسبقاً لمستخدم آخر');
     }
 
     const passwordHash = await bcrypt.hash(data.password, 12);
@@ -140,6 +150,26 @@ class UserService {
   static async update(id, data, adminUser) {
     const user = await prisma.user.findFirst({ where: { id: parseInt(id), deletedAt: null } });
     if (!user) throw new NotFoundError('User');
+
+    if (data.identityNumber && data.identityNumber !== user.identityNumber) {
+      const existing = await prisma.user.findUnique({ where: { identityNumber: data.identityNumber } });
+      if (existing) throw new ConflictError('رقم الهوية مسجل مسبقاً لمستخدم آخر');
+    }
+
+    if (data.mobileNumber && data.mobileNumber !== user.mobileNumber) {
+      const existing = await prisma.user.findUnique({ where: { mobileNumber: data.mobileNumber } });
+      if (existing) throw new ConflictError('رقم الجوال مسجل مسبقاً لمستخدم آخر');
+    }
+
+    if (data.email && data.email !== user.email) {
+      const existingEmail = await prisma.user.findFirst({ where: { email: data.email, deletedAt: null } });
+      if (existingEmail) throw new ConflictError('البريد الإلكتروني مسجل مسبقاً لمستخدم آخر');
+    }
+
+    if (data.employeeNumber && data.employeeNumber !== user.employeeNumber) {
+      const existingEmp = await prisma.user.findUnique({ where: { employeeNumber: data.employeeNumber } });
+      if (existingEmp) throw new ConflictError('رقم الموظف مسجل مسبقاً لمستخدم آخر');
+    }
 
     const updateData = { ...data };
     if (updateData.dateOfBirth) updateData.dateOfBirth = new Date(updateData.dateOfBirth);

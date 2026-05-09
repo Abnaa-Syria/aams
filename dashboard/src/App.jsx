@@ -13,6 +13,7 @@ import DriverDetailPage from './pages/drivers/DriverDetailPage';
 import SupervisorsPage from './pages/supervisors/SupervisorsPage';
 import SupervisorDetailPage from './pages/supervisors/SupervisorDetailPage';
 import VehiclesPage from './pages/vehicles/VehiclesPage';
+import VehicleDetailPage from './pages/vehicles/VehicleDetailPage';
 import DocumentsPage from './pages/documents/DocumentsPage';
 import DocumentDetailPage from './pages/documents/DocumentDetailPage';
 import LicensesPage from './pages/licenses/LicensesPage';
@@ -66,6 +67,7 @@ export default function App() {
             <Route path="supervisors" element={<SupervisorsPage />} />
             <Route path="supervisors/:id" element={<SupervisorDetailPage />} />
             <Route path="vehicles" element={<VehiclesPage />} />
+            <Route path="vehicles/:id" element={<VehicleDetailPage />} />
             <Route path="documents" element={<DocumentsPage />} />
             <Route path="documents/:id" element={<DocumentDetailPage />} />
             <Route path="licenses" element={<LicensesPage />} />

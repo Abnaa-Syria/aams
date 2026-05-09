@@ -5,6 +5,7 @@ const prisma = require('./config/database');
 const { initSocket } = require('./socket');
 const fs = require('fs');
 const path = require('path');
+const { initCronJobs } = require('./cron');
 
 async function main() {
   try {
@@ -28,6 +29,9 @@ async function main() {
 
     // Attach Socket.io
     initSocket(httpServer);
+
+    // Initialize background automation workers
+    initCronJobs();
 
     httpServer.listen(config.port, () => {
       console.log(`Server running on port ${config.port}`);

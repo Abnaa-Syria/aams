@@ -36,7 +36,7 @@ class ShiftService {
 
     const where = {
       ...scope,
-      ...(isAdmin && query.userId && { userId: parseInt(query.userId) }),
+      ...((isAdmin || isSupervisor) && query.userId && { userId: parseInt(query.userId) }),
       ...(query.status && { status: query.status }),
       ...(query.vehicleId && { vehicleId: parseInt(query.vehicleId) }),
       ...(query.dateFrom && { requestedAt: { gte: new Date(query.dateFrom) } }),

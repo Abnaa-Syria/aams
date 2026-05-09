@@ -55,6 +55,42 @@ class TraineeService {
     
     return prisma.trainee.delete({ where: { id: parseInt(id) } });
   }
+
+  /**
+   * Automated cron service method: Checks for trainees who passed 30 days and marks them completed.
+   */
+  static async checkTraineeCompletion() {
+    console.log('[Cron] Running checkTraineeCompletion...');
+    
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const pendingTrainees = await prisma.trainee.findMany({
+      where: {
+        isCompleted: false,
+        createdAt: { lte: thirtyDaysAgo }
+      }
+    });
+
+    if (pendingTrainees.length === 0) return 0;
+
+    let completedCount = 0;
+    
+    for (const trainee of pendingTrainees) {
+      await prisma.trainee.update({
+        where: { id: trainee.id },
+        data: {
+          isCompleted: true,
+          rewardIssued: true,
+          rewardAmount: trainee.rewardAmount || 500, // Default reward if none set
+        }
+      });
+      completedCount++;
+    }
+
+    console.log(`[Cron] checkTraineeCompletion completed. Marked ${completedCount} trainees as completed.`);
+    return completedCount;
+  }
 }
 
 module.exports = TraineeService;

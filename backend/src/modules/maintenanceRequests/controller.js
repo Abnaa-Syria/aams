@@ -49,6 +49,15 @@ class MaintenanceRequestController {
     }
   }
 
+  static async updateRequest(req, res, next) {
+    try {
+      const request = await MaintenanceRequestService.update(req.params.id, req.user.id, req.body);
+      return ApiResponse.success(res, request, 'Maintenance request updated successfully');
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static async deleteRequest(req, res, next) {
     try {
       await MaintenanceRequestService.delete(req.params.id, req.user.id);

@@ -46,6 +46,7 @@ const statusMap = {
   HIGH: { label: 'عالي', variant: 'danger' },
   CRITICAL: { label: 'حرج', variant: 'danger' },
   URGENT: { label: 'عاجل', variant: 'danger' },
+  WAIVED: { label: 'معفى عنه', variant: 'success' },
 };
 
 export default function StatusBadge({ status }) {

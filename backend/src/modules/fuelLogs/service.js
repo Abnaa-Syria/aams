@@ -136,6 +136,33 @@ class FuelLogService {
     return updated;
   }
 
+  static async update(id, adminId, data) {
+    const existing = await prisma.fuelLog.findUnique({ where: { id: parseInt(id) } });
+    if (!existing) throw new NotFoundError('Fuel Log');
+
+    const updateData = {};
+    const allowedFields = ['amount', 'liters', 'odometerReading', 'fuelDate', 'status', 'receiptUrl', 'notes', 'isDuplicate', 'reviewNotes'];
+    
+    allowedFields.forEach(field => {
+      if (data[field] !== undefined) {
+        updateData[field] = data[field];
+      }
+    });
+
+    if (updateData.amount) updateData.amount = parseFloat(updateData.amount);
+    if (updateData.liters) updateData.liters = parseFloat(updateData.liters);
+    if (updateData.odometerReading) updateData.odometerReading = parseInt(updateData.odometerReading);
+    if (updateData.fuelDate) updateData.fuelDate = new Date(updateData.fuelDate);
+
+    const updated = await prisma.fuelLog.update({
+      where: { id: parseInt(id) },
+      data: updateData,
+    });
+
+    await logAudit({ userId: adminId, action: 'UPDATE_FUEL_LOG', entity: 'FuelLog', entityId: String(id), newValue: updateData });
+    return updated;
+  }
+
   static async delete(id, adminId) {
     const log = await prisma.fuelLog.findUnique({ where: { id: parseInt(id) } });
     if (!log) throw new NotFoundError('Fuel Log');

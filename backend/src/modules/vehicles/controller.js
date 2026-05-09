@@ -44,6 +44,18 @@ class VehicleController {
       return ApiResponse.success(res, null, 'Vehicle deleted');
     } catch (err) { next(err); }
   }
+  static async getSummary(req, res, next) {
+    try {
+      const summary = await VehicleService.getVehicleProfileSummary(req.params.id);
+      return ApiResponse.success(res, summary);
+    } catch (err) { next(err); }
+  }
+  static async listAssignments(req, res, next) {
+    try {
+      const { items, meta } = await VehicleService.listAssignments(req.query);
+      return ApiResponse.paginated(res, items, meta);
+    } catch (err) { next(err); }
+  }
 }
 
 module.exports = VehicleController;

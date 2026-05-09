@@ -3,6 +3,33 @@ const { adminPerm } = require('../../middlewares/adminGuard');
 const { DASHBOARD_VIEW_PERMISSIONS } = require('../../constants/permissions');
 const prisma = require('../../config/database');
 const ApiResponse = require('../../utils/response');
+const ReportController = require('./controller');
+
+/**
+ * @openapi
+ * /reports/driver-summary/{userId}:
+ *   get:
+ *     tags: [Reports]
+ *     summary: Advanced composite report aggregating shifts, finances, and violations for a specific driver
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema: { type: integer }
+ *       - in: query
+ *         name: startDate
+ *         schema: { type: string, format: date-time }
+ *       - in: query
+ *         name: endDate
+ *         schema: { type: string, format: date-time }
+ *     responses:
+ *       200:
+ *         description: Composite summary JSON object
+ */
+router.get('/driver-summary/:userId', ...adminPerm(...DASHBOARD_VIEW_PERMISSIONS), ReportController.getDriverSummary);
+
 
 /**
  * @openapi
