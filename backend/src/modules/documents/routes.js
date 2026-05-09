@@ -7,9 +7,8 @@ const upload = require('../../utils/upload');
 const prisma = require('../../config/database');
 const { NotFoundError } = require('../../utils/errors');
 const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
-const config = require('../../config');
-const path = require('path');
 const fs = require('fs');
+const { resolveStoredPathToAbsolute } = require('../../utils/uploadPath');
 
 /**
  * @openapi
@@ -85,10 +84,8 @@ router.get('/:id/download', authenticate, async (req, res, next) => {
       return res.send(Buffer.from(ab));
     }
 
-    const uploadRoot = path.resolve(path.join(__dirname, '..', '..', config.upload.dir));
-    const relative = String(item.fileUrl).replace(/\\/g, '/').replace(/^\/+/, '');
-    const abs = path.resolve(path.join(uploadRoot, relative));
-    if (!abs.startsWith(uploadRoot + path.sep)) {
+    const abs = resolveStoredPathToAbsolute(item.fileUrl);
+    if (!abs) {
       return res.status(400).json({ success: false, message: 'مسار ملف غير صالح' });
     }
     if (!fs.existsSync(abs)) throw new NotFoundError('File');

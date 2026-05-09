@@ -29,7 +29,9 @@ function formatDateTime(v) {
 }
 
 function guessFileKind({ fileUrl, fileName }) {
-  const s = `${fileName || ''} ${fileUrl || ''}`.toLowerCase();
+  const url = String(fileUrl || '');
+  if (/images\.unsplash\.com\//i.test(url)) return 'image';
+  const s = `${fileName || ''} ${url}`.toLowerCase();
   if (/\.(png|jpe?g|webp|gif)(\?|#|$)/.test(s)) return 'image';
   if (/\.(pdf)(\?|#|$)/.test(s)) return 'pdf';
   return 'other';
@@ -78,6 +80,7 @@ export default function LicenseDetailPage() {
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState('');
+  const [pdfPreviewLoading, setPdfPreviewLoading] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -125,14 +128,18 @@ export default function LicenseDetailPage() {
     async function loadPdfBlob() {
       if (!id || fileKind !== 'pdf') {
         setPdfPreviewUrl('');
+        setPdfPreviewLoading(false);
         return;
       }
+      setPdfPreviewLoading(true);
       try {
         const res = await api.get(`/licenses/${id}/download`, { responseType: 'blob' });
         objectUrl = window.URL.createObjectURL(res.data);
         if (!cancelled) setPdfPreviewUrl(objectUrl);
       } catch {
         if (!cancelled) setPdfPreviewUrl('');
+      } finally {
+        if (!cancelled) setPdfPreviewLoading(false);
       }
     }
 
@@ -219,11 +226,21 @@ export default function LicenseDetailPage() {
                 </div>
               ) : fileKind === 'pdf' ? (
                 <div className="rounded-3xl overflow-hidden border border-slate-100 bg-slate-50">
-                  <iframe
-                    title={item.title || 'License preview'}
-                    src={pdfPreviewUrl || ''}
-                    className="w-full h-[70vh]"
-                  />
+                  {pdfPreviewLoading ? (
+                    <div className="flex items-center justify-center h-[70vh]">
+                      <div className="w-10 h-10 border-4 border-brand-light border-t-brand-primary rounded-full animate-spin" />
+                    </div>
+                  ) : pdfPreviewUrl ? (
+                    <iframe
+                      title={item.title || 'License preview'}
+                      src={pdfPreviewUrl}
+                      className="w-full h-[70vh]"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-[70vh] px-6 text-center">
+                      <div className="text-sm font-bold text-slate-500">تعذر تحميل معاينة PDF. جرّب التنزيل.</div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="bg-slate-50 rounded-3xl p-10 text-center border border-slate-100">

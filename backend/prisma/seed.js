@@ -5,6 +5,28 @@ const path = require('path');
 require('dotenv').config();
 const prisma = require('../src/config/database');
 
+/** Demo image URL for seeded documents (mixed with local PDFs in uploads/demo). */
+const SEED_DEMO_IMAGE_URL =
+  'https://images.unsplash.com/photo-1768970052519-3560f0f704c7?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxmZWF0dXJlZC1waG90b3MtZmVlZHw3fHx8ZW58MHx8fHx8';
+
+/** Relative paths matching ensureDemoUploadFiles() — every seeded attachment field uses a real file or remote image. */
+const DEMO = {
+  pdf: {
+    contract: 'uploads/demo/contract.pdf',
+    leave: 'uploads/demo/leave.pdf',
+    iban: 'uploads/demo/iban.pdf',
+    license: 'uploads/demo/license.pdf',
+  },
+  img: {
+    shiftStart: 'uploads/demo/shift_start.jpg',
+    receipt: 'uploads/demo/receipt.jpg',
+    incident: 'uploads/demo/incident.jpg',
+    maint: 'uploads/demo/maint.jpg',
+    report: 'uploads/demo/report.png',
+    midshift: 'uploads/demo/midshift.webp',
+  },
+};
+
 function daysFromNow(days) {
   const d = new Date();
   d.setDate(d.getDate() + days);
@@ -253,7 +275,11 @@ async function main() {
     { nameAr: 'تو يو', nameEn: 'ToYou' },
   ];
   for (const platform of platforms) {
-    await prisma.platform.upsert({ where: { id: platforms.indexOf(platform) + 1 }, update: {}, create: platform });
+    await prisma.platform.upsert({
+      where: { id: platforms.indexOf(platform) + 1 },
+      update: { logoUrl: SEED_DEMO_IMAGE_URL },
+      create: { ...platform, logoUrl: SEED_DEMO_IMAGE_URL },
+    });
   }
   console.log('Platforms created');
 
@@ -325,8 +351,13 @@ async function main() {
   for (const vehicle of vehicles) {
     await prisma.vehicle.upsert({
       where: { plateNumber: vehicle.plateNumber },
-      update: {},
-      create: { ...vehicle, status: 'ACTIVE', ownershipStatus: 'COMPANY_OWNED' },
+      update: { registrationFileUrl: DEMO.pdf.contract },
+      create: {
+        ...vehicle,
+        status: 'ACTIVE',
+        ownershipStatus: 'COMPANY_OWNED',
+        registrationFileUrl: DEMO.pdf.contract,
+      },
     });
   }
   console.log('Vehicles created');
@@ -385,7 +416,10 @@ async function main() {
       select: { id: true },
     });
     const row = existing
-      ? await prisma.platformAccount.update({ where: { id: existing.id }, data: { username, status: 'ACTIVE' } })
+      ? await prisma.platformAccount.update({
+          where: { id: existing.id },
+          data: { username, status: 'ACTIVE', fileUrl: DEMO.pdf.contract },
+        })
       : await prisma.platformAccount.create({
         data: {
           userId: driver.id,
@@ -394,6 +428,7 @@ async function main() {
           accountId: `ACCT-${driver.identityNumber}`,
           status: 'ACTIVE',
           notes: 'seed demo',
+          fileUrl: DEMO.pdf.contract,
         },
       });
     platformAccounts.push(row);
@@ -410,8 +445,8 @@ async function main() {
         issueDate: daysFromNow(-365),
         expiryDate: daysFromNow(20),
         status: 'NEAR_EXPIRY',
-        fileUrl: 'uploads/demo/iqama.pdf',
-        fileName: 'iqama.pdf',
+        fileUrl: SEED_DEMO_IMAGE_URL,
+        fileName: 'iqama.jpg',
       },
     }).catch(() => {});
 
@@ -424,7 +459,7 @@ async function main() {
         issueDate: daysFromNow(-180),
         expiryDate: daysFromNow(180),
         status: 'VALID',
-        fileUrl: 'uploads/demo/contract.pdf',
+        fileUrl: DEMO.pdf.contract,
         fileName: 'contract.pdf',
       },
     }).catch(() => {});
@@ -438,7 +473,7 @@ async function main() {
         issueDate: daysFromNow(-700),
         expiryDate: daysFromNow(60),
         status: 'VALID',
-        fileUrl: 'uploads/demo/license.pdf',
+        fileUrl: DEMO.pdf.license,
         fileName: 'license.pdf',
       },
     }).catch(() => {});
@@ -451,8 +486,9 @@ async function main() {
         accountOwnerName: driver.fullNameAr,
         isDefault: true,
         verificationStatus: 'VERIFIED',
-        proofFileUrl: 'uploads/demo/iban.pdf',
+        proofFileUrl: DEMO.pdf.iban,
         proofFileName: 'iban.pdf',
+        cashReceiptPhotoUrl: DEMO.img.receipt,
       },
     }).catch(() => {});
   }
@@ -470,6 +506,7 @@ async function main() {
         platformAccountId: pAcc.id,
         status: 'REQUESTED',
         notes: 'seed requested shift',
+        startPhotoUrl: DEMO.img.shiftStart,
       },
     });
     await prisma.shiftLog.create({ data: { shiftId: requested.id, action: 'SHIFT_REQUESTED', performedBy: driver.id } });
@@ -483,6 +520,7 @@ async function main() {
         approvedAt: new Date(),
         approvedBy: opsAdmin.id,
         notes: 'seed approved shift',
+        startPhotoUrl: DEMO.img.report,
       },
     });
     await prisma.shiftLog.create({ data: { shiftId: approved.id, action: 'SHIFT_APPROVED', performedBy: opsAdmin.id } });
@@ -496,7 +534,8 @@ async function main() {
         approvedAt: new Date(),
         approvedBy: opsAdmin.id,
         startedAt: daysFromNow(0),
-        startPhotoUrl: 'uploads/demo/shift_start.jpg',
+        startPhotoUrl: DEMO.img.shiftStart,
+        endPhotoUrl: DEMO.img.incident,
         notes: 'seed active shift',
       },
     });
@@ -505,7 +544,7 @@ async function main() {
     await prisma.midShiftRecord.create({
       data: {
         shiftId: active.id,
-        screenshotUrl: 'uploads/demo/midshift.webp',
+        screenshotUrl: DEMO.img.midshift,
         notes: 'seed mid-shift record',
         checklistData: { tires: true, fuel: true },
       },
@@ -522,7 +561,7 @@ async function main() {
         status: 'APPROVED',
         reviewedBy: opsAdmin.id,
         reviewedAt: new Date(),
-        receiptUrl: 'uploads/demo/receipt.jpg',
+        receiptUrl: DEMO.img.receipt,
       },
     });
 
@@ -536,6 +575,9 @@ async function main() {
         location: 'الرياض',
         violationDate: daysFromNow(-2),
         status: 'UNDER_REVIEW',
+        vehicleImageUrl: DEMO.img.shiftStart,
+        violationImageUrl: DEMO.img.incident,
+        bikeImageUrl: DEMO.img.maint,
       },
     });
 
@@ -552,7 +594,7 @@ async function main() {
       },
     });
     await prisma.incidentAttachment.create({
-      data: { incidentId: incident.id, fileUrl: 'uploads/demo/incident.jpg', fileName: 'incident.jpg', fileType: 'image/jpeg' },
+      data: { incidentId: incident.id, fileUrl: DEMO.img.incident, fileName: 'incident.jpg', fileType: 'image/jpeg' },
     });
 
     const report = await prisma.dailyReport.create({
@@ -572,7 +614,7 @@ async function main() {
       data: { reportId: report.id, platformName: 'Keeta', orders: 10, hours: '4.0', earnings: '120.00' },
     });
     await prisma.reportScreenshot.create({
-      data: { reportId: report.id, fileUrl: 'uploads/demo/report.png', fileName: 'report.png' },
+      data: { reportId: report.id, fileUrl: DEMO.img.report, fileName: 'report.png' },
     });
 
     await prisma.leaveBalance.upsert({
@@ -590,7 +632,7 @@ async function main() {
         totalDays: 3,
         reason: 'إجازة ديمو للوحة التحكم',
         status: 'PENDING',
-        attachmentUrl: 'uploads/demo/leave.pdf',
+        attachmentUrl: DEMO.pdf.leave,
       },
     });
 
@@ -611,7 +653,7 @@ async function main() {
         priority: 'LOW',
         description: 'طلب صيانة ديمو',
         status: 'REQUESTED',
-        attachmentUrl: 'uploads/demo/maint.jpg',
+        attachmentUrl: DEMO.img.maint,
       },
     });
 
@@ -667,6 +709,14 @@ async function main() {
       },
     });
     await prisma.investigationEvent.create({ data: { investigationId: inv.id, action: 'Investigation opened', performedBy: opsAdmin.id } });
+    await prisma.investigationAttachment.create({
+      data: {
+        investigationId: inv.id,
+        fileUrl: DEMO.pdf.leave,
+        fileName: 'investigation-attachment.pdf',
+        uploadedBy: opsAdmin.id,
+      },
+    });
 
     await prisma.notification.createMany({
       data: [
@@ -685,7 +735,8 @@ async function main() {
           assetId: someAsset.id,
           userId: driver.id,
           assignedBy: opsAdmin.id,
-          notes: 'seed asset assignment'
+          notes: 'seed asset assignment',
+          assignPhotoUrl: DEMO.img.receipt,
         }
       }).catch(() => {});
     }
@@ -703,7 +754,8 @@ async function main() {
         subjectId: supervisor.id,
         title: 'تأخر الرواتب',
         details: 'يوجد تأخير في استلام الراتب',
-        status: 'PENDING'
+        status: 'PENDING',
+        attachmentUrl: DEMO.pdf.contract,
       }
     }).catch(() => {});
 
@@ -714,7 +766,9 @@ async function main() {
         type: 'OTHER',
         title: 'طلب خطاب تعريف',
         details: 'يرجى تزويدي بخطاب تعريف للبنك',
-        status: 'PENDING'
+        status: 'PENDING',
+        attachmentUrl: DEMO.pdf.iban,
+        attachmentName: 'iban-proof.pdf',
       }
     }).catch(() => {});
 
@@ -749,7 +803,9 @@ async function main() {
         reason: 'العميل لم يستجب',
         platformName: 'Keeta',
         discountAmount: 15.5,
-        orderDate: daysFromNow(-1)
+        orderDate: daysFromNow(-1),
+        photoUrl: DEMO.img.receipt,
+        invoiceUrl: DEMO.pdf.leave,
       }
     }).catch(() => {});
 
@@ -821,7 +877,13 @@ async function main() {
     const d = driverUsers[0];
     await prisma.chatMessage.createMany({
       data: [
-        { senderId: d.id, receiverId: supervisor.id, message: 'السلام عليكم، جاهز لبدء الشفت؟', tag: 'seed' },
+        {
+          senderId: d.id,
+          receiverId: supervisor.id,
+          message: 'السلام عليكم، جاهز لبدء الشفت؟',
+          tag: 'seed',
+          attachmentUrl: DEMO.img.report,
+        },
         { senderId: supervisor.id, receiverId: d.id, message: 'وعليكم السلام، تم اعتماد الطلب. بالتوفيق.', tag: 'seed' },
       ],
     }).catch(() => {});
