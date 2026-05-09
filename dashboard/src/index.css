@@ -88,5 +88,5 @@
 }
 
 .form-input { 
-  @apply w-full px-4 py-3 border border-slate-200 rounded-xl font-alexandria text-[0.95rem] bg-white/80 transition-all duration-200 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-light;
+  @apply w-full px-4 py-3 border border-slate-200 rounded-xl font-alexandria text-[0.95rem] bg-white/80 transition-all duration-200 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-light text-right;
 }

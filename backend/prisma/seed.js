@@ -1098,16 +1098,20 @@ async function main() {
 
   // Create System Settings
   const settings = [
-    { key: 'max_shift_hours', value: '12', description: 'Maximum shift duration in hours', group: 'shifts' },
-    { key: 'document_expiry_alert_days', value: '30', description: 'Days before expiry to alert', group: 'documents' },
-    { key: 'max_fuel_logs_per_day', value: '5', description: 'Maximum fuel logs per day per driver', group: 'fuel' },
-    { key: 'annual_leave_days', value: '30', description: 'Default annual leave days', group: 'leaves' },
-    { key: 'company_name_ar', value: 'شركة النقل المتقدمة', description: 'Company name in Arabic', group: 'general' },
-    { key: 'company_name_en', value: 'Advanced Asset Management System', description: 'Company name in English', group: 'general' },
+    { key: 'max_shift_hours', value: '12', labelAr: 'الحد الأقصى لعدد ساعات الشفت', descriptionAr: 'الحد الأقصى لمدة الشفت', type: 'number', category: 'shifts', sortOrder: 1 },
+    { key: 'document_expiry_alert_days', value: '30', labelAr: 'أيام تنبيه انتهاء المستند', descriptionAr: 'عدد الأيام قبل الانتهاء للتنبيه', type: 'number', category: 'documents', sortOrder: 1 },
+    { key: 'max_fuel_logs_per_day', value: '5', labelAr: 'الحد الأقصى لتعبئات الوقود', descriptionAr: 'الحد الأقصى لتعبئات الوقود يومياً للسائق', type: 'number', category: 'fuel', sortOrder: 1 },
+    { key: 'annual_leave_days', value: '30', labelAr: 'أيام الإجازة السنوية', descriptionAr: 'عدد أيام الإجازة السنوية الافتراضية', type: 'number', category: 'leaves', sortOrder: 1 },
+    { key: 'company_name_ar', value: 'شركة النقل المتقدمة', labelAr: 'اسم الشركة (عربي)', descriptionAr: 'اسم الشركة بالعربية', type: 'text', category: 'company', sortOrder: 1 },
+    { key: 'company_name_en', value: 'Advanced Asset Management System', labelAr: 'اسم الشركة (إنجليزي)', descriptionAr: 'اسم الشركة بالإنجليزية', type: 'text', category: 'company', sortOrder: 2 },
   ];
 
   for (const setting of settings) {
-    await prisma.systemSetting.upsert({ where: { key: setting.key }, update: {}, create: setting });
+    await prisma.systemSetting.upsert({ 
+      where: { key: setting.key }, 
+      update: {}, 
+      create: { ...setting, isVisible: true, isEditable: true }
+    });
   }
   console.log('System settings created');
 
