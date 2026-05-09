@@ -22,6 +22,7 @@ export default function DocumentsPage() {
       columns={columns}
       onRowClick={(row) => row?.id && navigate(`/documents/${row.id}`)}
       filters={[
+        { key: 'driverName', type: 'text', placeholder: 'اسم السائق' },
         { key: 'type', type: 'select', placeholder: 'نوع المستند', options: Object.entries(typeLabels).map(([v, l]) => ({ value: v, label: l })) },
         { key: 'status', type: 'select', placeholder: 'الحالة', options: [
           { value: 'PENDING', label: 'معلق' }, { value: 'VALID', label: 'صالح' },

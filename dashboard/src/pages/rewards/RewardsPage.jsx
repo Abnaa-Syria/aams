@@ -114,6 +114,7 @@ export default function RewardsPage() {
         createButton={createButton}
         reloadToken={reloadToken}
         filters={[
+          { key: 'driverName', type: 'text', placeholder: 'اسم السائق' },
           { key: 'status', type: 'select', placeholder: 'الحالة', options: [{ value: 'PENDING', label: 'معلق' }, { value: 'APPROVED', label: 'مقبول' }, { value: 'REJECTED', label: 'مرفوض' }] },
         ]}
       />

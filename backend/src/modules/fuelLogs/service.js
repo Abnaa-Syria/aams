@@ -3,6 +3,7 @@ const { NotFoundError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
+const { mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
 
 class FuelLogService {
   static async list(query, currentUser) {
@@ -27,6 +28,8 @@ class FuelLogService {
     } else if (currentUser.role === 'SUPERVISOR') {
       where.user = { supervisorId: currentUser.id };
     }
+
+    where = mergeDriverNameIntoUserWhere(where, query);
 
     const [items, total] = await Promise.all([
       prisma.fuelLog.findMany({

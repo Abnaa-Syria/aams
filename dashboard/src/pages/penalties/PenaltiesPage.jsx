@@ -108,6 +108,7 @@ export default function PenaltiesPage() {
         createButton={createButton}
         reloadToken={reloadToken}
         filters={[
+          { key: 'driverName', type: 'text', placeholder: 'اسم السائق' },
           { key: 'type', type: 'select', placeholder: 'النوع', options: Object.entries(typeLabels).map(([v, l]) => ({ value: v, label: l })) },
           { key: 'status', type: 'select', placeholder: 'الحالة', options: [{ value: 'PENDING', label: 'معلق' }, { value: 'APPLIED', label: 'مطبق' }, { value: 'APPEALED', label: 'معترض' }, { value: 'CANCELLED', label: 'ملغي' }] },
         ]}

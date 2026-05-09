@@ -15,6 +15,7 @@ const columns = [
 export default function ViolationsPage() {
   const navigate = useNavigate();
   return <GenericListPage title="المخالفات" apiUrl="/violations" columns={columns} onRowClick={(row) => navigate(`/violations/${row.id}`)} filters={[
+    { key: 'driverName', type: 'text', placeholder: 'اسم السائق' },
     { key: 'status', type: 'select', placeholder: 'الحالة', options: [{ value: 'REPORTED', label: 'مبلغ عنه' }, { value: 'UNDER_REVIEW', label: 'قيد المراجعة' }, { value: 'CONFIRMED', label: 'مؤكد' }, { value: 'DISMISSED', label: 'مرفوض' }, { value: 'PENALIZED', label: 'معاقب' }] },
   ]} />;
 }

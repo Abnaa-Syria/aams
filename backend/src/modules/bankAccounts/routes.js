@@ -8,7 +8,7 @@ const ApiResponse = require('../../utils/response');
 const { NotFoundError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
-const { ADMIN_ROLES } = require('../../utils/listScope');
+const { ADMIN_ROLES, mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
 const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
 const { AuthorizationError } = require('../../utils/errors');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
@@ -42,12 +42,13 @@ const { streamAttachmentDownload } = require('../../utils/streamAttachment');
 router.get('/', ...adminPerm(P.FINANCE_READ), async (req, res, next) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query);
-    const where = {
+    let where = {
       deletedAt: null,
       ...(req.query.userId && { userId: parseInt(req.query.userId) }),
       ...(req.query.verificationStatus && { verificationStatus: req.query.verificationStatus }),
       ...(req.query.paymentMethod && { paymentMethod: req.query.paymentMethod }),
     };
+    where = mergeDriverNameIntoUserWhere(where, req.query);
     const [items, total] = await Promise.all([
       prisma.bankAccount.findMany({ where, skip, take: limit, orderBy: { createdAt: 'desc' }, include: { user: { select: { id: true, fullNameAr: true, identityNumber: true } } } }),
       prisma.bankAccount.count({ where }),

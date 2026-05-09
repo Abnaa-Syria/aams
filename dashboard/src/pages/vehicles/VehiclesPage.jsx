@@ -135,7 +135,7 @@ export default function VehiclesPage() {
         columns={columns}
         reloadToken={reloadToken}
         onRowClick={(row) => navigate(`/vehicles/${row.id}`)}
-        filters={[{ key: 'search', placeholder: 'بحث برقم اللوحة...' }, statusFilter]}
+        filters={[{ key: 'search', placeholder: 'بحث برقم اللوحة...' }, { key: 'driverName', type: 'text', placeholder: 'اسم السائق' }, statusFilter]}
         createButton={(
           <PermissionGate anyOf={[P.FLEET_WRITE]}>
             <button className="btn btn-primary" onClick={openCreate}>

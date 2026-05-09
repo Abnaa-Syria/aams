@@ -14,6 +14,7 @@ export default function PlatformAccountsPage() {
   const navigate = useNavigate();
 
   return <GenericListPage title="حسابات المنصات" apiUrl="/platform-accounts" columns={columns} onRowClick={(row) => navigate(`/platform-accounts/${row.id}`)} filters={[
+    { key: 'driverName', type: 'text', placeholder: 'اسم السائق' },
     { key: 'status', type: 'select', placeholder: 'الحالة', options: [{ value: 'ACTIVE', label: 'نشط' }, { value: 'INACTIVE', label: 'غير نشط' }, { value: 'PENDING_VERIFICATION', label: 'بانتظار التحقق' }] },
   ]} />;
 }

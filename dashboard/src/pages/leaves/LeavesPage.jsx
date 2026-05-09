@@ -108,6 +108,7 @@ export default function LeavesPage() {
         createButton={createButton}
         reloadToken={reloadToken}
         filters={[
+          { key: 'driverName', type: 'text', placeholder: 'اسم السائق' },
           { key: 'leaveType', type: 'select', placeholder: 'النوع', options: Object.entries(leaveTypeLabels).map(([v, l]) => ({ value: v, label: l })) },
           { key: 'status', type: 'select', placeholder: 'الحالة', options: [{ value: 'PENDING', label: 'معلق' }, { value: 'APPROVED', label: 'مقبول' }, { value: 'REJECTED', label: 'مرفوض' }] },
         ]}

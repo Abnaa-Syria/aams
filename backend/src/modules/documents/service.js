@@ -2,18 +2,21 @@ const prisma = require('../../config/database');
 const { NotFoundError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta, buildOrderBy } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
+const { mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
 
 class DocumentService {
   static async list(query) {
     const { page, limit, skip } = getPaginationParams(query);
     const orderBy = buildOrderBy(query, ['createdAt', 'expiryDate', 'type']);
 
-    const where = {
+    let where = {
       deletedAt: null,
       ...(query.userId && { userId: parseInt(query.userId) }),
       ...(query.type && { type: query.type }),
       ...(query.status && { status: query.status }),
     };
+
+    where = mergeDriverNameIntoUserWhere(where, query);
 
     const [items, total] = await Promise.all([
       prisma.document.findMany({

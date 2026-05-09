@@ -2,18 +2,19 @@ const prisma = require('../../config/database');
 const { NotFoundError, AuthorizationError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
-const { ADMIN_ROLES } = require('../../utils/listScope');
+const { ADMIN_ROLES, mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
 
 class PlatformAccountService {
   static async list(query, currentUser) {
     const { page, limit, skip } = getPaginationParams(query);
-    const where = {
+    let where = {
       deletedAt: null,
       ...(query.userId && { userId: parseInt(query.userId) }),
       ...(query.platformId && { platformId: parseInt(query.platformId) }),
       ...(query.status && { status: query.status }),
     };
+    where = mergeDriverNameIntoUserWhere(where, query);
 
     const [items, total] = await Promise.all([
       prisma.platformAccount.findMany({

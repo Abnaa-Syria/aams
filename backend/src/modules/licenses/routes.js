@@ -8,7 +8,7 @@ const ApiResponse = require('../../utils/response');
 const { NotFoundError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta, buildOrderBy } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
-const { ADMIN_ROLES } = require('../../utils/listScope');
+const { ADMIN_ROLES, mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
 const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
 const { AuthorizationError } = require('../../utils/errors');
 const fs = require('fs');
@@ -45,12 +45,13 @@ const { normalizeStoredUploadPath, resolveStoredPathToAbsolute } = require('../.
 router.get('/', ...adminPerm(P.DOCUMENTS_READ), async (req, res, next) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query);
-    const where = {
+    let where = {
       deletedAt: null,
       ...(req.query.userId && { userId: parseInt(req.query.userId) }),
       ...(req.query.type && { type: req.query.type }),
       ...(req.query.status && { status: req.query.status }),
     };
+    where = mergeDriverNameIntoUserWhere(where, req.query);
     const [items, total] = await Promise.all([
       prisma.license.findMany({ where, skip, take: limit, orderBy: { createdAt: 'desc' }, include: { user: { select: { id: true, fullNameAr: true, identityNumber: true } } } }),
       prisma.license.count({ where }),

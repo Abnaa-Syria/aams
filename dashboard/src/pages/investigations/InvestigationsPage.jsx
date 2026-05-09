@@ -73,6 +73,7 @@ export default function InvestigationsPage() {
         onRowClick={(row) => navigate(`/investigations/${row.id}`)}
         createButton={createButton}
         filters={[
+          { key: 'driverName', type: 'text', placeholder: 'اسم السائق' },
           { key: 'status', type: 'select', placeholder: 'الحالة', options: [{ value: 'OPEN', label: 'مفتوح' }, { value: 'PENDING_RESPONSE', label: 'بانتظار الرد' }, { value: 'UNDER_REVIEW', label: 'قيد المراجعة' }, { value: 'CLOSED', label: 'مغلق' }] },
         ]}
       />

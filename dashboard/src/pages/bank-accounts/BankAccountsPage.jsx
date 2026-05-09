@@ -15,6 +15,7 @@ export default function BankAccountsPage() {
   const navigate = useNavigate();
 
   return <GenericListPage title="الحسابات البنكية" apiUrl="/bank-accounts" columns={columns} onRowClick={(row) => navigate(`/bank-accounts/${row.id}`)} filters={[
+    { key: 'driverName', type: 'text', placeholder: 'اسم السائق' },
     { key: 'verificationStatus', type: 'select', placeholder: 'حالة التحقق', options: [{ value: 'PENDING', label: 'معلق' }, { value: 'VERIFIED', label: 'موثق' }, { value: 'REJECTED', label: 'مرفوض' }] },
   ]} />;
 }

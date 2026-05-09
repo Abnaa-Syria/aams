@@ -3,6 +3,7 @@ const { NotFoundError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
+const { mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
 
 class MaintenanceRequestService {
   static async list(query, currentUser) {
@@ -28,6 +29,8 @@ class MaintenanceRequestService {
       // Admins and other roles can filter by userId freely
       where.userId = parseInt(query.userId);
     }
+
+    where = mergeDriverNameIntoUserWhere(where, query);
 
     const [items, total] = await Promise.all([
       prisma.maintenanceRequest.findMany({

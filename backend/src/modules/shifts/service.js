@@ -2,6 +2,7 @@ const prisma = require('../../config/database');
 const { NotFoundError, BusinessLogicError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta, buildOrderBy } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
+const { buildDriverNameUserFilter } = require('../../utils/listScope');
 
 const BLOCKED_STATUSES = ['TEMPORARILY_SUSPENDED', 'RESTRICTED', 'ARCHIVED'];
 
@@ -21,16 +22,7 @@ class ShiftService {
           ? { user: { supervisorId: currentUser.id, role: 'DRIVER' } }
           : {};
 
-    const driverName = typeof query.driverName === 'string' ? query.driverName.trim() : '';
-    const nameFilter =
-      driverName.length > 0
-        ? {
-            OR: [
-              { fullNameAr: { contains: driverName, mode: 'insensitive' } },
-              { fullNameEn: { contains: driverName, mode: 'insensitive' } },
-            ],
-          }
-        : null;
+    const nameFilter = buildDriverNameUserFilter(query);
 
     const scopedUserWhere = scope.user && typeof scope.user === 'object' ? scope.user : null;
 

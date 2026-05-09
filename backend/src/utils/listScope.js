@@ -88,9 +88,36 @@ function applyMidShiftListScope(where, req) {
   return { ...where, shiftId: -1 };
 }
 
+function buildDriverNameUserFilter(query) {
+  const driverName = typeof query.driverName === 'string' ? query.driverName.trim() : '';
+  if (!driverName) return null;
+
+  return {
+    OR: [
+      { fullNameAr: { contains: driverName } },
+      { fullNameEn: { contains: driverName } },
+    ],
+  };
+}
+
+function mergeDriverNameIntoUserWhere(where, query) {
+  const driverNameFilter = buildDriverNameUserFilter(query);
+  if (!driverNameFilter) return where;
+
+  return {
+    ...where,
+    user: {
+      ...(where.user || {}),
+      ...driverNameFilter,
+    },
+  };
+}
+
 module.exports = {
   ADMIN_ROLES,
   applyUserOwnedListScope,
   applyUserOwnedListScopeUserIdField,
   applyMidShiftListScope,
+  buildDriverNameUserFilter,
+  mergeDriverNameIntoUserWhere,
 };
