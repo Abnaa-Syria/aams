@@ -11,6 +11,7 @@ const { applyUserOwnedListScope, ADMIN_ROLES } = require('../../utils/listScope'
 const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
 const { NotFoundError, AuthorizationError } = require('../../utils/errors');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
+const { streamAttachmentDownload } = require('../../utils/streamAttachment');
 
 /**
  * @openapi
@@ -94,6 +95,31 @@ router.get('/:id', authenticate, async (req, res, next) => {
     if (item) await assertCanAccessDriverRecord(req, item.userId);
     return ApiResponse.success(res, item);
   } catch (err) { next(err); }
+});
+
+router.get('/:id/attachments/:attachmentId/download', authenticate, async (req, res, next) => {
+  try {
+    const investigationId = parseInt(req.params.id, 10);
+    const attachmentId = parseInt(req.params.attachmentId, 10);
+
+    const investigation = await prisma.investigation.findUnique({
+      where: { id: investigationId },
+      select: { userId: true },
+    });
+    if (!investigation) throw new NotFoundError('Investigation');
+
+    const attachment = await prisma.investigationAttachment.findFirst({
+      where: { id: attachmentId, investigationId },
+      select: { fileUrl: true, fileName: true },
+    });
+    if (!attachment) throw new NotFoundError('Investigation Attachment');
+
+    await assertCanAccessDriverRecord(req, investigation.userId);
+    const fallbackName = attachment.fileName || 'investigation-attachment';
+    await streamAttachmentDownload(res, attachment.fileUrl, fallbackName);
+  } catch (err) {
+    next(err);
+  }
 });
 
 /**

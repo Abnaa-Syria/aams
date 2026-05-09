@@ -882,6 +882,14 @@ async function main() {
         uploadedBy: opsAdmin.id,
       },
     });
+    await prisma.investigationAttachment.create({
+      data: {
+        investigationId: inv.id,
+        fileUrl: DEMO.img.receipt,
+        fileName: 'investigation-photo.jpg',
+        uploadedBy: opsAdmin.id,
+      },
+    });
 
     await prisma.notification.createMany({
       data: [

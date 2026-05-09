@@ -1,5 +1,6 @@
 import GenericListPage from '../../components/ui/GenericListPage';
 import StatusBadge from '../../components/ui/StatusBadge';
+import { useNavigate } from 'react-router-dom';
 
 const leaveTypeLabels = { ANNUAL: 'سنوية', SICK: 'مرضية', EMERGENCY: 'طارئة', UNPAID: 'بدون راتب', OTHER: 'أخرى' };
 const columns = [
@@ -12,7 +13,9 @@ const columns = [
 ];
 
 export default function LeavesPage() {
-  return <GenericListPage title="طلبات الإجازة" apiUrl="/leave-requests" columns={columns} filters={[
+  const navigate = useNavigate();
+
+  return <GenericListPage title="طلبات الإجازة" apiUrl="/leave-requests" columns={columns} onRowClick={(row) => navigate(`/leaves/${row.id}`)} filters={[
     { key: 'leaveType', type: 'select', placeholder: 'النوع', options: Object.entries(leaveTypeLabels).map(([v, l]) => ({ value: v, label: l })) },
     { key: 'status', type: 'select', placeholder: 'الحالة', options: [{ value: 'PENDING', label: 'معلق' }, { value: 'APPROVED', label: 'مقبول' }, { value: 'REJECTED', label: 'مرفوض' }] },
   ]} />;

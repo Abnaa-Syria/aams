@@ -32,11 +32,19 @@ import DailyReportDetailPage from './pages/daily-reports/DailyReportDetailPage';
 import NotificationsPage from './pages/notifications/NotificationsPage';
 import ChatPage from './pages/chat/ChatPage';
 import InvestigationsPage from './pages/investigations/InvestigationsPage';
+import InvestigationDetailPage from './pages/investigations/InvestigationDetailPage';
 import PenaltiesPage from './pages/penalties/PenaltiesPage';
+import PenaltyDetailPage from './pages/penalties/PenaltyDetailPage';
 import RatingsPage from './pages/ratings/RatingsPage';
+import RatingDetailPage from './pages/ratings/RatingDetailPage';
 import RewardsPage from './pages/rewards/RewardsPage';
+import RewardDetailPage from './pages/rewards/RewardDetailPage';
 import LeavesPage from './pages/leaves/LeavesPage';
+import LeaveDetailPage from './pages/leaves/LeaveDetailPage';
 import SalaryAdvancesPage from './pages/salary-advances/SalaryAdvancesPage';
+import SalaryAdvanceDetailPage from './pages/salary-advances/SalaryAdvanceDetailPage';
+import PlatformAccountDetailPage from './pages/platform-accounts/PlatformAccountDetailPage';
+import BankAccountDetailPage from './pages/bank-accounts/BankAccountDetailPage';
 import MaintenancePage from './pages/maintenance/MaintenancePage';
 import MaintenanceRequestDetailPage from './pages/maintenance/MaintenanceRequestDetailPage';
 import AnalyticsPage from './pages/analytics/AnalyticsPage';
@@ -63,7 +71,9 @@ export default function App() {
             <Route path="licenses" element={<LicensesPage />} />
             <Route path="licenses/:id" element={<LicenseDetailPage />} />
             <Route path="bank-accounts" element={<BankAccountsPage />} />
+            <Route path="bank-accounts/:id" element={<BankAccountDetailPage />} />
             <Route path="platform-accounts" element={<PlatformAccountsPage />} />
+            <Route path="platform-accounts/:id" element={<PlatformAccountDetailPage />} />
             <Route path="shifts" element={<ShiftsPage />} />
             <Route path="shifts/:id" element={<ShiftDetailPage />} />
             <Route path="fuel" element={<FuelLogsPage />} />
@@ -77,11 +87,17 @@ export default function App() {
             <Route path="notifications" element={<NotificationsPage />} />
             <Route path="chat" element={<ChatPage />} />
             <Route path="investigations" element={<InvestigationsPage />} />
+            <Route path="investigations/:id" element={<InvestigationDetailPage />} />
             <Route path="penalties" element={<PenaltiesPage />} />
+            <Route path="penalties/:id" element={<PenaltyDetailPage />} />
             <Route path="ratings" element={<RatingsPage />} />
+            <Route path="ratings/:id" element={<RatingDetailPage />} />
             <Route path="rewards" element={<RewardsPage />} />
+            <Route path="rewards/:id" element={<RewardDetailPage />} />
             <Route path="leaves" element={<LeavesPage />} />
+            <Route path="leaves/:id" element={<LeaveDetailPage />} />
             <Route path="salary-advances" element={<SalaryAdvancesPage />} />
+            <Route path="salary-advances/:id" element={<SalaryAdvanceDetailPage />} />
             <Route path="maintenance" element={<Navigate to="/maintenance-requests" replace />} />
             <Route path="maintenance-requests" element={<MaintenancePage />} />
             <Route path="maintenance-requests/:id" element={<MaintenanceRequestDetailPage />} />

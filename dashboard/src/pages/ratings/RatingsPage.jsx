@@ -1,4 +1,5 @@
 import GenericListPage from '../../components/ui/GenericListPage';
+import { useNavigate } from 'react-router-dom';
 
 const columns = [
   { key: 'user', label: 'الموظف', render: (v) => v?.fullNameAr || '—' },
@@ -12,5 +13,7 @@ const columns = [
 ];
 
 export default function RatingsPage() {
-  return <GenericListPage title="التقييمات" apiUrl="/ratings" columns={columns} />;
+  const navigate = useNavigate();
+
+  return <GenericListPage title="التقييمات" apiUrl="/ratings" columns={columns} onRowClick={(row) => navigate(`/ratings/${row.id}`)} />;
 }

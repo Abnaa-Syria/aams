@@ -1,5 +1,6 @@
 import GenericListPage from '../../components/ui/GenericListPage';
 import StatusBadge from '../../components/ui/StatusBadge';
+import { useNavigate } from 'react-router-dom';
 
 const typeLabels = { FINANCIAL: 'خصم مالي', WARNING: 'إنذار', SUSPENSION: 'إيقاف', TERMINATION: 'إنهاء خدمة', OTHER: 'أخرى' };
 const columns = [
@@ -12,7 +13,9 @@ const columns = [
 ];
 
 export default function PenaltiesPage() {
-  return <GenericListPage title="الجزاءات" apiUrl="/penalties" columns={columns} filters={[
+  const navigate = useNavigate();
+
+  return <GenericListPage title="الجزاءات" apiUrl="/penalties" columns={columns} onRowClick={(row) => navigate(`/penalties/${row.id}`)} filters={[
     { key: 'type', type: 'select', placeholder: 'النوع', options: Object.entries(typeLabels).map(([v, l]) => ({ value: v, label: l })) },
     { key: 'status', type: 'select', placeholder: 'الحالة', options: [{ value: 'PENDING', label: 'معلق' }, { value: 'APPLIED', label: 'مطبق' }, { value: 'APPEALED', label: 'معترض' }, { value: 'CANCELLED', label: 'ملغي' }] },
   ]} />;

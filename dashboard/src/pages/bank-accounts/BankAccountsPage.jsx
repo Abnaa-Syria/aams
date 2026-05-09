@@ -1,5 +1,6 @@
 import GenericListPage from '../../components/ui/GenericListPage';
 import StatusBadge from '../../components/ui/StatusBadge';
+import { useNavigate } from 'react-router-dom';
 
 const columns = [
   { key: 'user', label: 'الموظف', render: (v) => v?.fullNameAr || '—' },
@@ -11,7 +12,9 @@ const columns = [
 ];
 
 export default function BankAccountsPage() {
-  return <GenericListPage title="الحسابات البنكية" apiUrl="/bank-accounts" columns={columns} filters={[
+  const navigate = useNavigate();
+
+  return <GenericListPage title="الحسابات البنكية" apiUrl="/bank-accounts" columns={columns} onRowClick={(row) => navigate(`/bank-accounts/${row.id}`)} filters={[
     { key: 'verificationStatus', type: 'select', placeholder: 'حالة التحقق', options: [{ value: 'PENDING', label: 'معلق' }, { value: 'VERIFIED', label: 'موثق' }, { value: 'REJECTED', label: 'مرفوض' }] },
   ]} />;
 }

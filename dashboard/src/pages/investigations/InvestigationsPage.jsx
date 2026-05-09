@@ -1,5 +1,6 @@
 import GenericListPage from '../../components/ui/GenericListPage';
 import StatusBadge from '../../components/ui/StatusBadge';
+import { useNavigate } from 'react-router-dom';
 
 const columns = [
   { key: 'user', label: 'الموظف', render: (v) => v?.fullNameAr || '—' },
@@ -12,7 +13,9 @@ const columns = [
 ];
 
 export default function InvestigationsPage() {
-  return <GenericListPage title="التحقيقات" apiUrl="/investigations" columns={columns} filters={[
+  const navigate = useNavigate();
+
+  return <GenericListPage title="التحقيقات" apiUrl="/investigations" columns={columns} onRowClick={(row) => navigate(`/investigations/${row.id}`)} filters={[
     { key: 'status', type: 'select', placeholder: 'الحالة', options: [{ value: 'OPEN', label: 'مفتوح' }, { value: 'PENDING_RESPONSE', label: 'بانتظار الرد' }, { value: 'UNDER_REVIEW', label: 'قيد المراجعة' }, { value: 'CLOSED', label: 'مغلق' }] },
   ]} />;
 }

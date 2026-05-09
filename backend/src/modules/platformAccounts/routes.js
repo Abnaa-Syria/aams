@@ -12,6 +12,7 @@ const { ADMIN_ROLES } = require('../../utils/listScope');
 const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
 const { AuthorizationError } = require('../../utils/errors');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
+const { streamAttachmentDownload } = require('../../utils/streamAttachment');
 
 /**
  * @openapi
@@ -125,6 +126,22 @@ router.get('/:id', authenticate, async (req, res, next) => {
     await assertCanAccessDriverRecord(req, item.userId);
     return ApiResponse.success(res, item);
   } catch (err) { next(err); }
+});
+
+router.get('/:id/files/file/download', authenticate, async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const platformAccount = await prisma.platformAccount.findFirst({
+      where: { id, deletedAt: null },
+      select: { userId: true, fileUrl: true },
+    });
+    if (!platformAccount) throw new NotFoundError('Platform Account');
+    await assertCanAccessDriverRecord(req, platformAccount.userId);
+    const fallbackName = 'platform-account-file';
+    await streamAttachmentDownload(res, platformAccount.fileUrl, fallbackName);
+  } catch (err) {
+    next(err);
+  }
 });
 
 /**

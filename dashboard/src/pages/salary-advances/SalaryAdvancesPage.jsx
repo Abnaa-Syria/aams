@@ -1,5 +1,6 @@
 import GenericListPage from '../../components/ui/GenericListPage';
 import StatusBadge from '../../components/ui/StatusBadge';
+import { useNavigate } from 'react-router-dom';
 
 const columns = [
   { key: 'user', label: 'الموظف', render: (v) => v?.fullNameAr || '—' },
@@ -10,7 +11,9 @@ const columns = [
 ];
 
 export default function SalaryAdvancesPage() {
-  return <GenericListPage title="طلبات السلف" apiUrl="/salary-advances" columns={columns} filters={[
+  const navigate = useNavigate();
+
+  return <GenericListPage title="طلبات السلف" apiUrl="/salary-advances" columns={columns} onRowClick={(row) => navigate(`/salary-advances/${row.id}`)} filters={[
     { key: 'status', type: 'select', placeholder: 'الحالة', options: [{ value: 'PENDING', label: 'معلق' }, { value: 'APPROVED', label: 'مقبول' }, { value: 'REJECTED', label: 'مرفوض' }] },
   ]} />;
 }
