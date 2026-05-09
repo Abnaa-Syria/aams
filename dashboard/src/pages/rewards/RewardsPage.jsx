@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import GenericListPage from '../../components/ui/GenericListPage';
 import StatusBadge from '../../components/ui/StatusBadge';
+import StatusSelect from '../../components/ui/StatusSelect';
 import Modal from '../../components/ui/Modal';
 import UserSelect from '../../components/ui/UserSelect';
 import { apiService } from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { LuPlus } from 'react-icons/lu';
+import { LuPlus, LuEye } from 'react-icons/lu';
 
 const columns = [
   { key: 'user', label: 'الموظف', render: (v) => v?.fullNameAr || '—' },
@@ -18,10 +19,17 @@ const columns = [
   { key: 'createdAt', label: 'التاريخ', render: (v) => v ? new Date(v).toLocaleDateString('ar-SA') : '—' },
 ];
 
+const statusOptions = [
+  { value: 'PENDING', label: 'معلق' },
+  { value: 'APPROVED', label: 'مقبول' },
+  { value: 'REJECTED', label: 'مرفوض' },
+];
+
 export default function RewardsPage() {
   const navigate = useNavigate();
   const [showCreate, setShowCreate] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
   const [form, setForm] = useState({
     userId: '',
     category: '',
@@ -54,6 +62,7 @@ export default function RewardsPage() {
       toast.success('تم إنشاء المكافأة بنجاح');
       setShowCreate(false);
       setForm({ userId: '', category: '', amount: '', points: '', reason: '', periodStart: '', periodEnd: '' });
+      setReloadToken((t) => t + 1);
     } catch (err) {
       toast.error(err.response?.data?.message || 'حدث خطأ');
     } finally {
@@ -71,14 +80,39 @@ export default function RewardsPage() {
     </button>
   );
 
+  const actionsColumn = {
+    key: 'actions',
+    label: '',
+    stopRowClick: true,
+    render: (_, row) => (
+      <div className="flex items-center gap-2">
+        <StatusSelect
+          id={row.id}
+          currentStatus={row.status}
+          apiUrl={`/rewards/${row.id}/status`}
+          options={statusOptions}
+          size="xs"
+          onSuccess={() => setReloadToken((t) => t + 1)}
+        />
+        <button
+          onClick={() => navigate(`/rewards/${row.id}`)}
+          className="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:text-primary hover:bg-primary-light/10 transition-all"
+        >
+          <LuEye size={16} />
+        </button>
+      </div>
+    ),
+  };
+
   return (
     <>
       <GenericListPage
         title="المكافآت"
         apiUrl="/rewards"
-        columns={columns}
+        columns={[...columns, actionsColumn]}
         onRowClick={(row) => navigate(`/rewards/${row.id}`)}
         createButton={createButton}
+        reloadToken={reloadToken}
         filters={[
           { key: 'status', type: 'select', placeholder: 'الحالة', options: [{ value: 'PENDING', label: 'معلق' }, { value: 'APPROVED', label: 'مقبول' }, { value: 'REJECTED', label: 'مرفوض' }] },
         ]}

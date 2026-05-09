@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { LuChevronLeft } from 'react-icons/lu';
 import { apiService } from '../../services/api';
 import StatusBadge from '../../components/ui/StatusBadge';
+import StatusSelect from '../../components/ui/StatusSelect';
 
 function formatDate(v) {
   if (!v) return '—';
@@ -30,6 +31,12 @@ function Section({ title, children }) {
     </div>
   );
 }
+
+const statusOptions = [
+  { value: 'PENDING', label: 'معلق' },
+  { value: 'APPROVED', label: 'مقبول' },
+  { value: 'REJECTED', label: 'مرفوض' },
+];
 
 export default function RewardDetailPage() {
   const { id } = useParams();
@@ -83,22 +90,34 @@ export default function RewardDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <Section title="المعلومات الأساسية">
-          <Field label="الموظف" value={row.user?.fullNameAr} />
-          <Field label="التصنيف" value={row.category} />
-          <Field label="المبلغ" value={row.amount ? `${row.amount} ر.س` : '—'} />
-          <Field label="النقاط" value={row.points} />
-          <Field label="السبب" value={row.reason} />
-          <Field label="من تاريخ" value={formatDate(row.periodStart)} />
-          <Field label="إلى تاريخ" value={formatDate(row.periodEnd)} />
-          <Field label="الحالة" value={<StatusBadge status={row.status} />} />
-        </Section>
+        <div className="space-y-6">
+          <Section title="المعلومات الأساسية">
+            <Field label="الموظف" value={row.user?.fullNameAr} />
+            <Field label="التصنيف" value={row.category} />
+            <Field label="المبلغ" value={row.amount ? `${row.amount} ر.س` : '—'} />
+            <Field label="النقاط" value={row.points} />
+            <Field label="السبب" value={row.reason} />
+            <Field label="من تاريخ" value={formatDate(row.periodStart)} />
+            <Field label="إلى تاريخ" value={formatDate(row.periodEnd)} />
+            <div className="flex items-start justify-between gap-6 py-3 border-b border-slate-100">
+              <div className="text-xs font-black text-slate-400 uppercase tracking-widest shrink-0">الحالة</div>
+              <StatusSelect
+                id={row.id}
+                currentStatus={row.status}
+                apiUrl={`/rewards/${row.id}/status`}
+                options={statusOptions}
+                size="md"
+                onSuccess={load}
+              />
+            </div>
+          </Section>
 
-        <Section title="معلومات إضافية">
-          <Field label="تاريخ الإنشاء" value={formatDate(row.createdAt)} />
-          <Field label="تاريخ الاعتماد" value={formatDate(row.approvedAt)} />
-          <Field label="ملاحظات" value={row.notes} />
-        </Section>
+          <Section title="معلومات إضافية">
+            <Field label="تاريخ الإنشاء" value={formatDate(row.createdAt)} />
+            <Field label="تاريخ الاعتماد" value={formatDate(row.approvedAt)} />
+            <Field label="ملاحظات" value={row.notes} />
+          </Section>
+        </div>
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { LuChevronLeft } from 'react-icons/lu';
 import { apiService } from '../../services/api';
 import StatusBadge from '../../components/ui/StatusBadge';
+import StatusSelect from '../../components/ui/StatusSelect';
 
 const typeLabels = { FINANCIAL: 'خصم مالي', WARNING: 'إنذار', SUSPENSION: 'إيقاف', TERMINATION: 'إنهاء خدمة', OTHER: 'أخرى' };
 
@@ -32,6 +33,13 @@ function Section({ title, children }) {
     </div>
   );
 }
+
+const statusOptions = [
+  { value: 'PENDING', label: 'معلق' },
+  { value: 'APPROVED', label: 'مطبق' },
+  { value: 'APPEALED', label: 'معترض' },
+  { value: 'CANCELLED', label: 'ملغي' },
+];
 
 export default function PenaltyDetailPage() {
   const { id } = useParams();
@@ -80,7 +88,7 @@ export default function PenaltyDetailPage() {
           className="btn bg-slate-100 text-slate-600 hover:bg-slate-200 !rounded-2xl flex items-center gap-2"
         >
           <LuChevronLeft size={18} />
-         عودة للقائمة
+          عودة للقائمة
         </button>
       </div>
 
@@ -90,7 +98,17 @@ export default function PenaltyDetailPage() {
           <Field label="نوع الجزاء" value={typeLabels[row.type] || row.type} />
           <Field label="المبلغ" value={row.amount ? `${row.amount} ر.س` : '—'} />
           <Field label="السبب" value={row.reason} />
-          <Field label="الحالة" value={<StatusBadge status={row.status} />} />
+          <div className="flex items-start justify-between gap-6 py-3 border-b border-slate-100">
+            <div className="text-xs font-black text-slate-400 uppercase tracking-widest shrink-0">الحالة</div>
+            <StatusSelect
+              id={row.id}
+              currentStatus={row.status}
+              apiUrl={`/penalties/${row.id}/status`}
+              options={statusOptions}
+              size="md"
+              onSuccess={load}
+            />
+          </div>
           <Field label="تاريخ الجزاء" value={formatDate(row.penaltyDate)} />
         </Section>
 

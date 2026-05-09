@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { LuChevronLeft } from 'react-icons/lu';
 import { apiService } from '../../services/api';
 import StatusBadge from '../../components/ui/StatusBadge';
+import StatusSelect from '../../components/ui/StatusSelect';
 import AttachmentGallery from '../../components/attachments/AttachmentGallery';
 
 const leaveTypeLabels = { ANNUAL: 'سنوية', SICK: 'مرضية', EMERGENCY: 'طارئة', UNPAID: 'بدون راتب', OTHER: 'أخرى' };
@@ -33,6 +34,13 @@ function Section({ title, children }) {
     </div>
   );
 }
+
+const statusOptions = [
+  { value: 'PENDING', label: 'معلق' },
+  { value: 'APPROVED', label: 'مقبول' },
+  { value: 'REJECTED', label: 'مرفوض' },
+  { value: 'CANCELLED', label: 'ملغي' },
+];
 
 export default function LeaveDetailPage() {
   const { id } = useParams();
@@ -104,7 +112,17 @@ export default function LeaveDetailPage() {
             <Field label="إلى تاريخ" value={formatDate(row.endDate)} />
             <Field label="عدد الأيام" value={row.totalDays} />
             <Field label="السبب" value={row.reason} />
-            <Field label="الحالة" value={<StatusBadge status={row.status} />} />
+            <div className="flex items-start justify-between gap-6 py-3 border-b border-slate-100">
+              <div className="text-xs font-black text-slate-400 uppercase tracking-widest shrink-0">الحالة</div>
+              <StatusSelect
+                id={row.id}
+                currentStatus={row.status}
+                apiUrl={`/leave-requests/${row.id}/review`}
+                options={statusOptions}
+                size="md"
+                onSuccess={load}
+              />
+            </div>
           </Section>
 
           <Section title="معلومات المراجعة">

@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { LuChevronLeft } from 'react-icons/lu';
 import { apiService } from '../../services/api';
 import StatusBadge from '../../components/ui/StatusBadge';
+import StatusSelect from '../../components/ui/StatusSelect';
 import AttachmentGallery from '../../components/attachments/AttachmentGallery';
 
 function formatDateTime(v) {
@@ -44,6 +45,13 @@ const statusLabels = {
   UNDER_REVIEW: 'قيد المراجعة',
   CLOSED: 'مغلق',
 };
+
+const statusOptions = [
+  { value: 'OPEN', label: 'مفتوح' },
+  { value: 'PENDING_RESPONSE', label: 'بانتظار الرد' },
+  { value: 'UNDER_REVIEW', label: 'قيد المراجعة' },
+  { value: 'CLOSED', label: 'مغلق' },
+];
 
 export default function InvestigationDetailPage() {
   const { id } = useParams();
@@ -114,7 +122,17 @@ export default function InvestigationDetailPage() {
             <Field label="التصنيف" value={row.category} />
             <Field label="العنوان" value={row.title} />
             <Field label="التفاصيل" value={row.details} />
-            <Field label="الحالة" value={<StatusBadge status={row.status} />} />
+            <div className="flex items-start justify-between gap-6 py-3 border-b border-slate-100">
+              <div className="text-xs font-black text-slate-400 uppercase tracking-widest shrink-0">الحالة</div>
+              <StatusSelect
+                id={row.id}
+                currentStatus={row.status}
+                apiUrl={`/investigations/${row.id}/status`}
+                options={statusOptions}
+                size="md"
+                onSuccess={load}
+              />
+            </div>
             <Field label="أنشئ بواسطة" value={row.createdBy?.fullNameAr} />
             <Field label="تاريخ الإنشاء" value={formatDate(row.createdAt)} />
           </Section>
