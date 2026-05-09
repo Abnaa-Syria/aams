@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import GenericListPage from '../../components/ui/GenericListPage';
 import StatusBadge from '../../components/ui/StatusBadge';
 
@@ -12,7 +13,8 @@ const columns = [
 ];
 
 export default function FuelLogsPage() {
-  return <GenericListPage title="سجلات الوقود" apiUrl="/fuel-logs" columns={columns} filters={[
+  const navigate = useNavigate();
+  return <GenericListPage title="سجلات الوقود" apiUrl="/fuel-logs" columns={columns} onRowClick={(row) => navigate(`/fuel/${row.id}`)} filters={[
     { key: 'status', type: 'select', placeholder: 'الحالة', options: [{ value: 'PENDING', label: 'معلق' }, { value: 'APPROVED', label: 'مقبول' }, { value: 'REJECTED', label: 'مرفوض' }, { value: 'FLAGGED', label: 'مشبوه' }] },
     { key: 'dateFrom', type: 'date', placeholder: 'من تاريخ' },
     { key: 'dateTo', type: 'date', placeholder: 'إلى تاريخ' },

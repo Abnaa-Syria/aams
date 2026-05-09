@@ -4,6 +4,11 @@ const { authenticate } = require('../../middlewares/auth');
 const { adminPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const upload = require('../../utils/upload');
+const prisma = require('../../config/database');
+const { NotFoundError } = require('../../utils/errors');
+const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
+const fs = require('fs');
+const { resolveStoredPathToAbsolute } = require('../../utils/uploadPath');
 
 /**
  * @openapi
@@ -52,6 +57,41 @@ router.get('/', ...adminPerm(P.DOCUMENTS_READ), DocumentController.list);
  *         description: List
  */
 router.get('/expiring', ...adminPerm(P.DOCUMENTS_READ), DocumentController.getExpiring);
+
+router.get('/:id/download', authenticate, async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const item = await prisma.document.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true, userId: true, fileUrl: true, fileName: true, title: true },
+    });
+    if (!item) throw new NotFoundError('Document');
+    await assertCanAccessDriverRecord(req, item.userId);
+    if (!item.fileUrl) throw new NotFoundError('Document file');
+
+    const safeName = (item.fileName || `document-${item.id}`).replace(/[\\/\r\n"]/g, '_');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`);
+
+    if (/^https?:\/\//i.test(item.fileUrl)) {
+      const upstream = await fetch(item.fileUrl);
+      if (!upstream.ok) {
+        return res.status(502).json({ success: false, message: 'تعذر تنزيل الملف من المصدر' });
+      }
+      const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
+      res.setHeader('Content-Type', contentType);
+
+      const ab = await upstream.arrayBuffer();
+      return res.send(Buffer.from(ab));
+    }
+
+    const abs = resolveStoredPathToAbsolute(item.fileUrl);
+    if (!abs) {
+      return res.status(400).json({ success: false, message: 'مسار ملف غير صالح' });
+    }
+    if (!fs.existsSync(abs)) throw new NotFoundError('File');
+    return res.download(abs, safeName);
+  } catch (err) { next(err); }
+});
 
 /**
  * @openapi

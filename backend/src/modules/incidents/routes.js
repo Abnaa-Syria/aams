@@ -4,6 +4,10 @@ const { adminPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const upload = require('../../utils/upload');
 const IncidentController = require('./controller');
+const prisma = require('../../config/database');
+const { NotFoundError } = require('../../utils/errors');
+const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
+const { streamAttachmentDownload } = require('../../utils/streamAttachment');
 
 /**
  * @openapi
@@ -15,6 +19,23 @@ const IncidentController = require('./controller');
  *       - bearerAuth: []
  */
 router.get('/', authenticate, IncidentController.listIncidents);
+
+router.get('/:id/attachments/:attachmentId/download', authenticate, async (req, res, next) => {
+  try {
+    const incidentId = parseInt(req.params.id, 10);
+    const attachmentId = parseInt(req.params.attachmentId, 10);
+    const att = await prisma.incidentAttachment.findFirst({
+      where: { id: attachmentId, incidentId },
+      include: { incident: { select: { userId: true } } },
+    });
+    if (!att) throw new NotFoundError('Attachment');
+    await assertCanAccessDriverRecord(req, att.incident.userId);
+    const fallbackName = att.fileName || (att.fileUrl && String(att.fileUrl).split('/').pop()) || 'attachment';
+    await streamAttachmentDownload(res, att.fileUrl, fallbackName);
+  } catch (err) {
+    next(err);
+  }
+});
 
 /**
  * @openapi
@@ -70,7 +91,5 @@ router.post('/:id/convert-maintenance', ...adminPerm(P.FLEET_WRITE), IncidentCon
  *       - bearerAuth: []
  */
 router.delete('/:id', ...adminPerm(P.COMPLIANCE_WRITE), IncidentController.deleteIncident);
-
-module.exports = router;
 
 module.exports = router;

@@ -22,9 +22,13 @@ import BankAccountsPage from './pages/bank-accounts/BankAccountsPage';
 import PlatformAccountsPage from './pages/platform-accounts/PlatformAccountsPage';
 import ShiftsPage from './pages/shifts/ShiftsPage';
 import FuelLogsPage from './pages/fuel/FuelLogsPage';
+import FuelLogDetailPage from './pages/fuel/FuelLogDetailPage';
 import ViolationsPage from './pages/violations/ViolationsPage';
+import ViolationDetailPage from './pages/violations/ViolationDetailPage';
 import IncidentsPage from './pages/incidents/IncidentsPage';
+import IncidentDetailPage from './pages/incidents/IncidentDetailPage';
 import DailyReportsPage from './pages/daily-reports/DailyReportsPage';
+import DailyReportDetailPage from './pages/daily-reports/DailyReportDetailPage';
 import NotificationsPage from './pages/notifications/NotificationsPage';
 import ChatPage from './pages/chat/ChatPage';
 import InvestigationsPage from './pages/investigations/InvestigationsPage';
@@ -63,9 +67,13 @@ export default function App() {
             <Route path="platform-accounts" element={<PlatformAccountsPage />} />
             <Route path="shifts" element={<ShiftsPage />} />
             <Route path="fuel" element={<FuelLogsPage />} />
+            <Route path="fuel/:id" element={<FuelLogDetailPage />} />
             <Route path="violations" element={<ViolationsPage />} />
+            <Route path="violations/:id" element={<ViolationDetailPage />} />
             <Route path="incidents" element={<IncidentsPage />} />
+            <Route path="incidents/:id" element={<IncidentDetailPage />} />
             <Route path="daily-reports" element={<DailyReportsPage />} />
+            <Route path="daily-reports/:id" element={<DailyReportDetailPage />} />
             <Route path="notifications" element={<NotificationsPage />} />
             <Route path="chat" element={<ChatPage />} />
             <Route path="investigations" element={<InvestigationsPage />} />

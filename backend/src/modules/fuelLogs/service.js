@@ -1,5 +1,5 @@
 const prisma = require('../../config/database');
-const { NotFoundError, BusinessLogicError } = require('../../utils/errors');
+const { NotFoundError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
@@ -13,7 +13,6 @@ class FuelLogService {
       ...(query.status && { status: query.status }),
       ...(query.shiftId && { shiftId: parseInt(query.shiftId) }),
       ...(query.userId && { userId: parseInt(query.userId) }),
-      ...(query.isReimbursable === 'true' && { isReimbursable: true }),
     };
 
     if (query.dateFrom || query.dateTo) {
@@ -47,7 +46,7 @@ class FuelLogService {
     return { items, meta: buildPaginationMeta(total, page, limit) };
   }
 
-  static async getById(id, currentUser) {
+  static async getById(id) {
     const item = await prisma.fuelLog.findUnique({
       where: { id: parseInt(id) },
       include: {
@@ -58,11 +57,6 @@ class FuelLogService {
     });
 
     if (!item) throw new NotFoundError('Fuel Log');
-    
-    // Access control
-    if (currentUser.role === 'DRIVER' && item.userId !== currentUser.id) {
-      throw new NotFoundError('Fuel Log');
-    }
 
     return item;
   }
@@ -74,15 +68,7 @@ class FuelLogService {
 
     const amount = parseFloat(data.amount);
     const liters = data.liters ? parseFloat(data.liters) : null;
-    const odometerReading = data.odometerReading ? parseInt(data.odometerReading) : null;
-    const paymentMethod = data.paymentMethod || 'COMPANY_CARD';
 
-    // 1. Odometer validation
-    if (odometerReading && odometerReading < (vehicle.odometerKm || 0)) {
-      throw new BusinessLogicError(`Odometer reading (${odometerReading}) cannot be less than vehicle's current reading (${vehicle.odometerKm})`);
-    }
-
-    // 2. Smart Flagging logic
     let status = 'PENDING';
     let reviewNotes = '';
 
@@ -91,7 +77,6 @@ class FuelLogService {
       reviewNotes = `Warning: Fuel liters (${liters}) exceeds vehicle tank capacity (${vehicle.tankCapacity})`;
     }
 
-    // 3. Duplicate check (same user+vehicle within 15 min)
     const recent = await prisma.fuelLog.findFirst({
       where: {
         userId,
@@ -107,9 +92,6 @@ class FuelLogService {
         shiftId: data.shiftId ? parseInt(data.shiftId) : undefined,
         amount,
         liters,
-        odometerReading,
-        paymentMethod,
-        isReimbursable: paymentMethod === 'PERSONAL_CASH',
         fuelDate: data.fuelDate ? new Date(data.fuelDate) : new Date(),
         receiptUrl: file ? normalizeStoredUploadPath(file.path) : undefined,
         status,
@@ -117,14 +99,6 @@ class FuelLogService {
         isDuplicate: !!recent,
       },
     });
-
-    // Update vehicle odometer if this reading is higher
-    if (odometerReading && odometerReading > (vehicle.odometerKm || 0)) {
-      await prisma.vehicle.update({
-        where: { id: vehicleId },
-        data: { odometerKm: odometerReading },
-      });
-    }
 
     await logAudit({
       userId,

@@ -4,6 +4,10 @@ const { adminPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const upload = require('../../utils/upload');
 const FuelLogController = require('./controller');
+const prisma = require('../../config/database');
+const { NotFoundError } = require('../../utils/errors');
+const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
+const { streamAttachmentDownload } = require('../../utils/streamAttachment');
 
 /**
  * @openapi
@@ -15,6 +19,22 @@ const FuelLogController = require('./controller');
  *       - bearerAuth: []
  */
 router.get('/', authenticate, FuelLogController.listLogs);
+
+router.get('/:id/receipt/download', authenticate, async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const log = await prisma.fuelLog.findUnique({
+      where: { id },
+      select: { userId: true, receiptUrl: true },
+    });
+    if (!log) throw new NotFoundError('Fuel Log');
+    await assertCanAccessDriverRecord(req, log.userId);
+    const fallbackName = (log.receiptUrl && String(log.receiptUrl).split('/').pop()) || 'receipt';
+    await streamAttachmentDownload(res, log.receiptUrl, fallbackName);
+  } catch (err) {
+    next(err);
+  }
+});
 
 /**
  * @openapi
@@ -70,7 +90,5 @@ router.patch('/:id/review', ...adminPerm(P.COMPLIANCE_WRITE), FuelLogController.
  *       - bearerAuth: []
  */
 router.delete('/:id', ...adminPerm(P.COMPLIANCE_WRITE), FuelLogController.deleteLog);
-
-module.exports = router;
 
 module.exports = router;

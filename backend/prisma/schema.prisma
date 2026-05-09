@@ -861,12 +861,14 @@ model Violation {
   reviewedAt      DateTime?
   reviewNotes     String?         @db.Text
   penaltyId       Int?
+  penalty         Penalty?        @relation(fields: [penaltyId], references: [id])
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
   @@index([userId])
   @@index([vehicleId])
   @@index([status])
+  @@index([penaltyId])
   @@map("violations")
 }
 
@@ -1147,6 +1149,8 @@ model Penalty {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
+  violations      Violation[]
+
   @@index([userId])
   @@index([status])
   @@index([type])
@@ -1299,11 +1303,26 @@ model MaintenanceRequest {
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
 
+  attachments     MaintenanceRequestAttachment[]
+
   @@index([userId])
   @@index([vehicleId])
   @@index([status])
   @@index([priority])
   @@map("maintenance_requests")
+}
+
+model MaintenanceRequestAttachment {
+  id                   Int                @id @default(autoincrement())
+  maintenanceRequestId Int
+  maintenanceRequest   MaintenanceRequest @relation(fields: [maintenanceRequestId], references: [id], onDelete: Cascade)
+  fileUrl              String             @db.VarChar(500)
+  fileName             String?            @db.VarChar(255)
+  fileType             String?            @db.VarChar(50)
+  createdAt            DateTime           @default(now())
+
+  @@index([maintenanceRequestId])
+  @@map("maintenance_request_attachments")
 }
 
 // ============================================================

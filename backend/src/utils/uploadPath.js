@@ -25,5 +25,23 @@ function normalizeStoredUploadPath(p) {
   return s.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/{2,}/g, '/');
 }
 
-module.exports = { normalizeStoredUploadPath };
+/**
+ * Resolve a stored path (e.g. "uploads/demo/x.pdf") to an absolute file path.
+ * Paths are resolved from the backend root so "uploads/..." is not joined twice with the upload directory.
+ * Returns null for remote URLs, empty input, or paths that escape the upload directory.
+ */
+function resolveStoredPathToAbsolute(storedPath) {
+  const s = String(storedPath || '').trim();
+  if (!s || /^https?:\/\//i.test(s) || /^s3:\/\//i.test(s)) return null;
+
+  const backendRoot = path.resolve(__dirname, '..', '..');
+  const uploadRoot = path.resolve(backendRoot, config.upload.dir);
+  const rel = s.replace(/\\/g, '/').replace(/^\/+/, '');
+  const abs = path.resolve(backendRoot, rel);
+  const underUpload = path.relative(uploadRoot, abs);
+  if (underUpload.startsWith('..') || path.isAbsolute(underUpload)) return null;
+  return abs;
+}
+
+module.exports = { normalizeStoredUploadPath, resolveStoredPathToAbsolute };
 

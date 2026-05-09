@@ -1,5 +1,5 @@
 const prisma = require('../../config/database');
-const { NotFoundError, BusinessLogicError } = require('../../utils/errors');
+const { NotFoundError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
@@ -7,14 +7,13 @@ const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
 class MaintenanceRequestService {
   static async list(query, currentUser) {
     const { page, limit, skip } = getPaginationParams(query);
-    
+
     let where = {
       ...(query.vehicleId && { vehicleId: parseInt(query.vehicleId) }),
       ...(query.status && { status: query.status }),
       ...(query.priority && { priority: query.priority }),
     };
 
-    // Scoping logic (Drivers see only theirs, Supervisors see their team)
     if (currentUser.role === 'DRIVER') {
       where.userId = currentUser.id;
     } else if (currentUser.role === 'SUPERVISOR') {
@@ -39,6 +38,7 @@ class MaintenanceRequestService {
         include: {
           user: { select: { id: true, fullNameAr: true } },
           vehicle: { select: { id: true, plateNumber: true, model: true, status: true } },
+          attachments: true,
         },
       }),
       prisma.maintenanceRequest.count({ where }),
@@ -47,41 +47,51 @@ class MaintenanceRequestService {
     return { items, meta: buildPaginationMeta(total, page, limit) };
   }
 
-  static async getById(id, currentUser) {
+  static async getById(id) {
     const item = await prisma.maintenanceRequest.findUnique({
       where: { id: parseInt(id) },
       include: {
         user: { select: { id: true, fullNameAr: true, fullNameEn: true } },
         vehicle: true,
+        attachments: true,
       },
     });
 
     if (!item) throw new NotFoundError('Maintenance Request');
-    
-    // Access control
-    if (currentUser.role === 'DRIVER' && item.userId !== currentUser.id) {
-      throw new NotFoundError('Maintenance Request');
-    }
 
     return item;
   }
 
-  static async create(userId, data, file = null) {
+  static async create(userId, data, files = []) {
     const vehicleId = parseInt(data.vehicleId);
     const vehicle = await prisma.vehicle.findUnique({ where: { id: vehicleId } });
     if (!vehicle) throw new NotFoundError('Vehicle');
 
+    const firstPath = files[0] ? normalizeStoredUploadPath(files[0].path) : undefined;
+
+    const createData = {
+      userId,
+      vehicleId,
+      issueType: data.issueType,
+      priority: data.priority || 'MEDIUM',
+      description: data.description,
+      status: 'REQUESTED',
+      attachmentUrl: firstPath,
+    };
+
+    if (files.length > 0) {
+      createData.attachments = {
+        create: files.map((f) => ({
+          fileUrl: normalizeStoredUploadPath(f.path),
+          fileName: f.originalname,
+          fileType: f.mimetype,
+        })),
+      };
+    }
+
     const request = await prisma.maintenanceRequest.create({
-      data: {
-        userId,
-        vehicleId,
-        issueType: data.issueType,
-        priority: data.priority || 'MEDIUM',
-        description: data.description,
-        odometerReading: data.odometerReading ? parseInt(data.odometerReading) : (vehicle.odometerKm || 0),
-        status: 'REQUESTED',
-        attachmentUrl: file ? normalizeStoredUploadPath(file.path) : undefined,
-      },
+      data: createData,
+      include: { attachments: true },
     });
 
     await logAudit({
@@ -103,22 +113,18 @@ class MaintenanceRequestService {
       status: data.status,
       technicianNotes: data.technicianNotes,
       adminNotes: data.adminNotes,
-      cost: data.cost ? parseFloat(data.cost) : undefined,
-      maintenanceCenter: data.maintenanceCenter,
     };
 
     if (data.status === 'COMPLETED') {
       updateData.completedAt = new Date();
     }
 
-    // atomic update with vehicle status
     const result = await prisma.$transaction(async (tx) => {
       const updated = await tx.maintenanceRequest.update({
         where: { id: parseInt(id) },
         data: updateData,
       });
 
-      // Workflow Logic: Update vehicle status
       if (data.status === 'IN_PROGRESS') {
         await tx.vehicle.update({ where: { id: request.vehicleId }, data: { status: 'IN_MAINTENANCE' } });
       } else if (data.status === 'COMPLETED' || data.status === 'CANCELLED') {

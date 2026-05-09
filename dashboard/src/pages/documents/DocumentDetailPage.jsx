@@ -3,8 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { LuChevronLeft, LuDownload, LuFileText, LuUser, LuCalendar } from 'react-icons/lu';
 
-import { apiService } from '../../services/api';
+import api, { apiService } from '../../services/api';
 import StatusBadge from '../../components/ui/StatusBadge';
+import PdfViewer from '../../components/pdf/PdfViewer';
 import { resolveUploadUrl } from '../../utils/apiOrigin';
 
 const typeLabels = {
@@ -31,7 +32,9 @@ function formatDateTime(v) {
 }
 
 function guessFileKind({ fileUrl, fileName }) {
-  const s = `${fileName || ''} ${fileUrl || ''}`.toLowerCase();
+  const url = String(fileUrl || '');
+  if (/images\.unsplash\.com\//i.test(url)) return 'image';
+  const s = `${fileName || ''} ${url}`.toLowerCase();
   if (/\.(png|jpe?g|webp|gif)(\?|#|$)/.test(s)) return 'image';
   if (/\.(pdf)(\?|#|$)/.test(s)) return 'pdf';
   return 'other';
@@ -46,12 +49,41 @@ function Field({ label, value }) {
   );
 }
 
+function pickFilename({ contentDisposition, fallback }) {
+  const cd = contentDisposition || '';
+  const mStar = cd.match(/filename\*\s*=\s*UTF-8''([^;]+)/i);
+  if (mStar?.[1]) {
+    try {
+      return decodeURIComponent(mStar[1].replace(/(^"|"$)/g, ''));
+    } catch {
+      return mStar[1].replace(/(^"|"$)/g, '');
+    }
+  }
+  const m = cd.match(/filename\s*=\s*("?)([^";]+)\1/i);
+  if (m?.[2]) return m[2];
+  return fallback || 'download';
+}
+
+function downloadBlob({ blob, filename }) {
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename || 'download';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
+
 export default function DocumentDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
 
   const [doc, setDoc] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
+  const [pdfBlob, setPdfBlob] = useState(null);
+  const [pdfPreviewLoading, setPdfPreviewLoading] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -75,6 +107,49 @@ export default function DocumentDetailPage() {
     [doc?.fileUrl, doc?.fileName],
   );
 
+  const onDownload = useCallback(async () => {
+    if (!id) return;
+    setDownloading(true);
+    try {
+      const res = await api.get(`/documents/${id}/download`, { responseType: 'blob' });
+      const filename = pickFilename({
+        contentDisposition: res.headers?.['content-disposition'],
+        fallback: doc?.fileName,
+      });
+      downloadBlob({ blob: res.data, filename });
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'تعذر تنزيل الملف');
+    } finally {
+      setDownloading(false);
+    }
+  }, [doc?.fileName, id]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPdfBlob() {
+      if (!id || fileKind !== 'pdf') {
+        setPdfBlob(null);
+        setPdfPreviewLoading(false);
+        return;
+      }
+      setPdfPreviewLoading(true);
+      try {
+        const res = await api.get(`/documents/${id}/download`, { responseType: 'blob' });
+        if (!cancelled) setPdfBlob(res.data);
+      } catch {
+        if (!cancelled) setPdfBlob(null);
+      } finally {
+        if (!cancelled) setPdfPreviewLoading(false);
+      }
+    }
+
+    loadPdfBlob();
+    return () => {
+      cancelled = true;
+    };
+  }, [fileKind, id]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -97,18 +172,15 @@ export default function DocumentDetailPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          {fileSrc && (
-            <a
-              href={fileSrc}
-              download={doc.fileName || undefined}
-              target="_blank"
-              rel="noreferrer"
-              className="btn btn-primary !rounded-2xl flex items-center gap-2"
-            >
-              <LuDownload size={18} />
-              تنزيل
-            </a>
-          )}
+          <button
+            type="button"
+            onClick={onDownload}
+            disabled={!doc.fileUrl || downloading}
+            className="btn btn-primary !rounded-2xl flex items-center gap-2 disabled:opacity-60"
+          >
+            <LuDownload size={18} />
+            {downloading ? 'جارٍ التنزيل...' : 'تنزيل'}
+          </button>
           <button
             type="button"
             onClick={() => navigate('/documents')}
@@ -153,12 +225,17 @@ export default function DocumentDetailPage() {
                   />
                 </div>
               ) : fileKind === 'pdf' ? (
-                <div className="rounded-3xl overflow-hidden border border-slate-100 bg-slate-50">
-                  <iframe
-                    title={doc.title || 'Document preview'}
-                    src={fileSrc}
-                    className="w-full h-[70vh]"
-                  />
+                <div className="rounded-3xl overflow-hidden border border-slate-100 bg-slate-50 max-h-[80vh] overflow-y-auto">
+                  {pdfPreviewLoading ? (
+                    <div className="flex items-center justify-center h-[70vh]">
+                      <div className="w-10 h-10 border-4 border-brand-light border-t-brand-primary rounded-full animate-spin" />
+                    </div>
+                  ) : (
+                    <PdfViewer
+                      file={pdfBlob}
+                      emptyLabel="تعذر تحميل معاينة PDF. جرّب التنزيل."
+                    />
+                  )}
                 </div>
               ) : (
                 <div className="bg-slate-50 rounded-3xl p-10 text-center border border-slate-100">

@@ -4,6 +4,10 @@ const { adminPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const upload = require('../../utils/upload');
 const DailyReportController = require('./controller');
+const prisma = require('../../config/database');
+const { NotFoundError } = require('../../utils/errors');
+const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
+const { streamAttachmentDownload } = require('../../utils/streamAttachment');
 
 /**
  * @openapi
@@ -15,6 +19,23 @@ const DailyReportController = require('./controller');
  *       - bearerAuth: []
  */
 router.get('/', authenticate, DailyReportController.listReports);
+
+router.get('/:id/screenshots/:screenshotId/download', authenticate, async (req, res, next) => {
+  try {
+    const reportId = parseInt(req.params.id, 10);
+    const screenshotId = parseInt(req.params.screenshotId, 10);
+    const shot = await prisma.reportScreenshot.findFirst({
+      where: { id: screenshotId, reportId },
+      include: { report: { select: { userId: true } } },
+    });
+    if (!shot) throw new NotFoundError('Screenshot');
+    await assertCanAccessDriverRecord(req, shot.report.userId);
+    const fallbackName = shot.fileName || (shot.fileUrl && String(shot.fileUrl).split('/').pop()) || 'screenshot';
+    await streamAttachmentDownload(res, shot.fileUrl, fallbackName);
+  } catch (err) {
+    next(err);
+  }
+});
 
 /**
  * @openapi
@@ -59,7 +80,5 @@ router.patch('/:id/review', ...adminPerm(P.COMPLIANCE_WRITE), DailyReportControl
  *       - bearerAuth: []
  */
 router.delete('/:id', ...adminPerm(P.COMPLIANCE_WRITE), DailyReportController.deleteReport);
-
-module.exports = router;
 
 module.exports = router;

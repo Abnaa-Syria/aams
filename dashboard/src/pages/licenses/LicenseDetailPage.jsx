@@ -5,6 +5,7 @@ import { LuChevronLeft, LuDownload, LuFileText, LuUser, LuCalendar } from 'react
 
 import api, { apiService } from '../../services/api';
 import StatusBadge from '../../components/ui/StatusBadge';
+import PdfViewer from '../../components/pdf/PdfViewer';
 import { resolveUploadUrl } from '../../utils/apiOrigin';
 
 const typeLabels = {
@@ -29,7 +30,9 @@ function formatDateTime(v) {
 }
 
 function guessFileKind({ fileUrl, fileName }) {
-  const s = `${fileName || ''} ${fileUrl || ''}`.toLowerCase();
+  const url = String(fileUrl || '');
+  if (/images\.unsplash\.com\//i.test(url)) return 'image';
+  const s = `${fileName || ''} ${url}`.toLowerCase();
   if (/\.(png|jpe?g|webp|gif)(\?|#|$)/.test(s)) return 'image';
   if (/\.(pdf)(\?|#|$)/.test(s)) return 'pdf';
   return 'other';
@@ -77,6 +80,8 @@ export default function LicenseDetailPage() {
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
+  const [pdfBlob, setPdfBlob] = useState(null);
+  const [pdfPreviewLoading, setPdfPreviewLoading] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -116,6 +121,32 @@ export default function LicenseDetailPage() {
       setDownloading(false);
     }
   }, [id, item?.fileName]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPdfBlob() {
+      if (!id || fileKind !== 'pdf') {
+        setPdfBlob(null);
+        setPdfPreviewLoading(false);
+        return;
+      }
+      setPdfPreviewLoading(true);
+      try {
+        const res = await api.get(`/licenses/${id}/download`, { responseType: 'blob' });
+        if (!cancelled) setPdfBlob(res.data);
+      } catch {
+        if (!cancelled) setPdfBlob(null);
+      } finally {
+        if (!cancelled) setPdfPreviewLoading(false);
+      }
+    }
+
+    loadPdfBlob();
+    return () => {
+      cancelled = true;
+    };
+  }, [fileKind, id]);
 
   if (loading) {
     return (
@@ -192,12 +223,17 @@ export default function LicenseDetailPage() {
                   />
                 </div>
               ) : fileKind === 'pdf' ? (
-                <div className="rounded-3xl overflow-hidden border border-slate-100 bg-slate-50">
-                  <iframe
-                    title={item.title || 'License preview'}
-                    src={fileSrc}
-                    className="w-full h-[70vh]"
-                  />
+                <div className="rounded-3xl overflow-hidden border border-slate-100 bg-slate-50 max-h-[80vh] overflow-y-auto">
+                  {pdfPreviewLoading ? (
+                    <div className="flex items-center justify-center h-[70vh]">
+                      <div className="w-10 h-10 border-4 border-brand-light border-t-brand-primary rounded-full animate-spin" />
+                    </div>
+                  ) : (
+                    <PdfViewer
+                      file={pdfBlob}
+                      emptyLabel="تعذر تحميل معاينة PDF. جرّب التنزيل."
+                    />
+                  )}
                 </div>
               ) : (
                 <div className="bg-slate-50 rounded-3xl p-10 text-center border border-slate-100">

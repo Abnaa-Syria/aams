@@ -1,5 +1,6 @@
 const DailyReportService = require('./service');
 const ApiResponse = require('../../utils/response');
+const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
 
 class DailyReportController {
   static async listReports(req, res, next) {
@@ -13,7 +14,8 @@ class DailyReportController {
 
   static async getReport(req, res, next) {
     try {
-      const report = await DailyReportService.getById(req.params.id, req.user);
+      const report = await DailyReportService.getById(req.params.id);
+      await assertCanAccessDriverRecord(req, report.userId);
       return ApiResponse.success(res, report);
     } catch (err) {
       next(err);

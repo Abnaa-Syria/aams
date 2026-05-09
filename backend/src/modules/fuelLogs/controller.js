@@ -1,5 +1,6 @@
 const FuelLogService = require('./service');
 const ApiResponse = require('../../utils/response');
+const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
 
 class FuelLogController {
   static async listLogs(req, res, next) {
@@ -13,7 +14,8 @@ class FuelLogController {
 
   static async getLog(req, res, next) {
     try {
-      const log = await FuelLogService.getById(req.params.id, req.user);
+      const log = await FuelLogService.getById(req.params.id);
+      await assertCanAccessDriverRecord(req, log.userId);
       return ApiResponse.success(res, log);
     } catch (err) {
       next(err);

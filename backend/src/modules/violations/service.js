@@ -38,7 +38,7 @@ class ViolationService {
     return { items, meta: buildPaginationMeta(total, page, limit) };
   }
 
-  static async getById(id, currentUser) {
+  static async getById(id) {
     const item = await prisma.violation.findUnique({
       where: { id: parseInt(id) },
       include: {
@@ -49,11 +49,6 @@ class ViolationService {
     });
 
     if (!item) throw new NotFoundError('Violation');
-    
-    // Access control
-    if (currentUser.role === 'DRIVER' && item.userId !== currentUser.id) {
-      throw new NotFoundError('Violation');
-    }
 
     return item;
   }
