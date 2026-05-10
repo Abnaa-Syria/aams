@@ -9,10 +9,11 @@ const {
   reviewVehicleSwapSchema,
 } = require('./validator');
 
-router.get('/', authenticate, VehicleSwapController.list);
+router.get('/', ...adminPerm(P.FLEET_READ), authenticate, VehicleSwapController.list);
 
 router.post(
   '/',
+  ...adminPerm(P.FLEET_WRITE),
   authenticate,
   validate(createVehicleSwapSchema),
   VehicleSwapController.create

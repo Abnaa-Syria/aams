@@ -18,9 +18,9 @@ const { streamAttachmentDownload } = require('../../utils/streamAttachment');
  *     security:
  *       - bearerAuth: []
  */
-router.get('/', authenticate, FuelLogController.listLogs);
+router.get('/', ...adminPerm(P.COMPLIANCE_READ), FuelLogController.listLogs);
 
-router.get('/:id/receipt/download', authenticate, async (req, res, next) => {
+router.get('/:id/receipt/download', ...adminPerm(P.COMPLIANCE_READ), async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
     const log = await prisma.fuelLog.findUnique({
@@ -45,7 +45,7 @@ router.get('/:id/receipt/download', authenticate, async (req, res, next) => {
  *     security:
  *       - bearerAuth: []
  */
-router.get('/:id', authenticate, FuelLogController.getLog);
+router.get('/:id', ...adminPerm(P.COMPLIANCE_READ), FuelLogController.getLog);
 
 /**
  * @openapi
@@ -56,7 +56,7 @@ router.get('/:id', authenticate, FuelLogController.getLog);
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', authenticate, upload.single('receipt'), FuelLogController.createLog);
+router.post('/', ...adminPerm(P.COMPLIANCE_WRITE), upload.single('receipt'), FuelLogController.createLog);
 
 /**
  * @openapi

@@ -5,10 +5,10 @@ const { adminPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const upload = require('../../utils/upload');
 
-router.get('/', authenticate, TicketController.list);
-router.get('/:id', authenticate, TicketController.getById);
-router.post('/', authenticate, TicketController.create);
-router.post('/:id/messages', authenticate, upload.single('attachment'), TicketController.addMessage);
+router.get('/', ...adminPerm(P.USERS_READ), TicketController.list);
+router.get('/:id', ...adminPerm(P.USERS_READ), TicketController.getById);
+router.post('/', ...adminPerm(P.USERS_WRITE), TicketController.create);
+router.post('/:id/messages', ...adminPerm(P.USERS_WRITE), upload.single('attachment'), TicketController.addMessage);
 router.patch('/:id/status', ...adminPerm(P.COMPLIANCE_WRITE), TicketController.updateStatus);
 
 module.exports = router;

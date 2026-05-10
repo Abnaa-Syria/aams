@@ -12,6 +12,7 @@ import {
   LuMap, LuEye, LuPen, LuActivity, LuInfo, LuUserPlus, LuUserMinus
 } from 'react-icons/lu';
 import { hasAnyPermission, PERMISSIONS as P } from '../../utils/rolePermissions';
+import PermissionGate from '../../components/auth/PermissionGate';
 import VehicleLiveMap from './VehicleLiveMap';
 import AssignVehicleModal from './AssignVehicleModal';
 
@@ -291,40 +292,35 @@ export default function VehicleDetailPage() {
           </div>
         </div>
         <div className="flex gap-3">
-          {canWriteFleet && (
-            <>
-              {/* Assignment Actions */}
-              {activeDriver ? (
-                <button 
-                  className="px-6 py-3 rounded-2xl bg-red-50 text-red-600 hover:bg-red-100 font-black text-sm transition-all flex items-center gap-2 group" 
-                  onClick={handleReleaseDriver}
-                >
-                  <LuUserMinus size={20} className="group-hover:scale-110 transition-transform" /> سحب المركبة
-                </button>
-              ) : (
-                <button 
-                  className={`px-6 py-3 rounded-2xl font-black text-sm transition-all flex items-center gap-2 ${
-                    vehicle.status === 'ACTIVE' 
-                    ? 'bg-brand-primary text-white hover:bg-brand-hover shadow-premium active:scale-95' 
-                    : 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-70'
-                  }`}
-                  onClick={() => vehicle.status === 'ACTIVE' && setAssignModalOpen(true)}
-                  disabled={vehicle.status !== 'ACTIVE'}
-                  title={vehicle.status !== 'ACTIVE' ? "لا يمكن تسليم المركبة إلا إذا كانت حالتها 'نشط'" : ""}
-                >
-                  <LuUserPlus size={20} /> تسليم المركبة
-                </button>
-              )}
-
-              {/* Edit Action */}
+          <PermissionGate anyOf={[P.FLEET_WRITE]}>
+            {activeDriver ? (
               <button 
-                className="px-6 py-3 rounded-2xl bg-slate-100 text-slate-700 hover:bg-slate-200 font-black text-sm transition-all flex items-center gap-2 active:scale-95" 
-                onClick={() => handleEdit(vehicle, { stopPropagation: () => {} })}
+                className="px-6 py-3 rounded-2xl bg-red-50 text-red-600 hover:bg-red-100 font-black text-sm transition-all flex items-center gap-2 group" 
+                onClick={handleReleaseDriver}
               >
-                <LuPen size={20} /> تعديل البيانات
+                <LuUserMinus size={20} className="group-hover:scale-110 transition-transform" /> سحب المركبة
               </button>
-            </>
-          )}
+            ) : (
+              <button 
+                className={`px-6 py-3 rounded-2xl font-black text-sm transition-all flex items-center gap-2 ${
+                  vehicle.status === 'ACTIVE' 
+                  ? 'bg-brand-primary text-white hover:bg-brand-hover shadow-premium active:scale-95' 
+                  : 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-70'
+                }`}
+                onClick={() => vehicle.status === 'ACTIVE' && setAssignModalOpen(true)}
+                disabled={vehicle.status !== 'ACTIVE'}
+                title={vehicle.status !== 'ACTIVE' ? "لا يمكن تسليم المركبة إلا إذا كانت حالتها 'نشط'" : ""}
+              >
+                <LuUserPlus size={20} /> تسليم المركبة
+              </button>
+            )}
+            <button 
+              className="px-6 py-3 rounded-2xl bg-slate-100 text-slate-700 hover:bg-slate-200 font-black text-sm transition-all flex items-center gap-2 active:scale-95" 
+              onClick={() => handleEdit(vehicle, { stopPropagation: () => {} })}
+            >
+              <LuPen size={20} /> تعديل البيانات
+            </button>
+          </PermissionGate>
         </div>
       </div>
 
@@ -409,17 +405,19 @@ export default function VehicleDetailPage() {
 
         {tab !== 'overview' && tab !== 'tracking' && (
           <div className="bg-white rounded-[2.5rem] shadow-premium border border-slate-100 overflow-hidden">
-             <DataTable 
-               columns={[...tabColumns[tab], { key: 'actions', label: 'إجراءات', render: (_, r) => (
-                 <div className="flex gap-2">
-                    <button onClick={() => handleView(r)} className="p-2 text-slate-400 hover:text-brand-primary hover:bg-brand-light rounded-lg transition-all"><LuEye size={18}/></button>
-                    <button onClick={(e) => handleEdit(r, e)} className="p-2 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"><LuPen size={18}/></button>
-                 </div>
-               )}]} 
-               data={tabData} 
-               isLoading={tabLoading}
-               onRowClick={handleView}
-             />
+              <DataTable 
+                columns={[...tabColumns[tab], { key: 'actions', label: 'إجراءات', render: (_, r) => (
+                  <div className="flex gap-2">
+                     <button onClick={() => handleView(r)} className="p-2 text-slate-400 hover:text-brand-primary hover:bg-brand-light rounded-lg transition-all"><LuEye size={18}/></button>
+                     <PermissionGate anyOf={[P.FLEET_WRITE]}>
+                       <button onClick={(e) => handleEdit(r, e)} className="p-2 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"><LuPen size={18}/></button>
+                     </PermissionGate>
+                  </div>
+                )}]} 
+                data={tabData} 
+                isLoading={tabLoading}
+                onRowClick={handleView}
+              />
           </div>
         )}
       </div>
@@ -444,8 +442,10 @@ export default function VehicleDetailPage() {
               </div>
               {selectedRecord.status === 'PENDING' && (
                 <div className="flex gap-3 pt-6 border-t border-slate-100">
-                   <button onClick={() => handleQuickStatusChange('APPROVED')} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl transition-all">موافقة</button>
-                   <button onClick={() => handleQuickStatusChange('REJECTED')} className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl transition-all">رفض</button>
+                   <PermissionGate anyOf={[P.FLEET_WRITE]}>
+                     <button onClick={() => handleQuickStatusChange('APPROVED')} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl transition-all">موافقة</button>
+                     <button onClick={() => handleQuickStatusChange('REJECTED')} className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl transition-all">رفض</button>
+                   </PermissionGate>
                 </div>
               )}
            </div>

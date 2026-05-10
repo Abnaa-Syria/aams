@@ -58,7 +58,7 @@ router.get('/', ...adminPerm(P.DOCUMENTS_READ), DocumentController.list);
  */
 router.get('/expiring', ...adminPerm(P.DOCUMENTS_READ), DocumentController.getExpiring);
 
-router.get('/:id/download', authenticate, async (req, res, next) => {
+router.get('/:id/download', ...adminPerm(P.DOCUMENTS_READ), async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
     const item = await prisma.document.findFirst({
@@ -172,8 +172,8 @@ router.get('/:id', ...adminPerm(P.DOCUMENTS_READ), DocumentController.getById);
  *       201:
  *         description: Created
  */
-router.post('/', authenticate, upload.single('file'), DocumentController.create);
-router.put('/:id', authenticate, upload.single('file'), DocumentController.update);
+router.post('/', ...adminPerm(P.DOCUMENTS_WRITE), authenticate, upload.single('file'), DocumentController.create);
+router.put('/:id', ...adminPerm(P.DOCUMENTS_WRITE), authenticate, upload.single('file'), DocumentController.update);
 
 /**
  * @openapi
@@ -184,7 +184,7 @@ router.put('/:id', authenticate, upload.single('file'), DocumentController.updat
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id', authenticate, upload.single('file'), DocumentController.update);
+router.patch('/:id', ...adminPerm(P.DOCUMENTS_WRITE), authenticate, upload.single('file'), DocumentController.update);
 
 /**
  * @openapi
@@ -212,6 +212,6 @@ router.patch('/:id', authenticate, upload.single('file'), DocumentController.upd
  *         description: Reviewed
  */
 router.patch('/:id/review', ...adminPerm(P.DOCUMENTS_REVIEW), DocumentController.review);
-router.delete('/:id', ...adminPerm(P.DOCUMENTS_REVIEW), DocumentController.remove);
+router.delete('/:id', ...adminPerm(P.DOCUMENTS_WRITE), DocumentController.remove);
 
 module.exports = router;

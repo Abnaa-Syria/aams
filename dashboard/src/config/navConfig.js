@@ -20,7 +20,7 @@ export const NAV_GROUPS = [
     label: 'الأسطول',
     items: [
       { path: '/vehicles', label: 'المركبات', iconKey: 'vehicles', anyOf: [P.FLEET_READ] },
-      { path: '/maintenance-requests', label: 'طلبات الصيانة', iconKey: 'maintenance', anyOf: [P.FLEET_READ] },
+      { path: '/maintenance-requests', label: 'طلبات الصيانة', iconKey: 'maintenance', anyOf: [P.INVENTORY_READ] },
     ],
   },
   {
@@ -36,18 +36,18 @@ export const NAV_GROUPS = [
     label: 'العمليات',
     items: [
       { path: '/shifts', label: 'الشفتات', iconKey: 'shifts', anyOf: [P.SHIFTS_READ] },
-      { path: '/fuel', label: 'سجلات الوقود', iconKey: 'fuel', anyOf: [P.COMPLIANCE_READ] },
+      { path: '/fuel', label: 'سجلات الوقود', iconKey: 'fuel', anyOf: [P.FLEET_READ] },
       { path: '/violations', label: 'المخالفات', iconKey: 'violations', anyOf: [P.COMPLIANCE_READ] },
       { path: '/incidents', label: 'الحوادث والطوارئ', iconKey: 'incidents', anyOf: [P.COMPLIANCE_READ] },
-      { path: '/daily-reports', label: 'التقارير اليومية', iconKey: 'reports', anyOf: [P.COMPLIANCE_READ] },
+      { path: '/daily-reports', label: 'التقارير اليومية', iconKey: 'reports', anyOf: [P.SHIFTS_READ] },
     ],
   },
   {
     label: 'التواصل',
     items: [
-      { path: '/notifications', label: 'الإشعارات', iconKey: 'notifications', anyOf: [P.COMPLIANCE_READ, P.SETTINGS_READ] },
-      { path: '/chat', label: 'المحادثات', iconKey: 'chat', anyOf: [P.COMPLIANCE_READ] },
-      { path: '/tickets', label: 'تذاكر الدعم', iconKey: 'tickets', anyOf: [P.COMPLIANCE_READ] },
+      { path: '/notifications', label: 'الإشعارات', iconKey: 'notifications', anyOf: [P.USERS_READ] },
+      { path: '/chat', label: 'المحادثات', iconKey: 'chat', anyOf: [P.USERS_READ] },
+      { path: '/tickets', label: 'تذاكر الدعم', iconKey: 'tickets', anyOf: [P.USERS_READ] },
     ],
   },
   {
@@ -55,8 +55,8 @@ export const NAV_GROUPS = [
     items: [
       { path: '/investigations', label: 'التحقيقات', iconKey: 'investigations', anyOf: [P.COMPLIANCE_READ] },
       { path: '/penalties', label: 'الجزاءات', iconKey: 'penalties', anyOf: [P.COMPLIANCE_READ] },
-      { path: '/ratings', label: 'التقييمات', iconKey: 'ratings', anyOf: [P.HR_APPROVE, P.COMPLIANCE_WRITE] },
-      { path: '/rewards', label: 'المكافآت', iconKey: 'rewards', anyOf: [P.HR_READ, P.HR_APPROVE] },
+      { path: '/ratings', label: 'التقييمات', iconKey: 'ratings', anyOf: [P.FLEET_READ] },
+      { path: '/rewards', label: 'المكافآت', iconKey: 'rewards', anyOf: [P.HR_READ] },
     ],
   },
   {

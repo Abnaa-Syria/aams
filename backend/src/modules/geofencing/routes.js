@@ -15,6 +15,7 @@ const {
 
 router.post(
   '/locations',
+  ...adminPerm(P.FLEET_WRITE),
   authenticate,
   validate(addLocationSchema),
   GeofencingController.logLocation
@@ -22,6 +23,7 @@ router.post(
 
 router.post(
   '/locations/bulk',
+  ...adminPerm(P.FLEET_WRITE),
   authenticate,
   validate(bulkAddLocationSchema),
   GeofencingController.bulkLogLocations
@@ -41,8 +43,8 @@ router.get(
 
 // --- ZONES ---
 
-router.get('/zones', authenticate, GeofencingController.listZones);
-router.get('/zones/:id', authenticate, GeofencingController.getZone);
+router.get('/zones', ...adminPerm(P.FLEET_READ), authenticate, GeofencingController.listZones);
+router.get('/zones/:id', ...adminPerm(P.FLEET_READ), authenticate, GeofencingController.getZone);
 
 router.post(
   '/zones',

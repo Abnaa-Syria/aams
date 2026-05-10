@@ -1,5 +1,7 @@
 const router = require('express').Router();
 const { authenticate } = require('../../middlewares/auth');
+const { adminPerm } = require('../../middlewares/adminGuard');
+const { PERMISSIONS: P } = require('../../constants/permissions');
 const upload = require('../../utils/upload');
 const prisma = require('../../config/database');
 const ApiResponse = require('../../utils/response');
@@ -31,7 +33,7 @@ const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
  *       200:
  *         description: Paginated records
  */
-router.get('/', authenticate, async (req, res, next) => {
+router.get('/', ...adminPerm(P.SHIFTS_READ), authenticate, async (req, res, next) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query);
     let where = {};
@@ -61,7 +63,7 @@ router.get('/', authenticate, async (req, res, next) => {
  *       200:
  *         description: Record
  */
-router.get('/:id', authenticate, async (req, res, next) => {
+router.get('/:id', ...adminPerm(P.SHIFTS_READ), authenticate, async (req, res, next) => {
   try {
     const item = await prisma.midShiftRecord.findUnique({ where: { id: parseInt(req.params.id) }, include: { shift: true } });
     if (item?.shift) await assertCanAccessDriverRecord(req, item.shift.userId);
@@ -93,7 +95,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
  *       201:
  *         description: Created
  */
-router.post('/', authenticate, upload.single('screenshot'), async (req, res, next) => {
+router.post('/', ...adminPerm(P.SHIFTS_WRITE), authenticate, upload.single('screenshot'), async (req, res, next) => {
   try {
     const shiftId = parseInt(req.body.shiftId, 10);
     const shift = await prisma.shift.findUnique({ where: { id: shiftId } });

@@ -108,7 +108,7 @@ router.get('/', ...adminPerm(P.FINANCE_READ), async (req, res, next) => {
  *       200:
  *         description: Deleted
  */
-router.get('/:id', authenticate, async (req, res, next) => {
+router.get('/:id', ...adminPerm(P.FINANCE_READ), async (req, res, next) => {
   try {
     const item = await prisma.bankAccount.findFirst({ where: { id: parseInt(req.params.id), deletedAt: null }, include: { user: { select: { id: true, fullNameAr: true } } } });
     if (!item) throw new NotFoundError('Bank Account');
@@ -117,7 +117,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.get('/:id/files/proof/download', authenticate, async (req, res, next) => {
+router.get('/:id/files/proof/download', ...adminPerm(P.FINANCE_READ), async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
     const bankAccount = await prisma.bankAccount.findFirst({
@@ -133,7 +133,7 @@ router.get('/:id/files/proof/download', authenticate, async (req, res, next) => 
   }
 });
 
-router.get('/:id/files/cash-receipt/download', authenticate, async (req, res, next) => {
+router.get('/:id/files/cash-receipt/download', ...adminPerm(P.FINANCE_READ), async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
     const bankAccount = await prisma.bankAccount.findFirst({
@@ -172,7 +172,7 @@ router.get('/:id/files/cash-receipt/download', authenticate, async (req, res, ne
  *       201:
  *         description: Created
  */
-router.post('/', authenticate, upload.fields([{ name: 'proofFile', maxCount: 1 }, { name: 'cashReceiptFile', maxCount: 1 }]), async (req, res, next) => {
+router.post('/', ...adminPerm(P.FINANCE_WRITE), upload.fields([{ name: 'proofFile', maxCount: 1 }, { name: 'cashReceiptFile', maxCount: 1 }]), async (req, res, next) => {
   try {
     let userId = parseInt(req.body.userId, 10);
     if (!ADMIN_ROLES.has(req.user.role)) {
@@ -201,7 +201,7 @@ router.post('/', authenticate, upload.fields([{ name: 'proofFile', maxCount: 1 }
   } catch (err) { next(err); }
 });
 
-router.put('/:id', authenticate, upload.fields([{ name: 'proofFile', maxCount: 1 }, { name: 'cashReceiptFile', maxCount: 1 }]), async (req, res, next) => {
+router.put('/:id', ...adminPerm(P.FINANCE_WRITE), upload.fields([{ name: 'proofFile', maxCount: 1 }, { name: 'cashReceiptFile', maxCount: 1 }]), async (req, res, next) => {
   try {
     const existing = await prisma.bankAccount.findFirst({
       where: { id: parseInt(req.params.id, 10), deletedAt: null },
@@ -270,7 +270,7 @@ router.patch('/:id/verify', ...adminPerm(P.FINANCE_APPROVE), async (req, res, ne
   } catch (err) { next(err); }
 });
 
-router.delete('/:id', ...adminPerm(P.FINANCE_APPROVE), async (req, res, next) => {
+router.delete('/:id', ...adminPerm(P.FINANCE_WRITE), async (req, res, next) => {
   try {
     await prisma.bankAccount.update({ where: { id: parseInt(req.params.id) }, data: { deletedAt: new Date() } });
     return ApiResponse.success(res, null, 'Bank account deleted');

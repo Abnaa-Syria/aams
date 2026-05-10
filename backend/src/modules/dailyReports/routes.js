@@ -18,9 +18,9 @@ const { streamAttachmentDownload } = require('../../utils/streamAttachment');
  *     security:
  *       - bearerAuth: []
  */
-router.get('/', authenticate, DailyReportController.listReports);
+router.get('/', ...adminPerm(P.SHIFTS_READ), DailyReportController.listReports);
 
-router.get('/:id/screenshots/:screenshotId/download', authenticate, async (req, res, next) => {
+router.get('/:id/screenshots/:screenshotId/download', ...adminPerm(P.SHIFTS_READ), async (req, res, next) => {
   try {
     const reportId = parseInt(req.params.id, 10);
     const screenshotId = parseInt(req.params.screenshotId, 10);
@@ -46,7 +46,7 @@ router.get('/:id/screenshots/:screenshotId/download', authenticate, async (req, 
  *     security:
  *       - bearerAuth: []
  */
-router.get('/:id', authenticate, DailyReportController.getReport);
+router.get('/:id', ...adminPerm(P.SHIFTS_READ), DailyReportController.getReport);
 
 /**
  * @openapi
@@ -57,7 +57,7 @@ router.get('/:id', authenticate, DailyReportController.getReport);
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', authenticate, upload.array('screenshots', 10), DailyReportController.createReport);
+router.post('/', ...adminPerm(P.SHIFTS_WRITE), upload.array('screenshots', 10), DailyReportController.createReport);
 
 /**
  * @openapi

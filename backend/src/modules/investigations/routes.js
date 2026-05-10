@@ -23,7 +23,7 @@ const InvestigationController = require('./controller');
  *     security:
  *       - bearerAuth: []
  */
-router.get('/', authenticate, InvestigationController.list);
+router.get('/', ...adminPerm(P.COMPLIANCE_READ), InvestigationController.list);
 
 /**
  * @openapi
@@ -34,9 +34,9 @@ router.get('/', authenticate, InvestigationController.list);
  *     security:
  *       - bearerAuth: []
  */
-router.get('/:id', authenticate, InvestigationController.getById);
+router.get('/:id', ...adminPerm(P.COMPLIANCE_READ), InvestigationController.getById);
 
-router.get('/:id/attachments/:attachmentId/download', authenticate, async (req, res, next) => {
+router.get('/:id/attachments/:attachmentId/download', ...adminPerm(P.COMPLIANCE_READ), async (req, res, next) => {
   try {
     const investigationId = parseInt(req.params.id, 10);
     const attachmentId = parseInt(req.params.attachmentId, 10);
@@ -92,7 +92,7 @@ router.patch('/:id', ...adminPerm(P.COMPLIANCE_WRITE), InvestigationController.u
  *     security:
  *       - bearerAuth: []
  */
-router.post('/:id/respond', authenticate, upload.array('attachments', 3), InvestigationController.respond);
+router.post('/:id/respond', ...adminPerm(P.COMPLIANCE_WRITE), upload.array('attachments', 3), InvestigationController.respond);
 
 /**
  * @openapi

@@ -42,7 +42,7 @@ const { PERMISSIONS: P } = require('../../constants/permissions');
  *             schema:
  *               $ref: '#/components/schemas/ListResponse'
  */
-router.get('/', authenticate, ShiftController.list);
+router.get('/', ...adminPerm(P.SHIFTS_READ), ShiftController.list);
 
 /**
  * @openapi
@@ -70,7 +70,7 @@ router.get('/', authenticate, ShiftController.list);
  *       422:
  *         description: Business rules (blocked account, duplicate pending shift, invalid vehicle/account)
  */
-router.post('/request-start', authenticate, ShiftController.requestStart);
+router.post('/request-start', ...adminPerm(P.SHIFTS_WRITE), ShiftController.requestStart);
 
 /**
  * @openapi
@@ -91,7 +91,7 @@ router.post('/request-start', authenticate, ShiftController.requestStart);
  *       404:
  *         description: Not found or no access
  */
-router.get('/:id', authenticate, ShiftController.getById);
+router.get('/:id', ...adminPerm(P.SHIFTS_READ), ShiftController.getById);
 
 /**
  * @openapi
@@ -112,7 +112,7 @@ router.get('/:id', authenticate, ShiftController.getById);
  *       422:
  *         description: Not approved or not owner
  */
-router.post('/:id/start', authenticate, ShiftController.startShift);
+router.post('/:id/start', ...adminPerm(P.SHIFTS_WRITE), ShiftController.startShift);
 
 /**
  * @openapi
@@ -139,7 +139,7 @@ router.post('/:id/start', authenticate, ShiftController.startShift);
  *       200:
  *         description: Shift ENDED
  */
-router.post('/:id/end', authenticate, ShiftController.endShift);
+router.post('/:id/end', ...adminPerm(P.SHIFTS_WRITE), ShiftController.endShift);
 
 /**
  * @openapi
@@ -165,7 +165,7 @@ router.post('/:id/end', authenticate, ShiftController.endShift);
  *       200:
  *         description: Shift CANCELLED
  */
-router.post('/:id/cancel', authenticate, ShiftController.cancel);
+router.post('/:id/cancel', ...adminPerm(P.SHIFTS_WRITE), ShiftController.cancel);
 
 /**
  * @openapi

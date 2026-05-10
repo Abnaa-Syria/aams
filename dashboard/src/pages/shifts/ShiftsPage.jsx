@@ -1,6 +1,10 @@
 import GenericListPage from '../../components/ui/GenericListPage';
 import StatusBadge from '../../components/ui/StatusBadge';
 import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { apiService } from '../../services/api';
+import { LuPlus, LuPencil } from 'react-icons/lu';
+import toast from 'react-hot-toast';
 
 const columns = [
   { key: 'id', label: '#' },
@@ -11,35 +15,198 @@ const columns = [
   { key: 'requestedAt', label: 'تاريخ الطلب', render: (v) => v ? new Date(v).toLocaleDateString('ar-SA') : '—' },
   { key: 'startedAt', label: 'وقت البدء', render: (v) => v ? new Date(v).toLocaleTimeString('ar-SA') : '—' },
   { key: 'endedAt', label: 'وقت الانتهاء', render: (v) => v ? new Date(v).toLocaleTimeString('ar-SA') : '—' },
+  { key: 'actions', label: 'الإجراءات', render: (v, row) => (
+    <button 
+      onClick={(e) => { e.stopPropagation(); /* open update modal */ }} 
+      className="p-2 text-slate-400 hover:text-primary transition-colors"
+    >
+      <LuPencil size={16} />
+    </button>
+  ), stopRowClick: true },
 ];
+
+function ShiftModal({ isOpen, onClose, shift, onSave }) {
+  const [form, setForm] = useState({ userId: '', vehicleId: '', platformAccountId: '', notes: '' });
+  const [drivers, setDrivers] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+  const [platforms, setPlatforms] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadOptions();
+      if (shift) {
+        setForm({
+          userId: shift.userId || '',
+          vehicleId: shift.vehicleId || '',
+          platformAccountId: shift.platformAccountId || '',
+          notes: shift.notes || '',
+        });
+      } else {
+        setForm({ userId: '', vehicleId: '', platformAccountId: '', notes: '' });
+      }
+    }
+  }, [isOpen, shift]);
+
+  const loadOptions = async () => {
+    try {
+      const [driversRes, vehiclesRes, platformsRes] = await Promise.all([
+        apiService.get('/users', { role: 'DRIVER', limit: 500 }),
+        apiService.get('/vehicles', { limit: 500 }),
+        apiService.get('/platform-accounts', { limit: 500 }),
+      ]);
+      setDrivers(driversRes.data.data);
+      setVehicles(vehiclesRes.data.data);
+      setPlatforms(platformsRes.data.data);
+    } catch (error) {
+      console.error('Failed to load options', error);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await onSave(form);
+      onClose();
+      toast.success(shift ? 'تم تحديث الشفت' : 'تم إنشاء الشفت');
+    } catch (error) {
+      toast.error('فشل في الحفظ');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+        <h3 className="text-lg font-bold mb-4">{shift ? 'تحديث الشفت' : 'إنشاء شفت جديد'}</h3>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <select 
+            className="form-input form-select" 
+            value={form.userId} 
+            onChange={(e) => setForm(f => ({ ...f, userId: e.target.value }))}
+            required
+          >
+            <option value="">اختر السائق</option>
+            {drivers.map(d => <option key={d.id} value={d.id}>{d.fullNameAr}</option>)}
+          </select>
+          <select 
+            className="form-input form-select" 
+            value={form.vehicleId} 
+            onChange={(e) => setForm(f => ({ ...f, vehicleId: e.target.value }))}
+            required
+          >
+            <option value="">اختر المركبة</option>
+            {vehicles.map(v => <option key={v.id} value={v.id}>{v.plateNumber}</option>)}
+          </select>
+          <select 
+            className="form-input form-select" 
+            value={form.platformAccountId} 
+            onChange={(e) => setForm(f => ({ ...f, platformAccountId: e.target.value }))}
+            required
+          >
+            <option value="">اختر المنصة</option>
+            {platforms.map(p => <option key={p.id} value={p.id}>{p.platform.nameAr}</option>)}
+          </select>
+          <textarea 
+            className="form-input" 
+            placeholder="ملاحظات" 
+            value={form.notes} 
+            onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))}
+          />
+          <div className="flex gap-2">
+            <button type="submit" className="btn btn-primary flex-1" disabled={loading}>
+              {loading ? 'حفظ...' : 'حفظ'}
+            </button>
+            <button type="button" onClick={onClose} className="btn btn-secondary flex-1">إلغاء</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 export default function ShiftsPage() {
   const navigate = useNavigate();
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [updateModalOpen, setUpdateModalOpen] = useState(false);
+  const [selectedShift, setSelectedShift] = useState(null);
+  const [reloadToken, setReloadToken] = useState(0);
+
+  const handleCreate = async (form) => {
+    await apiService.post('/shifts/request-start', form);
+    setReloadToken(t => t + 1);
+  };
+
+  const handleUpdate = async (form) => {
+    await apiService.put(`/shifts/${selectedShift.id}`, form);
+    setReloadToken(t => t + 1);
+  };
+
+  const openUpdateModal = (shift) => {
+    setSelectedShift(shift);
+    setUpdateModalOpen(true);
+  };
+
+  const createButton = (
+    <button 
+      onClick={() => setCreateModalOpen(true)} 
+      className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-2xl hover:bg-primary-dark transition-colors font-bold"
+    >
+      <LuPlus size={18} />
+      إنشاء شفت
+    </button>
+  );
 
   return (
-    <GenericListPage
-      title="إدارة الشفتات"
-      apiUrl="/shifts"
-      columns={columns}
-      onRowClick={(row) => navigate(`/shifts/${row.id}`)}
-      filters={[
-        { key: 'driverName', type: 'text', placeholder: 'اسم السائق' },
-        {
-          key: 'status',
-          type: 'select',
-          placeholder: 'الحالة',
-          options: [
-            { value: 'REQUESTED', label: 'مطلوب' },
-            { value: 'APPROVED', label: 'مقبول' },
-            { value: 'ACTIVE', label: 'نشط' },
-            { value: 'ENDED', label: 'منتهي' },
-            { value: 'REJECTED', label: 'مرفوض' },
-            { value: 'CANCELLED', label: 'ملغي' },
-          ],
-        },
-        { key: 'dateFrom', type: 'date', placeholder: 'من تاريخ' },
-        { key: 'dateTo', type: 'date', placeholder: 'إلى تاريخ' },
-      ]}
-    />
+    <>
+      <GenericListPage
+        title="إدارة الشفتات"
+        apiUrl="/shifts"
+        columns={columns.map(col => col.key === 'actions' ? { ...col, render: (v, row) => (
+          <button 
+            onClick={(e) => { e.stopPropagation(); openUpdateModal(row); }} 
+            className="p-2 text-slate-400 hover:text-primary transition-colors"
+          >
+            <LuPencil size={16} />
+          </button>
+        ), stopRowClick: true } : col)}
+        onRowClick={(row) => navigate(`/shifts/${row.id}`)}
+        createButton={createButton}
+        reloadToken={reloadToken}
+        filters={[
+          { key: 'driverName', type: 'text', placeholder: 'اسم السائق' },
+          {
+            key: 'status',
+            type: 'select',
+            placeholder: 'الحالة',
+            options: [
+              { value: 'REQUESTED', label: 'مطلوب' },
+              { value: 'APPROVED', label: 'مقبول' },
+              { value: 'ACTIVE', label: 'نشط' },
+              { value: 'ENDED', label: 'منتهي' },
+              { value: 'REJECTED', label: 'مرفوض' },
+              { value: 'CANCELLED', label: 'ملغي' },
+            ],
+          },
+          { key: 'dateFrom', type: 'date', placeholder: 'من تاريخ' },
+          { key: 'dateTo', type: 'date', placeholder: 'إلى تاريخ' },
+        ]}
+      />
+      <ShiftModal 
+        isOpen={createModalOpen} 
+        onClose={() => setCreateModalOpen(false)} 
+        onSave={handleCreate} 
+      />
+      <ShiftModal 
+        isOpen={updateModalOpen} 
+        onClose={() => setUpdateModalOpen(false)} 
+        shift={selectedShift} 
+        onSave={handleUpdate} 
+      />
+    </>
   );
 }

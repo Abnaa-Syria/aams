@@ -23,7 +23,7 @@ const LeaveRequestController = require('./controller');
  *     security:
  *       - bearerAuth: []
  */
-router.get('/', authenticate, LeaveRequestController.list);
+router.get('/', ...adminPerm(P.HR_READ), LeaveRequestController.list);
 
 /**
  * @openapi
@@ -34,7 +34,7 @@ router.get('/', authenticate, LeaveRequestController.list);
  *     security:
  *       - bearerAuth: []
  */
-router.get('/balances/:userId', authenticate, LeaveRequestController.getBalances);
+router.get('/balances/:userId', ...adminPerm(P.HR_READ), LeaveRequestController.getBalances);
 
 /**
  * @openapi
@@ -45,9 +45,9 @@ router.get('/balances/:userId', authenticate, LeaveRequestController.getBalances
  *     security:
  *       - bearerAuth: []
  */
-router.get('/:id', authenticate, LeaveRequestController.getById);
+router.get('/:id', ...adminPerm(P.HR_READ), LeaveRequestController.getById);
 
-router.get('/:id/files/attachment/download', authenticate, async (req, res, next) => {
+router.get('/:id/files/attachment/download', ...adminPerm(P.HR_READ), async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
     const leaveReq = await prisma.leaveRequest.findUnique({
@@ -72,7 +72,7 @@ router.get('/:id/files/attachment/download', authenticate, async (req, res, next
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', authenticate, upload.single('attachment'), LeaveRequestController.create);
+router.post('/', ...adminPerm(P.HR_WRITE), upload.single('attachment'), LeaveRequestController.create);
 
 /**
  * @openapi
@@ -105,6 +105,6 @@ router.patch('/:id/review', ...adminPerm(P.HR_APPROVE), LeaveRequestController.r
  *     security:
  *       - bearerAuth: []
  */
-router.delete('/:id', authenticate, LeaveRequestController.cancel);
+router.delete('/:id', ...adminPerm(P.HR_WRITE), LeaveRequestController.cancel);
 
 module.exports = router;

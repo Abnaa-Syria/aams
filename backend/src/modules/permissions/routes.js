@@ -5,7 +5,34 @@ const prisma = require('../../config/database');
 const ApiResponse = require('../../utils/response');
 const { logAudit } = require('../../utils/auditLogger');
 
-const CATEGORY_ORDER = ['users', 'fleet', 'documents', 'shifts', 'hr', 'finance', 'settings', 'audit', 'compliance', 'inventory'];
+const CATEGORY_ORDER = ['users', 'fleet', 'documents', 'shifts', 'hr', 'finance', 'settings', 'audit', 'compliance', 'inventory', 'role', 'dashboard'];
+
+const CATEGORY_LABELS = {
+  users: 'إدارة الموظفين',
+  fleet: 'الأسطول',
+  documents: 'المستندات',
+  shifts: 'المناوبات',
+  hr: 'الموارد البشرية',
+  finance: 'الأمور المالية',
+  settings: 'الإعدادات',
+  audit: 'سجلات التدقيق',
+  compliance: 'الامتثال والسلامة',
+  inventory: 'المخزون',
+  role: 'الأدوار',
+  dashboard: 'لوحة التحكم',
+};
+
+const ROLE_LABELS = {
+  SUPER_ADMIN: 'مدير عام',
+  OPERATIONS_ADMIN: 'مدير عمليات',
+  HR_ADMIN: 'مدير موارد بشرية',
+  FLEET_ADMIN: 'مدير أسطول',
+  FINANCE_ADMIN: 'مدير مالي',
+  COMPANY_ADMIN: 'مدير شركة',
+  SAFETY_ADMIN: 'مدير سلامة',
+  SUPERVISOR: 'مشرف',
+  DRIVER: 'سائق',
+};
 
 router.get('/', async (req, res, next) => {
   try {
@@ -16,8 +43,7 @@ router.get('/', async (req, res, next) => {
       if (!grouped[p.category]) grouped[p.category] = [];
       grouped[p.category].push({
         key: p.key,
-        labelAr: p.labelAr,
-        labelEn: p.labelEn,
+        label: p.labelAr,
       });
     }
 
@@ -25,6 +51,7 @@ router.get('/', async (req, res, next) => {
       .filter((cat) => grouped[cat])
       .map((cat) => ({
         category: cat,
+        categoryLabel: CATEGORY_LABELS[cat] || cat,
         permissions: grouped[cat],
       }));
 
@@ -40,7 +67,7 @@ router.get('/matrix', async (req, res, next) => {
         orderBy: { key: 'asc' },
         include: {
           permissions: {
-            include: { permission: { select: { key: true, labelAr: true, labelEn: true, category: true } } },
+            include: { permission: { select: { key: true, labelAr: true, category: true } } },
           },
         },
       }),
@@ -49,18 +76,22 @@ router.get('/matrix', async (req, res, next) => {
     const grouped = {};
     for (const p of permissions) {
       if (!grouped[p.category]) grouped[p.category] = [];
-      grouped[p.category].push({ key: p.key, labelAr: p.labelAr, labelEn: p.labelEn });
+      grouped[p.category].push({ key: p.key, label: p.labelAr });
     }
 
     const orderedPerms = CATEGORY_ORDER
       .filter((cat) => grouped[cat])
-      .map((cat) => ({ category: cat, permissions: grouped[cat] }));
+      .map((cat) => ({
+        category: cat,
+        categoryLabel: CATEGORY_LABELS[cat] || cat,
+        permissions: grouped[cat],
+      }));
 
     const roleList = roles.map((r) => ({
       key: r.key,
-      labelAr: r.labelAr,
-      labelEn: r.labelEn,
+      label: ROLE_LABELS[r.key] || r.labelAr,
       isSystem: r.isSystem,
+      permissionCount: r.permissions.length,
       permissions: r.permissions.map((rp) => rp.permission.key),
     }));
 
@@ -74,28 +105,28 @@ router.put('/matrix/:roleKey', ...adminPerm(P.ROLE_MANAGEMENT), async (req, res,
     const { permissions } = req.body;
 
     if (!Array.isArray(permissions)) {
-      return ApiResponse.badRequest(res, 'permissions must be an array');
+      return ApiResponse.badRequest(res, 'الصلاحيات يجب أن تكون قائمة');
     }
 
     if (roleKey === 'SUPER_ADMIN') {
-      return ApiResponse.forbidden(res, 'Cannot modify SUPER_ADMIN permissions');
+      return ApiResponse.forbidden(res, 'لا يمكن تعديل صلاحيات المدير العام');
     }
 
     const role = await prisma.role.findUnique({ where: { key: roleKey } });
-    if (!role) return ApiResponse.notFound(res, 'Role');
+    if (!role) return ApiResponse.notFound(res, 'الدور');
 
     const validPerms = await prisma.permission.findMany({ select: { key: true } });
     const validKeys = new Set(validPerms.map((p) => p.key));
     const invalid = permissions.filter((k) => !validKeys.has(k));
     if (invalid.length) {
-      return ApiResponse.badRequest(res, `Invalid permission keys: ${invalid.join(', ')}`);
+      return ApiResponse.badRequest(res, `صلاحيات غير صالحة: ${invalid.join(', ')}`);
     }
 
     await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
 
     const permIds = await prisma.permission.findMany({
       where: { key: { in: permissions } },
-      select: { id: true, key: true },
+      select: { id: true },
     });
 
     await prisma.rolePermission.createMany({
@@ -110,7 +141,7 @@ router.put('/matrix/:roleKey', ...adminPerm(P.ROLE_MANAGEMENT), async (req, res,
       newValue: { roleKey, permissions },
     });
 
-    return ApiResponse.success(res, null, 'Role permissions updated');
+    return ApiResponse.success(res, null, 'تم تحديث الصلاحيات بنجاح');
   } catch (err) { next(err); }
 });
 

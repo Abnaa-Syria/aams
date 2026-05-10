@@ -9,17 +9,18 @@ const {
   reviewAdminRequestSchema,
 } = require('./validator');
 
-router.get('/', authenticate, AdminRequestController.list);
-router.get('/:id', authenticate, AdminRequestController.getById);
+router.get('/', ...adminPerm(P.HR_READ), authenticate, AdminRequestController.list);
+router.get('/:id', ...adminPerm(P.HR_READ), authenticate, AdminRequestController.getById);
 
 router.post(
   '/',
+  ...adminPerm(P.HR_WRITE),
   authenticate,
   validate(createAdminRequestSchema),
   AdminRequestController.create
 );
 
-router.delete('/:id', authenticate, AdminRequestController.cancel);
+router.delete('/:id', ...adminPerm(P.HR_WRITE), authenticate, AdminRequestController.cancel);
 
 router.patch(
   '/:id/review',

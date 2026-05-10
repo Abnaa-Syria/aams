@@ -13,7 +13,7 @@ const PenaltyController = require('./controller');
  *     security:
  *       - bearerAuth: []
  */
-router.get('/', authenticate, PenaltyController.list);
+router.get('/', ...adminPerm(P.COMPLIANCE_READ), PenaltyController.list);
 
 /**
  * @openapi
@@ -35,7 +35,7 @@ router.get('/totals', ...adminPerm(P.COMPLIANCE_READ), PenaltyController.getTota
  *     security:
  *       - bearerAuth: []
  */
-router.get('/:id', authenticate, PenaltyController.getById);
+router.get('/:id', ...adminPerm(P.COMPLIANCE_READ), PenaltyController.getById);
 
 /**
  * @openapi

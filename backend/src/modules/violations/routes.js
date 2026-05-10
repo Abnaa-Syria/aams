@@ -24,9 +24,9 @@ const VIOLATION_KIND_TO_FIELD = {
  *     security:
  *       - bearerAuth: []
  */
-router.get('/', authenticate, ViolationController.listViolations);
+router.get('/', ...adminPerm(P.COMPLIANCE_READ), ViolationController.listViolations);
 
-router.get('/:id/files/:kind/download', authenticate, async (req, res, next) => {
+router.get('/:id/files/:kind/download', ...adminPerm(P.COMPLIANCE_READ), async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
     const field = VIOLATION_KIND_TO_FIELD[req.params.kind];
@@ -56,7 +56,7 @@ router.get('/:id/files/:kind/download', authenticate, async (req, res, next) => 
  *     security:
  *       - bearerAuth: []
  */
-router.get('/:id', authenticate, ViolationController.getViolation);
+router.get('/:id', ...adminPerm(P.COMPLIANCE_READ), ViolationController.getViolation);
 
 /**
  * @openapi
@@ -69,7 +69,7 @@ router.get('/:id', authenticate, ViolationController.getViolation);
  */
 router.post(
   '/',
-  authenticate,
+  ...adminPerm(P.COMPLIANCE_WRITE),
   upload.fields([
     { name: 'vehicleImage', maxCount: 1 },
     { name: 'violationImage', maxCount: 1 },
