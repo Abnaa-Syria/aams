@@ -1,6 +1,12 @@
 const { AppError } = require('../utils/errors');
 
 function errorHandler(err, req, res, _next) {
+  if (process.env.NODE_ENV === 'development') {
+    // Log the full error object to see the stack trace and line numbers
+    console.error(`[DEBUG ERROR] ${req.method} ${req.originalUrl}:`);
+    console.error(err);
+  }
+
   if (err.isOperational) {
     return res.status(err.statusCode).json({
       success: false,
@@ -37,7 +43,6 @@ function errorHandler(err, req, res, _next) {
     return res.status(400).json({ success: false, message: 'Invalid JSON' });
   }
 
-  console.error('Unhandled Error:', err);
 
   return res.status(500).json({
     success: false,
