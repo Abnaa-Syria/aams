@@ -29,8 +29,6 @@ const ROLE_LABELS = {
   HR_ADMIN: 'مدير موارد بشرية',
   FLEET_ADMIN: 'مدير أسطول',
   FINANCE_ADMIN: 'مدير مالي',
-  COMPANY_ADMIN: 'مدير شركة',
-  SAFETY_ADMIN: 'مدير سلامة',
   SUPERVISOR: 'مشرف',
   DRIVER: 'سائق',
 };
@@ -100,11 +98,11 @@ function PermissionRow({ perm, checked, userHas, onToggle, readOnly }) {
             <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" title="تملك هذه الصلاحية حالياً" />
           )}
         </div>
-        {checked && userHas && (
+        {userHas && (
           <div className="text-xs text-emerald-600 font-bold mt-0.5">مفعّلة حالياً</div>
         )}
-        {!checked && userHas && (
-          <div className="text-xs text-amber-600 font-bold mt-0.5">ستُزال من صلاحياتك عند الحفظ</div>
+        {readOnly && (
+          <div className="text-xs text-slate-400 mt-0.5">هذا الدور يحاكي صلاحيات الأدوار النظامية ولا يمكن تحريره</div>
         )}
       </div>
     </label>
@@ -114,7 +112,6 @@ function PermissionRow({ perm, checked, userHas, onToggle, readOnly }) {
 export default function RolesPermissionsPage() {
   const dispatch = useDispatch();
   const currentUser = useSelector((s) => s.auth.user);
-  const currentUserPermissions = currentUser?.permissions || [...getGrantedPermissions(currentUser?.role)];
 
   const [roles, setRoles] = useState([]);
   const [permissions, setPermissions] = useState([]);
@@ -122,29 +119,52 @@ export default function RolesPermissionsPage() {
   const [selectedKey, setSelectedKey] = useState(null);
   const [dirtyPerms, setDirtyPerms] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [roleModalOpen, setRoleModalOpen] = useState(false);
-  const [roleModalMode, setRoleModalMode] = useState('create');
-  const [roleLoading, setRoleLoading] = useState(false);
-  const [roleForm, setRoleForm] = useState({ key: '', labelAr: '', labelEn: '' });
   const [deleteRoleOpen, setDeleteRoleOpen] = useState(false);
   const [deletingRoleKey, setDeletingRoleKey] = useState(null);
+  const [roleModalOpen, setRoleModalOpen] = useState(false);
+  const [roleModalMode, setRoleModalMode] = useState('create');
+  const [roleForm, setRoleForm] = useState({ key: '', labelAr: '', labelEn: '' });
+  const [roleLoading, setRoleLoading] = useState(false);
+
+  const selectedRole = roles.find((r) => r.key === selectedKey);
+  const currentUserPermissions = currentUser?.permissions || getGrantedPermissions(currentUser?.role) || [];
+  const myPermSet = new Set(currentUserPermissions);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await apiService.get('/permissions/matrix');
-      const { roles: r, permissions: p } = res.data.data;
-      setRoles(r);
-      setPermissions(p);
-      setSelectedKey((prev) => prev || (r[0]?.key || null));
-      return r;
-    } catch {
-      toast.error('فشل تحميل البيانات');
-      return [];
-    } finally { setLoading(false); }
+    const [matrixRes, permsRes] = await Promise.all([
+      apiService.get('/permissions/matrix'),
+      apiService.get('/permissions'),
+    ]);
+    setRoles(matrixRes.data.roles || []);
+    setPermissions(permsRes.data || []);
+    return matrixRes.data.roles || [];
   }, []);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    (async () => {
+      const loadedRoles = await load();
+      if (loadedRoles.length && !selectedKey) {
+        setSelectedKey(loadedRoles[0].key);
+      }
+      setLoading(false);
+    })();
+  }, [load, selectedKey]);
+
+  const handleToggle = (key) => {
+    if (selectedKey === 'SUPER_ADMIN' || selectedRole?.isSystem) return;
+    setDirtyPerms((prev) => {
+      const next = new Set(prev !== null ? prev : (selectedRole?.permissions || []));
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return [...next];
+    });
+  };
+
+  const openEditRole = (r) => {
+    setRoleModalMode('edit');
+    setRoleForm({ key: r.key, labelAr: r.labelAr || '', labelEn: r.labelEn || '' });
+    setRoleModalOpen(true);
+  };
 
   const openCreateRole = () => {
     setRoleModalMode('create');
@@ -152,49 +172,24 @@ export default function RolesPermissionsPage() {
     setRoleModalOpen(true);
   };
 
-  const openEditRole = () => {
-    if (!selectedRole) return;
-    setRoleModalMode('edit');
-    setRoleForm({ key: selectedRole.key, labelAr: selectedRole.labelAr || selectedRole.label || '', labelEn: selectedRole.labelEn || '' });
-    setRoleModalOpen(true);
-  };
-
-  const openDeleteRole = () => {
-    if (!selectedRole) return;
-    setDeletingRoleKey(selectedRole.key);
+  const openDeleteRole = (key) => {
+    setDeletingRoleKey(key);
     setDeleteRoleOpen(true);
   };
 
-  const selectedRole = roles.find((r) => r.key === selectedKey);
-  const myPermSet = new Set(currentUserPermissions);
-
-  const handleToggle = (permKey) => {
-    if (selectedKey === 'SUPER_ADMIN') return;
-    setDirtyPerms((prev) => {
-      const current = prev !== null ? prev : (selectedRole?.permissions || []);
-      const next = current.includes(permKey)
-        ? current.filter((k) => k !== permKey)
-        : [...current, permKey];
-      return next;
-    });
-  };
-
-  const setRoleField = (field) => (e) => setRoleForm((prev) => ({ ...prev, [field]: e.target.value }));
+  const setRoleField = (field) => (e) => setRoleForm((f) => ({ ...f, [field]: e.target.value }));
 
   const handleCreateRole = async () => {
     if (!roleForm.key || !roleForm.labelAr || !roleForm.labelEn) {
       toast.error('الرجاء تعبئة الحقول المطلوبة');
       return;
     }
-
     setRoleLoading(true);
     try {
-      await apiService.post('/roles', roleForm);
+      await apiService.post('/roles', { key: roleForm.key, labelAr: roleForm.labelAr, labelEn: roleForm.labelEn });
       toast.success('تم إنشاء الدور بنجاح');
       setRoleModalOpen(false);
-      const loadedRoles = await load();
-      setSelectedKey(roleForm.key);
-      setDirtyPerms(null);
+      await load();
     } catch {
       toast.error('فشل إنشاء الدور');
     } finally {
@@ -207,7 +202,6 @@ export default function RolesPermissionsPage() {
       toast.error('الرجاء تعبئة الحقول المطلوبة');
       return;
     }
-
     setRoleLoading(true);
     try {
       await apiService.put(`/roles/${roleForm.key}`, { labelAr: roleForm.labelAr, labelEn: roleForm.labelEn });
@@ -238,17 +232,6 @@ export default function RolesPermissionsPage() {
     } finally {
       setRoleLoading(false);
     }
-  };
-
-  const handleToggle = (permKey) => {
-    if (selectedKey === 'SUPER_ADMIN') return;
-    setDirtyPerms((prev) => {
-      const current = prev !== null ? prev : (selectedRole?.permissions || []);
-      const next = current.includes(permKey)
-        ? current.filter((k) => k !== permKey)
-        : [...current, permKey];
-      return next;
-    });
   };
 
   const isDirty = (roleKey) => {
@@ -286,32 +269,33 @@ export default function RolesPermissionsPage() {
 
   return (
     <div className="page-container animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <div className="flex justify-between items-center flex-wrap gap-4 mb-8">
-        <div>
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-8">
+        <div className="w-full xl:w-auto">
           <h2 className="text-2xl font-black text-slate-800 tracking-tight">الأدوار والصلاحيات</h2>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <div className="flex flex-wrap items-center gap-2 mt-1">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-xs font-bold text-slate-400">إدارة صلاحيات النظام</span>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <button onClick={openCreateRole} className="btn btn-primary flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full xl:w-auto">
+          <button onClick={openCreateRole} className="btn btn-primary flex items-center gap-2 w-full sm:w-auto justify-center">
             <LuPlus size={18} /> إنشاء دور جديد
           </button>
           {dirtyPerms !== null && (
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-amber-600 font-bold flex items-center gap-1">
-              <LuCircleAlert size={16} /> هناك تغييرات غير محفوظة
-            </span>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="btn btn-primary flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {saving ? <><LuLoader className="animate-spin" size={16} />جارٍ الحفظ...</> : <><LuCheck size={16} />حفظ التغييرات</>}
-            </button>
-          </div>
-        )}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
+              <span className="text-sm text-amber-600 font-bold flex items-center gap-1">
+                <LuCircleAlert size={16} /> هناك تغييرات غير محفوظة
+              </span>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="btn btn-primary flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60 w-full sm:w-auto justify-center"
+              >
+                {saving ? <><LuLoader className="animate-spin" size={16} />جارٍ الحفظ...</> : <><LuCheck size={16} />حفظ التغييرات</>}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <MyPermissionsCard />
@@ -342,8 +326,8 @@ export default function RolesPermissionsPage() {
         );
       })()}
 
-      <div className="flex gap-6" style={{ minHeight: 'calc(100vh - 340px)' }}>
-        <div className="w-80 flex-shrink-0 space-y-2">
+      <div className="flex flex-col lg:flex-row gap-6">
+        <div className="w-full max-w-full lg:w-80 flex-shrink-0 space-y-2">
           <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-3">الأدوار</h3>
           {roles.map((r) => (
             <button
@@ -385,37 +369,37 @@ export default function RolesPermissionsPage() {
           {selectedRole ? (
             <>
               <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/50">
-                <div className="flex items-center justify-between">
-                  <div>
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div className="min-w-0">
                     <h3 className="text-lg font-black text-slate-800">{selectedRole.label || ROLE_LABELS[selectedKey] || selectedKey}</h3>
                     <p className="text-sm text-slate-400">{selectedRole.permissions.length} صلاحية مفعّلة</p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2 justify-end">
                     {!selectedRole.isSystem && (
                       <>
-                        <button type="button" onClick={openEditRole} className="btn-icon" title="تعديل الدور"><LuPencil size={18} /></button>
-                        <button type="button" onClick={openDeleteRole} className="btn-icon !text-red-500" title="حذف الدور"><LuTrash2 size={18} /></button>
+                        <button type="button" onClick={() => openEditRole(selectedRole)} className="btn-icon" title="تعديل الدور"><LuPencil size={18} /></button>
+                        <button type="button" onClick={() => openDeleteRole(selectedRole.key)} className="btn-icon !text-red-500" title="حذف الدور"><LuTrash2 size={18} /></button>
                       </>
                     )}
                     {selectedKey === 'SUPER_ADMIN' && (
-                    <span className="flex items-center gap-2 text-xs text-slate-400 bg-slate-100 px-3 py-1.5 rounded-full">
-                      <LuCircleAlert size={14} /> صلاحيات المدير العام مرجعية فقط
-                    </span>
-                  )}
+                      <span className="flex items-center gap-2 text-xs text-slate-400 bg-slate-100 px-3 py-1.5 rounded-full">
+                        <LuCircleAlert size={14} /> صلاحيات المدير العام مرجعية فقط
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-
               <div className="p-6 max-h-[calc(100vh-420px)] overflow-y-auto">
                 {permissions.map(({ category, categoryLabel, permissions: perms }) => (
                   <div key={category} className="mb-8 last:mb-0">
                     <h4 className="text-sm font-black text-slate-500 uppercase tracking-wider mb-3">
                       {categoryLabel}
                     </h4>
-                    <div className="grid grid-cols-1 gap-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
                       {perms.map((p) => {
                         const currentPerms = dirtyPerms !== null ? dirtyPerms : (selectedRole?.permissions || []);
                         const checked = currentPerms.includes(p.key);
-                        const readOnly = selectedKey === 'SUPER_ADMIN';
+                        const readOnly = selectedKey === 'SUPER_ADMIN' || selectedRole?.isSystem;
                         const userHas = myPermSet.has(p.key);
 
                         return (

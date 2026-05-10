@@ -10,12 +10,10 @@ import { apiService } from '../../services/api';
 
 const ROLE_OPTIONS = [
   { value: 'SUPER_ADMIN', label: 'مدير عام' },
-  { value: 'COMPANY_ADMIN', label: 'مدير شركة' },
   { value: 'OPERATIONS_ADMIN', label: 'مدير عمليات' },
   { value: 'HR_ADMIN', label: 'مدير موارد بشرية' },
   { value: 'FLEET_ADMIN', label: 'مدير أسطول' },
   { value: 'FINANCE_ADMIN', label: 'مدير مالي' },
-  { value: 'SAFETY_ADMIN', label: 'مدير سلامة' },
 ];
 
 const roleLabels = Object.fromEntries(ROLE_OPTIONS.map((r) => [r.value, r.label]));

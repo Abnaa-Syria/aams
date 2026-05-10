@@ -28,8 +28,6 @@ const ROLE_LABELS = {
   HR_ADMIN: 'مدير موارد بشرية',
   FLEET_ADMIN: 'مدير أسطول',
   FINANCE_ADMIN: 'مدير مالي',
-  COMPANY_ADMIN: 'مدير شركة',
-  SAFETY_ADMIN: 'مدير سلامة',
   SUPERVISOR: 'مشرف',
   DRIVER: 'سائق',
 };
@@ -116,6 +114,9 @@ router.put('/matrix/:roleKey', ...adminPerm(P.ROLE_MANAGEMENT), async (req, res,
 
     const role = await prisma.role.findUnique({ where: { key: roleKey } });
     if (!role) return ApiResponse.notFound(res, 'الدور');
+    if (role.isSystem) {
+      return ApiResponse.forbidden(res, 'لا يمكن تعديل صلاحيات الأدوار النظامية');
+    }
 
     const validPerms = await prisma.permission.findMany({ select: { key: true } });
     const validKeys = new Set(validPerms.map((p) => p.key));

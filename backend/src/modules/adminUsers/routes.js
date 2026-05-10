@@ -8,7 +8,7 @@ const ApiResponse = require('../../utils/response');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
 
-const ADMIN_ROLES = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'OPERATIONS_ADMIN', 'HR_ADMIN', 'FLEET_ADMIN', 'FINANCE_ADMIN', 'SAFETY_ADMIN'];
+const ADMIN_ROLES = ['SUPER_ADMIN', 'OPERATIONS_ADMIN', 'HR_ADMIN', 'FLEET_ADMIN', 'FINANCE_ADMIN'];
 const ADMIN_SELECT = {
   id: true, identityNumber: true, fullNameAr: true, fullNameEn: true,
   email: true, mobileNumber: true, role: true, accountStatus: true,
@@ -53,7 +53,7 @@ const ADMIN_SELECT = {
  *               mobileNumber: { type: string }
  *               role:
  *                 type: string
- *                 enum: [SUPER_ADMIN, COMPANY_ADMIN, OPERATIONS_ADMIN, HR_ADMIN, FLEET_ADMIN, FINANCE_ADMIN, SAFETY_ADMIN]
+ *                 enum: [SUPER_ADMIN, OPERATIONS_ADMIN, HR_ADMIN, FLEET_ADMIN, FINANCE_ADMIN]
  *     responses:
  *       201:
  *         description: Created

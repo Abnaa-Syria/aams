@@ -1423,6 +1423,7 @@ model Role {
   labelAr     String           @db.VarChar(100)
   labelEn     String           @db.VarChar(100)
   isSystem    Boolean          @default(false)
+  roleType    String           @default("custom") @db.VarChar(20)
   createdAt   DateTime        @default(now())
   permissions RolePermission[]
 

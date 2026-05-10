@@ -48,8 +48,6 @@ const PERMISSIONS = {
 | `HR_ADMIN` | مدير موارد بشرية | HR Admin | HR-focused |
 | `FLEET_ADMIN` | مدير أسطول | Fleet Admin | Fleet management |
 | `FINANCE_ADMIN` | مدير مالي | Finance Admin | Finance-focused |
-| `COMPANY_ADMIN` | مدير شركة | Company Admin | Mid-level admin |
-| `SAFETY_ADMIN` | مدير سلامة | Safety Admin | Safety/compliance focus |
 | `SUPERVISOR` | مشرف | Supervisor | Field supervisor (non-admin) |
 | `DRIVER` | سائق | Driver | No admin permissions |
 

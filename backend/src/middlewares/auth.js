@@ -61,7 +61,7 @@ function authorize(...roles) {
 function authorizeAdmin(req, res, next) {
   if (!req.user) return next(new AuthenticationError());
 
-  const adminRoles = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'OPERATIONS_ADMIN', 'HR_ADMIN', 'FLEET_ADMIN', 'FINANCE_ADMIN', 'SAFETY_ADMIN'];
+  const adminRoles = ['SUPER_ADMIN', 'OPERATIONS_ADMIN', 'HR_ADMIN', 'FLEET_ADMIN', 'FINANCE_ADMIN'];
   if (!adminRoles.includes(req.user.role)) {
     return next(new AuthorizationError('Admin access required'));
   }

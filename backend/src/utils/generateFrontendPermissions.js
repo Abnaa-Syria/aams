@@ -10,8 +10,6 @@ const ROLE_LABELS = {
   HR_ADMIN: { labelAr: 'مدير موارد بشرية', labelEn: 'HR Admin' },
   FLEET_ADMIN: { labelAr: 'مدير أسطول', labelEn: 'Fleet Admin' },
   FINANCE_ADMIN: { labelAr: 'مدير مالي', labelEn: 'Finance Admin' },
-  COMPANY_ADMIN: { labelAr: 'مدير شركة', labelEn: 'Company Admin' },
-  SAFETY_ADMIN: { labelAr: 'مدير سلامة', labelEn: 'Safety Admin' },
   SUPERVISOR: { labelAr: 'مشرف', labelEn: 'Supervisor' },
   DRIVER: { labelAr: 'سائق', labelEn: 'Driver' },
 };
