@@ -207,7 +207,10 @@ class ShiftService {
         appUserId: user.appUser?.id || null, // Set appUserId for operational queries
         vehicleId: data.vehicleId,
         platformAccountId: data.platformAccountId,
+        requestedStartTime: data.requestedStartTime ? new Date(data.requestedStartTime) : null,
+        requestedEndTime: data.requestedEndTime ? new Date(data.requestedEndTime) : null,
         startPhotoUrl: data.startPhotoUrl,
+        startVehiclePhotoUrl: data.startVehiclePhotoUrl,
         startAppPhotoUrl: data.startAppPhotoUrl,
         startOdometer: data.startOdometer,
         notes: data.notes,

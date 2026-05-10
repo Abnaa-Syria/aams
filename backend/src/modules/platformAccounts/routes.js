@@ -95,6 +95,6 @@ router.patch('/:id/verify', ...adminPerm(P.FLEET_WRITE), PlatformAccountControll
  *     security:
  *       - bearerAuth: []
  */
-router.delete('/:id', ...adminPerm(P.FLEET_WRITE), PlatformAccountController.delete);
+router.delete('/:id', authenticate, PlatformAccountController.delete);
 
 module.exports = router;

@@ -86,10 +86,11 @@ class ViolationService {
         reason: data.reason,
         amount: data.amount ? parseFloat(data.amount) : undefined,
         location: data.location,
+        driverComment: data.driver_comment || data.driverComment,
         violationDate: data.violationDate ? new Date(data.violationDate) : new Date(),
         status: 'REPORTED',
-        vehicleImageUrl: files.vehicleImage?.[0] ? normalizeStoredUploadPath(files.vehicleImage[0].path) : undefined,
-        violationImageUrl: files.violationImage?.[0] ? normalizeStoredUploadPath(files.violationImage[0].path) : undefined,
+        vehicleImageUrl: (files.vehicle_photo?.[0] || files.vehicleImage?.[0]) ? normalizeStoredUploadPath((files.vehicle_photo?.[0] || files.vehicleImage?.[0]).path) : undefined,
+        violationImageUrl: (files.violation_photo?.[0] || files.violationImage?.[0]) ? normalizeStoredUploadPath((files.violation_photo?.[0] || files.violationImage?.[0]).path) : undefined,
         bikeImageUrl: files.bikeImage?.[0] ? normalizeStoredUploadPath(files.bikeImage[0].path) : undefined,
       },
     });

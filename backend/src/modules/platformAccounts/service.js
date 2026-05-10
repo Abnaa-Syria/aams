@@ -81,16 +81,25 @@ class PlatformAccountService {
 
   static async create(userId, data, file = null, adminId) {
     const insertData = {
-      ...data,
       userId: parseInt(userId),
       platformId: data.platformId ? parseInt(data.platformId) : undefined,
+      username: data.username,
+      accountId: data.accountId,
+      notes: data.notes,
       isAlternate: data.isAlternate === 'true' || data.isAlternate === true,
+      alternateUsername: data.alternateUsername,
       receiptDate: data.receiptDate ? new Date(data.receiptDate) : undefined,
       returnDate: data.returnDate ? new Date(data.returnDate) : undefined,
       startWorkDate: data.startWorkDate ? new Date(data.startWorkDate) : undefined,
     };
 
-    if (file) insertData.fileUrl = normalizeStoredUploadPath(file.path);
+    if (file) {
+      if (file.fieldname === 'account_screenshot') {
+        insertData.accountScreenshotUrl = normalizeStoredUploadPath(file.path);
+      } else {
+        insertData.fileUrl = normalizeStoredUploadPath(file.path);
+      }
+    }
 
     const item = await prisma.platformAccount.create({ data: insertData });
     await logAudit({ userId: adminId, action: 'CREATE_PLATFORM_ACCOUNT', entity: 'PlatformAccount', entityId: String(item.id) });
@@ -102,7 +111,7 @@ class PlatformAccountService {
     if (!existing || existing.deletedAt) throw new NotFoundError('Platform Account');
 
     const updateData = {};
-    const allowedFields = ['username', 'password', 'status', 'isAlternate', 'receiptDate', 'returnDate', 'startWorkDate', 'notes'];
+    const allowedFields = ['username', 'status', 'isAlternate', 'receiptDate', 'returnDate', 'startWorkDate', 'notes'];
     
     allowedFields.forEach(field => {
       if (data[field] !== undefined) {
@@ -122,7 +131,13 @@ class PlatformAccountService {
     if (updateData.receiptDate) updateData.receiptDate = new Date(updateData.receiptDate);
     if (updateData.returnDate) updateData.returnDate = new Date(updateData.returnDate);
     if (updateData.startWorkDate) updateData.startWorkDate = new Date(updateData.startWorkDate);
-    if (file) updateData.fileUrl = normalizeStoredUploadPath(file.path);
+    if (file) {
+      if (file.fieldname === 'account_screenshot') {
+        updateData.accountScreenshotUrl = normalizeStoredUploadPath(file.path);
+      } else {
+        updateData.fileUrl = normalizeStoredUploadPath(file.path);
+      }
+    }
 
     const item = await prisma.platformAccount.update({
       where: { id: parseInt(id) },

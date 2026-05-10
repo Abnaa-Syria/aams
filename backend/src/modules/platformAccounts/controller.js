@@ -2,6 +2,8 @@ const PlatformAccountService = require('./service');
 const ApiResponse = require('../../utils/response');
 const { ADMIN_ROLES } = require('../../utils/listScope');
 const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
+const prisma = require('../../config/database');
+const { NotFoundError, AuthorizationError } = require('../../utils/errors');
 
 class PlatformAccountController {
   static async list(req, res, next) {
@@ -60,6 +62,11 @@ class PlatformAccountController {
 
   static async delete(req, res, next) {
     try {
+      const account = await prisma.platformAccount.findUnique({ where: { id: parseInt(req.params.id) } });
+      if (!account) throw new NotFoundError('Platform Account');
+      if (!ADMIN_ROLES.has(req.user.role) && account.userId !== req.user.id) {
+         throw new AuthorizationError('Unauthorized to delete this account');
+      }
       await PlatformAccountService.delete(req.params.id, req.user.id);
       return ApiResponse.success(res, null, 'Platform account deleted');
     } catch (err) {
