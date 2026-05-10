@@ -10,31 +10,34 @@ class RewardService {
     let where = {
       ...(query.status && { status: query.status }),
       ...(query.category && { category: query.category }),
-      ...(query.userId && { userId: parseInt(query.userId) }),
+      ...(query.userId && { appUser: { user: { id: parseInt(query.userId) } } }),
     };
 
-    // Scoping
-    if (!ADMIN_ROLES.has(currentUser.role)) {
-      if (currentUser.role === 'DRIVER') {
-        where.userId = currentUser.id;
-      } else if (currentUser.role === 'SUPERVISOR') {
-        where.user = { supervisorId: currentUser.id, role: 'DRIVER' };
-      } else {
-        where.userId = -1;
-      }
+    // Scoping using appUserId and appRole
+    if (currentUser.appRole === 'DRIVER') {
+      where.appUserId = currentUser.appUserId;
+    } else if (currentUser.appRole === 'SUPERVISOR') {
+      where.appUser = { supervisorId: currentUser.appUserId };
+    } else if (!ADMIN_ROLES.has(currentUser.role)) {
+      where.appUserId = -1;
     }
-
-    where = mergeDriverNameIntoUserWhere(where, query);
 
     const [items, total] = await Promise.all([
       prisma.reward.findMany({
         where, skip, take: limit, orderBy: { createdAt: 'desc' },
-        include: { user: { select: { id: true, fullNameAr: true, identityNumber: true } } },
+        include: { appUser: { select: { id: true, user: { select: { id: true, fullNameAr: true, identityNumber: true } } } } },
       }),
       prisma.reward.count({ where }),
     ]);
 
-    return { items, meta: buildPaginationMeta(total, page, limit) };
+    // Transform to keep same response format
+    const transformedItems = items.map(item => ({
+      ...item,
+      userId: item.appUser?.user?.id || item.userId,
+      user: item.appUser?.user || item.user,
+    }));
+
+    return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
 
   static async getSummary() {
@@ -44,19 +47,24 @@ class RewardService {
   static async getById(id, currentUser) {
     const item = await prisma.reward.findUnique({
       where: { id: parseInt(id) },
-      include: { user: { select: { id: true, fullNameAr: true } } }
+      include: { appUser: { select: { id: true, user: { select: { id: true, fullNameAr: true } } } } }
     });
 
     if (!item) throw new NotFoundError('Reward');
-    
-    // Access check
-    if (!ADMIN_ROLES.has(currentUser.role)) {
-      if (currentUser.role === 'DRIVER' && item.userId !== currentUser.id) {
-        throw new NotFoundError('Reward');
-      }
+
+    // Transform to keep same response format
+    const transformedItem = {
+      ...item,
+      userId: item.appUser?.user?.id || item.userId,
+      user: item.appUser?.user || item.user,
+    };
+
+    // Access check using appUserId
+    if (currentUser.appRole === 'DRIVER' && transformedItem.userId !== currentUser.appUserId) {
+      throw new NotFoundError('Reward');
     }
 
-    return item;
+    return transformedItem;
   }
 
   static async create(adminId, data) {
@@ -82,7 +90,7 @@ class RewardService {
 
     const updateData = {};
     const allowedFields = ['amount', 'points', 'category', 'title', 'reason', 'notes', 'status', 'periodStart', 'periodEnd'];
-    
+
     allowedFields.forEach(field => {
       if (data[field] !== undefined) {
         updateData[field] = data[field];

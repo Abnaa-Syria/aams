@@ -12,17 +12,15 @@ class ViolationService {
     let where = {
       ...(query.vehicleId && { vehicleId: parseInt(query.vehicleId) }),
       ...(query.status && { status: query.status }),
-      ...(query.userId && { userId: parseInt(query.userId) }),
+      ...(query.userId && { appUser: { user: { id: parseInt(query.userId) } } }),
     };
 
-    // Scoping
-    if (currentUser.role === 'DRIVER') {
-      where.userId = currentUser.id;
-    } else if (currentUser.role === 'SUPERVISOR') {
-      where.user = { supervisorId: currentUser.id };
+    // Scoping using appUserId and appRole
+    if (currentUser.appRole === 'DRIVER') {
+      where.appUserId = currentUser.appUserId;
+    } else if (currentUser.appRole === 'SUPERVISOR') {
+      where.appUser = { supervisorId: currentUser.appUserId };
     }
-
-    where = mergeDriverNameIntoUserWhere(where, query);
 
     const [items, total] = await Promise.all([
       prisma.violation.findMany({
@@ -31,12 +29,19 @@ class ViolationService {
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          user: { select: { id: true, fullNameAr: true, identityNumber: true, accountStatus: true } },
+          appUser: { select: { id: true, user: { select: { id: true, fullNameAr: true, identityNumber: true, accountStatus: true } } } },
           vehicle: { select: { id: true, plateNumber: true, model: true } },
         },
       }),
       prisma.violation.count({ where }),
     ]);
+
+    // Transform to keep same response format
+    const transformedItems = items.map(item => ({
+      ...item,
+      userId: item.appUser?.user?.id || item.userId,
+      user: item.appUser?.user || item.user,
+    }));
 
     return { items, meta: buildPaginationMeta(total, page, limit) };
   }
@@ -61,11 +66,20 @@ class ViolationService {
     // If a driver is reporting, it might be an incident (handled in incidents module)
     
     const targetUserId = parseInt(data.userId);
+    
+    // Get target user with appUser
+    const targetUser = await prisma.user.findUnique({ 
+      where: { id: targetUserId },
+      include: { appUser: true }
+    });
+    if (!targetUser) throw new NotFoundError('User');
+    
     const vehicleId = data.vehicleId ? parseInt(data.vehicleId) : undefined;
 
     const violation = await prisma.violation.create({
       data: {
         userId: targetUserId,
+        appUserId: targetUser.appUser?.id || null, // Set appUserId for operational queries
         vehicleId,
         shiftId: data.shiftId ? parseInt(data.shiftId) : undefined,
         penaltyId: data.penaltyId ? parseInt(data.penaltyId) : undefined,

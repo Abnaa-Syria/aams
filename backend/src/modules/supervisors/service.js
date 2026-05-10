@@ -8,6 +8,7 @@ class SupervisorService {
     const orderBy = buildOrderBy(query, ['createdAt', 'fullNameAr']);
     const searchFilter = buildSearchFilter(query, ['fullNameAr', 'fullNameEn', 'identityNumber', 'mobileNumber']);
 
+    // Find users with SUPERVISOR role and their AppUser
     const where = { role: 'SUPERVISOR', deletedAt: null, ...searchFilter };
 
     const [supervisors, total] = await Promise.all([
@@ -16,60 +17,93 @@ class SupervisorService {
         select: {
           id: true, identityNumber: true, fullNameAr: true, fullNameEn: true,
           mobileNumber: true, email: true, accountStatus: true, createdAt: true,
-          _count: { select: { assignedDrivers: true } },
+          appUser: { select: { id: true, _count: { select: { assignedDrivers: true } } } },
         },
         skip, take: limit, orderBy,
       }),
       prisma.user.count({ where }),
     ]);
 
-    return { supervisors, meta: buildPaginationMeta(total, page, limit) };
+    // Transform to keep response format
+    const transformed = supervisors.map(s => ({
+      ...s,
+      _count: { assignedDrivers: s.appUser?._count?.assignedDrivers || 0 },
+    }));
+
+    return { supervisors: transformed, meta: buildPaginationMeta(total, page, limit) };
   }
 
   static async getById(id) {
-    const supervisor = await prisma.user.findFirst({
-      where: { id: parseInt(id), role: 'SUPERVISOR', deletedAt: null },
-      select: {
-        id: true, identityNumber: true, fullNameAr: true, fullNameEn: true,
-        mobileNumber: true, email: true, accountStatus: true, createdAt: true, jobTitle: true,
+    // Find supervisor through AppUser
+    const appUser = await prisma.appUser.findFirst({
+      where: { 
+        userId: parseInt(id),
+        appRole: 'SUPERVISOR',
+      },
+      include: {
+        user: {
+          select: {
+            id: true, identityNumber: true, fullNameAr: true, fullNameEn: true,
+            mobileNumber: true, email: true, accountStatus: true, createdAt: true, jobTitle: true,
+          }
+        },
         assignedDrivers: {
-          where: { deletedAt: null },
-          select: { id: true, fullNameAr: true, fullNameEn: true, identityNumber: true, accountStatus: true },
+          where: { user: { deletedAt: null } },
+          include: { user: { select: { id: true, fullNameAr: true, fullNameEn: true, identityNumber: true, accountStatus: true } } },
         },
       },
     });
-    if (!supervisor) throw new NotFoundError('Supervisor');
-    return supervisor;
+    
+    if (!appUser) throw new NotFoundError('Supervisor');
+    
+    return {
+      ...appUser.user,
+      assignedDrivers: appUser.assignedDrivers.map(d => d.user),
+    };
   }
 
   static async getDrivers(supervisorId, query) {
     const { page, limit, skip } = getPaginationParams(query);
-    const where = { supervisorId: parseInt(supervisorId), deletedAt: null };
+    
+    // Get supervisor's AppUser
+    const supervisorAppUser = await prisma.appUser.findFirst({
+      where: { userId: parseInt(supervisorId), appRole: 'SUPERVISOR' },
+    });
+    
+    if (!supervisorAppUser) throw new NotFoundError('Supervisor');
+
+    const where = { supervisorId: supervisorAppUser.id };
 
     const [drivers, total] = await Promise.all([
-      prisma.user.findMany({
+      prisma.appUser.findMany({
         where,
-        select: {
-          id: true, fullNameAr: true, fullNameEn: true, identityNumber: true,
-          mobileNumber: true, accountStatus: true, availabilityStatus: true,
-        },
+        include: { user: { select: { id: true, fullNameAr: true, fullNameEn: true, identityNumber: true, accountStatus: true, mobileNumber: true } } },
         skip, take: limit,
       }),
-      prisma.user.count({ where }),
+      prisma.appUser.count({ where }),
     ]);
 
-    return { drivers, meta: buildPaginationMeta(total, page, limit) };
+    // Transform to keep response format
+    const transformed = drivers.map(d => ({
+      ...d.user,
+      availabilityStatus: d.availabilityStatus,
+    }));
+
+    return { drivers: transformed, meta: buildPaginationMeta(total, page, limit) };
   }
 
   static async assignDrivers(supervisorId, driverIds) {
-    const supervisor = await prisma.user.findFirst({
-      where: { id: parseInt(supervisorId), role: 'SUPERVISOR', deletedAt: null },
+    // Get supervisor's AppUser
+    const supervisorAppUser = await prisma.appUser.findFirst({
+      where: { userId: parseInt(supervisorId), appRole: 'SUPERVISOR' },
     });
-    if (!supervisor) throw new NotFoundError('Supervisor');
+    
+    if (!supervisorAppUser) throw new NotFoundError('Supervisor');
 
-    await prisma.user.updateMany({
-      where: { id: { in: driverIds } },
-      data: { supervisorId: parseInt(supervisorId) },
+    // Update AppUser supervisor relationships
+    await prisma.appUser.updateMany({
+      where: { userId: { in: driverIds } },
+      data: { supervisorId: supervisorAppUser.id },
     });
 
     return { assigned: driverIds.length };

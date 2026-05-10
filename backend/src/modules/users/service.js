@@ -140,6 +140,10 @@ class UserService {
     const passwordHash = await bcrypt.hash(data.password, 12);
     const { password, ...rest } = data;
 
+    // Determine if this is an operational user (DRIVER or SUPERVISOR)
+    const isOperationalUser = rest.role === 'DRIVER' || rest.role === 'SUPERVISOR';
+
+    // Create user and optionally AppUser in a transaction
     const user = await prisma.user.create({
       data: {
         ...rest,
@@ -147,15 +151,46 @@ class UserService {
         dateOfBirth: rest.dateOfBirth ? new Date(rest.dateOfBirth) : undefined,
         joinDate: rest.joinDate ? new Date(rest.joinDate) : undefined,
         contractEndDate: rest.contractEndDate ? new Date(rest.contractEndDate) : undefined,
+        // If operational user, also create AppUser
+        ...(isOperationalUser && {
+          appUser: {
+            create: {
+              appRole: rest.role, // DRIVER or SUPERVISOR
+              availabilityStatus: rest.availabilityStatus || 'OFF_DUTY',
+              employmentStatus: rest.employmentStatus || 'ON_DUTY',
+              transportType: rest.transportType || null,
+              sevenHundredNumber: rest.sevenHundredNumber || null,
+              roomNumber: rest.roomNumber || null,
+              tags: rest.tags || null,
+              notes: rest.notes || null,
+            }
+          }
+        }),
       },
-      select: USER_SELECT,
+      select: {
+        ...USER_SELECT,
+        appUser: {
+          select: {
+            id: true,
+            appRole: true,
+          }
+        }
+      },
     });
 
-    return user;
+    // Return user with AppUser info merged
+    return {
+      ...user,
+      appUserId: user.appUser?.id || null,
+      appRole: user.appUser?.appRole || null,
+    };
   }
 
   static async update(id, data, adminUser) {
-    const user = await prisma.user.findFirst({ where: { id: parseInt(id), deletedAt: null } });
+    const user = await prisma.user.findFirst({ 
+      where: { id: parseInt(id), deletedAt: null },
+      include: { appUser: true }
+    });
     if (!user) throw new NotFoundError('User');
 
     if (data.identityNumber && data.identityNumber !== user.identityNumber) {
@@ -178,14 +213,53 @@ class UserService {
       if (existingEmp) throw new ConflictError('رقم الموظف مسجل مسبقاً لمستخدم آخر');
     }
 
+    const newRole = data.role;
+    const wasOperational = user.role === 'DRIVER' || user.role === 'SUPERVISOR';
+    const isOperational = newRole === 'DRIVER' || newRole === 'SUPERVISOR';
+
     const updateData = { ...data };
     if (updateData.dateOfBirth) updateData.dateOfBirth = new Date(updateData.dateOfBirth);
     if (updateData.joinDate) updateData.joinDate = new Date(updateData.joinDate);
     if (updateData.contractEndDate) updateData.contractEndDate = new Date(updateData.contractEndDate);
 
+    // Handle AppUser creation/deletion based on role change
+    if (!wasOperational && isOperational) {
+      // Creating AppUser for the first time
+      updateData.appUser = {
+        create: {
+          appRole: newRole,
+          availabilityStatus: data.availabilityStatus || 'OFF_DUTY',
+          employmentStatus: data.employmentStatus || 'ON_DUTY',
+          transportType: data.transportType || null,
+          sevenHundredNumber: data.sevenHundredNumber || null,
+          roomNumber: data.roomNumber || null,
+          tags: data.tags || null,
+          notes: data.notes || null,
+        }
+      };
+    } else if (wasOperational && !isOperational) {
+      // Deleting AppUser when changing to admin role
+      updateData.appUser = { delete: true };
+    } else if (wasOperational && isOperational) {
+      // Updating existing AppUser
+      updateData.appUser = {
+        update: {
+          appRole: newRole,
+          availabilityStatus: data.availabilityStatus || user.appUser?.availabilityStatus,
+          employmentStatus: data.employmentStatus || user.appUser?.employmentStatus,
+          transportType: data.transportType !== undefined ? data.transportType : user.appUser?.transportType,
+          sevenHundredNumber: data.sevenHundredNumber !== undefined ? data.sevenHundredNumber : user.appUser?.sevenHundredNumber,
+          roomNumber: data.roomNumber !== undefined ? data.roomNumber : user.appUser?.roomNumber,
+          tags: data.tags !== undefined ? data.tags : user.appUser?.tags,
+          notes: data.notes !== undefined ? data.notes : user.appUser?.notes,
+        }
+      };
+    }
+
     const updated = await prisma.user.update({
       where: { id: parseInt(id) },
       data: updateData,
+      include: { appUser: true },
       select: USER_SELECT,
     });
 
@@ -198,7 +272,11 @@ class UserService {
       newValue: updated,
     });
 
-    return updated;
+    return {
+      ...updated,
+      appUserId: updated.appUser?.id || null,
+      appRole: updated.appUser?.appRole || null,
+    };
   }
 
   static async changeStatus(id, accountStatus, reason, adminUser) {
@@ -225,19 +303,31 @@ class UserService {
   }
 
   static async assignSupervisor(id, supervisorId, adminUser) {
-    const user = await prisma.user.findFirst({ where: { id: parseInt(id), deletedAt: null } });
+    const user = await prisma.user.findFirst({ 
+      where: { id: parseInt(id), deletedAt: null },
+      include: { appUser: true }
+    });
     if (!user) throw new NotFoundError('User');
 
+    let supervisorAppUserId = null;
     if (supervisorId) {
       const supervisor = await prisma.user.findFirst({
         where: { id: supervisorId, role: 'SUPERVISOR', deletedAt: null },
+        include: { appUser: true }
       });
       if (!supervisor) throw new NotFoundError('Supervisor');
+      supervisorAppUserId = supervisor.appUser?.id || null;
+    }
+
+    // Update both User and AppUser supervisor relationships
+    const updateData = { supervisorId };
+    if (user.appUser) {
+      updateData.appUser = { update: { supervisorId: supervisorAppUserId } };
     }
 
     const updated = await prisma.user.update({
       where: { id: parseInt(id) },
-      data: { supervisorId },
+      data: updateData,
       select: USER_SELECT,
     });
 

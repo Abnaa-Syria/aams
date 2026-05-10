@@ -1,12 +1,20 @@
 import { useNavigate } from 'react-router-dom';
 import GenericListPage from '../../components/ui/GenericListPage';
 import StatusBadge from '../../components/ui/StatusBadge';
+import StatusSelect from '../../components/ui/StatusSelect';
 import Modal from '../../components/ui/Modal';
 import FileUploadField from '../../components/ui/FileUploadField';
 import { useState, useEffect } from 'react';
 import { apiService } from '../../services/api';
 import { LuPlus, LuPencil } from 'react-icons/lu';
 import toast from 'react-hot-toast';
+
+const statusOptions = [
+  { value: 'PENDING', label: 'معلق' },
+  { value: 'APPROVED', label: 'مقبول' },
+  { value: 'REJECTED', label: 'مرفوض' },
+  { value: 'PAID', label: 'مدفوع' },
+];
 
 const columns = [
   { key: 'user', label: 'السائق', render: (v) => v?.fullNameAr || '—' },
@@ -277,14 +285,29 @@ export default function ViolationsPage() {
       <GenericListPage 
         title="المخالفات" 
         apiUrl="/violations" 
-        columns={columns.map(col => col.key === 'actions' ? { ...col, render: (v, row) => (
-          <button 
-            onClick={(e) => { e.stopPropagation(); openUpdateModal(row); }} 
-            className="p-2 text-slate-400 hover:text-primary transition-colors"
-          >
-            <LuPencil size={16} />
-          </button>
-        ), stopRowClick: true } : col)} 
+        columns={[...columns.slice(0, -1), {
+          key: 'actions',
+          label: '',
+          stopRowClick: true,
+          render: (_, row) => (
+            <div className="flex items-center gap-2">
+              <StatusSelect
+                id={row.id}
+                currentStatus={row.status}
+                apiUrl={`/violations/${row.id}`}
+                options={statusOptions}
+                size="xs"
+                onSuccess={() => setReloadToken((t) => t + 1)}
+              />
+              <button 
+                onClick={(e) => { e.stopPropagation(); openUpdateModal(row); }} 
+                className="p-2 text-slate-400 hover:text-primary transition-colors"
+              >
+                <LuPencil size={16} />
+              </button>
+            </div>
+          ),
+        }]} 
         onRowClick={(row) => navigate(`/violations/${row.id}`)} 
         createButton={createButton}
         reloadToken={reloadToken}

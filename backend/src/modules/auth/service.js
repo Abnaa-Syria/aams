@@ -117,7 +117,10 @@ class AuthService {
       whereClause.identityNumber = identifiers.iqamaNumber;
     }
 
-    const user = await prisma.user.findFirst({ where: whereClause });
+    const user = await prisma.user.findFirst({ 
+      where: whereClause,
+      include: { appUser: true }
+    });
 
     if (!user) {
       throw new AuthenticationError('Invalid credentials');
@@ -131,11 +134,19 @@ class AuthService {
 
     assertAccountCanAuthenticate(user);
 
-    const accessToken = jwt.sign({ userId: user.id }, config.jwt.secret, {
+    const appUserId = user.appUser?.id || null;
+    const appRole = user.appUser?.appRole || null;
+
+    const accessToken = jwt.sign({ 
+      userId: user.id, 
+      role: user.role,
+      appUserId,
+      appRole
+    }, config.jwt.secret, {
       expiresIn: config.jwt.expiresIn,
     });
     const refreshToken = jwt.sign(
-      { userId: user.id, type: 'refresh' },
+      { userId: user.id, type: 'refresh', appUserId },
       config.jwt.refreshSecret,
       { expiresIn: config.jwt.refreshExpiresIn }
     );
@@ -217,6 +228,7 @@ class AuthService {
         mobileNumber,
         deletedAt: null,
       },
+      include: { appUser: true }
     });
 
     if (!user || !user.otpCode || !user.otpExpiresAt) {
@@ -231,11 +243,19 @@ class AuthService {
 
     assertAccountCanAuthenticate(user);
 
-    const accessToken = jwt.sign({ userId: user.id }, config.jwt.secret, {
+    const appUserId = user.appUser?.id || null;
+    const appRole = user.appUser?.appRole || null;
+
+    const accessToken = jwt.sign({ 
+      userId: user.id, 
+      role: user.role,
+      appUserId,
+      appRole 
+    }, config.jwt.secret, {
       expiresIn: config.jwt.expiresIn,
     });
     const refreshToken = jwt.sign(
-      { userId: user.id, type: 'refresh' },
+      { userId: user.id, type: 'refresh', appUserId },
       config.jwt.refreshSecret,
       { expiresIn: config.jwt.refreshExpiresIn }
     );
@@ -262,7 +282,7 @@ class AuthService {
 
     const storedToken = await prisma.refreshToken.findUnique({
       where: { token: refreshToken },
-      include: { user: true },
+      include: { user: { include: { appUser: true } } },
     });
 
     if (!storedToken || (storedToken.expiresAt < new Date()) || storedToken.revokedAt) {
@@ -282,11 +302,19 @@ class AuthService {
 
     assertAccountCanAuthenticate(storedToken.user);
 
-    const accessToken = jwt.sign({ userId: storedToken.userId }, config.jwt.secret, {
+    const appUserId = storedToken.user.appUser?.id || null;
+    const appRole = storedToken.user.appUser?.appRole || null;
+
+    const accessToken = jwt.sign({ 
+      userId: storedToken.userId, 
+      role: storedToken.user.role,
+      appUserId,
+      appRole 
+    }, config.jwt.secret, {
       expiresIn: config.jwt.expiresIn,
     });
     const newRefreshToken = jwt.sign(
-      { userId: storedToken.userId, type: 'refresh' },
+      { userId: storedToken.userId, type: 'refresh', appUserId },
       config.jwt.refreshSecret,
       { expiresIn: config.jwt.refreshExpiresIn }
     );
@@ -376,6 +404,7 @@ class AuthService {
 
     const user = await prisma.user.findFirst({
       where: { identityNumber, deletedAt: null },
+      include: { appUser: true }
     });
 
     if (!user) {
@@ -394,11 +423,19 @@ class AuthService {
 
     assertAccountCanAuthenticate(user);
 
-    const accessToken = jwt.sign({ userId: user.id }, config.jwt.secret, {
+    const appUserId = user.appUser?.id || null;
+    const appRole = user.appUser?.appRole || null;
+
+    const accessToken = jwt.sign({ 
+      userId: user.id, 
+      role: user.role,
+      appUserId,
+      appRole 
+    }, config.jwt.secret, {
       expiresIn: config.jwt.expiresIn,
     });
     const refreshToken = jwt.sign(
-      { userId: user.id, type: 'refresh' },
+      { userId: user.id, type: 'refresh', appUserId },
       config.jwt.refreshSecret,
       { expiresIn: config.jwt.refreshExpiresIn }
     );
@@ -432,6 +469,16 @@ class AuthService {
   static async getMe(userId) {
     const user = await prisma.user.findFirst({
       where: { id: userId, deletedAt: null },
+      include: {
+        appUser: {
+          select: {
+            id: true,
+            appRole: true,
+            availabilityStatus: true,
+            employmentStatus: true,
+          }
+        }
+      },
       select: {
         id: true,
         identityNumber: true,
@@ -445,22 +492,6 @@ class AuthService {
         profileImageUrl: true,
         role: true,
         accountStatus: true,
-        availabilityStatus: true,
-        employmentStatus: true,
-        transportType: true,
-        sevenHundredNumber: true,
-        emergencyName: true,
-        emergencyRelation: true,
-        emergencyPhone: true,
-        roomNumber: true,
-        employeeNumber: true,
-        joinDate: true,
-        contractEndDate: true,
-        jobTitle: true,
-        cityId: true,
-        regionId: true,
-        branchId: true,
-        supervisorId: true,
         lastLoginAt: true,
         createdAt: true,
         updatedAt: true,

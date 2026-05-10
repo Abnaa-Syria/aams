@@ -174,10 +174,14 @@ router.get('/:id/files/cash-receipt/download', ...adminPerm(P.FINANCE_READ), asy
  */
 router.post('/', ...adminPerm(P.FINANCE_WRITE), upload.fields([{ name: 'proofFile', maxCount: 1 }, { name: 'cashReceiptFile', maxCount: 1 }]), async (req, res, next) => {
   try {
-    let userId = parseInt(req.body.userId, 10);
-    if (!ADMIN_ROLES.has(req.user.role)) {
-      if (req.user.role === 'DRIVER') userId = req.user.id;
-      else await assertCanAccessDriverRecord(req, userId);
+    // Resolve userId based on appRole
+    // DRIVER: use own appUserId from token
+    // SUPERVISOR/ADMIN: use body.userId if provided
+    let userId;
+    if (req.user.appRole === 'DRIVER') {
+      userId = req.user.appUserId;
+    } else {
+      userId = req.body.userId ? parseInt(req.body.userId, 10) : req.user.appUserId;
     }
     const data = {
       ...req.body,

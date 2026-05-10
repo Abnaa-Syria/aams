@@ -13,48 +13,59 @@ class ShiftService {
     const { page, limit, skip } = getPaginationParams(query);
     const orderBy = buildOrderBy(query, ['createdAt', 'requestedAt', 'startedAt']);
     const isAdmin = currentUser && ADMIN_ROLES.includes(currentUser.role);
-    const isSupervisor = currentUser?.role === 'SUPERVISOR';
+    const isSupervisor = currentUser?.appRole === 'SUPERVISOR';
 
+    // Use appUserId for operational users (DRIVER, SUPERVISOR)
     const scope =
-      currentUser?.role === 'DRIVER'
-        ? { userId: currentUser.id }
+      currentUser?.appRole === 'DRIVER'
+        ? { appUserId: currentUser.appUserId }
         : isSupervisor
-          ? { user: { supervisorId: currentUser.id, role: 'DRIVER' } }
+          ? { appUser: { supervisorId: currentUser.appUserId } }
           : {};
 
     const nameFilter = buildDriverNameUserFilter(query);
 
-    const scopedUserWhere = scope.user && typeof scope.user === 'object' ? scope.user : null;
+    const scopedAppUserWhere = scope.appUser && typeof scope.appUser === 'object' ? scope.appUser : null;
 
     const where = {
       ...scope,
-      ...((isAdmin || isSupervisor) && query.userId && { userId: parseInt(query.userId) }),
+      ...((isAdmin || isSupervisor) && query.userId && { 
+        appUser: { user: { id: parseInt(query.userId) } } 
+      }),
       ...(query.status && { status: query.status }),
       ...(query.vehicleId && { vehicleId: parseInt(query.vehicleId) }),
       ...(query.dateFrom && { requestedAt: { gte: new Date(query.dateFrom) } }),
       ...(query.dateTo && { requestedAt: { ...((query.dateFrom && { gte: new Date(query.dateFrom) }) || {}), lte: new Date(query.dateTo) } }),
-      ...(nameFilter && { user: { ...(scopedUserWhere || {}), ...nameFilter } }),
+      ...(nameFilter && { appUser: { user: { ...(scopedAppUserWhere || {}), ...nameFilter } } }),
     };
 
     const [items, total] = await Promise.all([
       prisma.shift.findMany({
         where, skip, take: limit, orderBy,
         include: {
-          user: { select: { id: true, fullNameAr: true, identityNumber: true } },
+          appUser: { select: { id: true, user: { select: { id: true, fullNameAr: true, identityNumber: true } } } },
           vehicle: { select: { id: true, plateNumber: true, model: true } },
           platformAccount: { include: { platform: { select: { id: true, nameAr: true } } } },
         },
       }),
       prisma.shift.count({ where }),
     ]);
-    return { items, meta: buildPaginationMeta(total, page, limit) };
+    
+    // Transform to keep same response format
+    const transformedItems = items.map(item => ({
+      ...item,
+      userId: item.appUser?.user?.id || item.userId,
+      user: item.appUser?.user || item.user,
+    }));
+    
+    return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
 
   static async getById(id, currentUser = null) {
     const shift = await prisma.shift.findUnique({
       where: { id: parseInt(id) },
       include: {
-        user: { select: { id: true, fullNameAr: true, fullNameEn: true, identityNumber: true, mobileNumber: true } },
+        appUser: { select: { id: true, user: { select: { id: true, fullNameAr: true, fullNameEn: true, identityNumber: true, mobileNumber: true } } } },
         vehicle: true,
         platformAccount: { include: { platform: true } },
         midShiftRecords: { orderBy: { createdAt: 'desc' } },
@@ -71,29 +82,36 @@ class ShiftService {
     if (!shift) throw new NotFoundError('Shift');
 
     const isAdmin = currentUser && ADMIN_ROLES.includes(currentUser.role);
-    const isSupervisor = currentUser?.role === 'SUPERVISOR';
+    const isSupervisor = currentUser?.appRole === 'SUPERVISOR';
 
-    if (currentUser?.role === 'DRIVER' && shift.userId !== currentUser.id) {
+    // Transform to keep same response format
+    const transformedShift = {
+      ...shift,
+      userId: shift.appUser?.user?.id || shift.userId,
+      user: shift.appUser?.user || shift.user,
+    };
+
+    if (currentUser?.appRole === 'DRIVER' && transformedShift.userId !== currentUser.appUserId) {
       throw new NotFoundError('Shift');
     }
     if (isSupervisor) {
-      const driver = await prisma.user.findFirst({
-        where: { id: shift.userId, supervisorId: currentUser.id, role: 'DRIVER' },
+      const driver = await prisma.appUser.findFirst({
+        where: { id: shift.appUserId, supervisorId: currentUser.appUserId },
         select: { id: true },
       });
       if (!driver) throw new NotFoundError('Shift');
     }
 
     const kilometersDriven =
-      typeof shift.startOdometer === 'number' && typeof shift.endOdometer === 'number'
-        ? shift.endOdometer - shift.startOdometer
+      typeof transformedShift.startOdometer === 'number' && typeof transformedShift.endOdometer === 'number'
+        ? transformedShift.endOdometer - transformedShift.startOdometer
         : null;
 
     const breakdownMap = new Map();
     let totalOrders = null;
     let totalHours = null;
 
-    if (Array.isArray(shift.dailyReports) && shift.dailyReports.length > 0) {
+    if (Array.isArray(transformedShift.dailyReports) && transformedShift.dailyReports.length > 0) {
       let ordersSum = 0;
       let hoursSum = 0;
       let hasAnyOrders = false;
@@ -160,7 +178,10 @@ class ShiftService {
   }
 
   static async requestStart(userId, data) {
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await prisma.user.findUnique({ 
+      where: { id: userId },
+      include: { appUser: true }
+    });
     if (!user) throw new NotFoundError('User');
     if (BLOCKED_STATUSES.includes(user.accountStatus)) {
       throw new BusinessLogicError(`Cannot start shift: account status is ${user.accountStatus}`);
@@ -183,6 +204,7 @@ class ShiftService {
     const shift = await prisma.shift.create({
       data: {
         userId,
+        appUserId: user.appUser?.id || null, // Set appUserId for operational queries
         vehicleId: data.vehicleId,
         platformAccountId: data.platformAccountId,
         requestedStartTime: data.requestedStartTime ? new Date(data.requestedStartTime) : null,

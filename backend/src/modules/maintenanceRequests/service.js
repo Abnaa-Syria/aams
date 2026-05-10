@@ -15,22 +15,20 @@ class MaintenanceRequestService {
       ...(query.priority && { priority: query.priority }),
     };
 
-    if (currentUser.role === 'DRIVER') {
-      where.userId = currentUser.id;
-    } else if (currentUser.role === 'SUPERVISOR') {
+    // Scoping using appUserId and appRole
+    if (currentUser.appRole === 'DRIVER') {
+      where.appUserId = currentUser.appUserId;
+    } else if (currentUser.appRole === 'SUPERVISOR') {
       // If supervisor specifies a userId, it must be one of their drivers
       if (query.userId) {
-        where.userId = parseInt(query.userId);
-        where.user = { supervisorId: currentUser.id };
+        where.appUser = { user: { id: parseInt(query.userId) }, supervisorId: currentUser.appUserId };
       } else {
-        where.user = { supervisorId: currentUser.id };
+        where.appUser = { supervisorId: currentUser.appUserId };
       }
     } else if (query.userId) {
       // Admins and other roles can filter by userId freely
-      where.userId = parseInt(query.userId);
+      where.appUser = { user: { id: parseInt(query.userId) } };
     }
-
-    where = mergeDriverNameIntoUserWhere(where, query);
 
     const [items, total] = await Promise.all([
       prisma.maintenanceRequest.findMany({

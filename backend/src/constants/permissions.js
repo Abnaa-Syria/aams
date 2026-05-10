@@ -99,15 +99,8 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.SETTINGS_READ,
     PERMISSIONS.DASHBOARD_VIEW,
   ],
-  SUPERVISOR: [
-    PERMISSIONS.USERS_READ,
-    PERMISSIONS.SHIFTS_READ,
-    PERMISSIONS.SHIFTS_WRITE,
-    PERMISSIONS.DOCUMENTS_READ,
-    PERMISSIONS.COMPLIANCE_READ,
-  ],
-  DRIVER: [],
-  
+  // DRIVER and SUPERVISOR are now AppUser roles, not User roles
+  // They have no dashboard permissions - they use the mobile app only
 };
 
 /** Any of these allows dashboard KPI / analytics-style read endpoints */
