@@ -22,12 +22,18 @@ class DocumentController {
     try {
       const data = { ...req.body };
       if (req.file) { data.fileUrl = normalizeStoredUploadPath(req.file.path); data.fileName = req.file.originalname; }
-      let userId = parseInt(data.userId, 10);
-      if (!ADMIN_ROLES.has(req.user.role)) {
-        if (req.user.role === 'DRIVER') userId = req.user.id;
-        else await assertCanAccessDriverRecord(req, userId);
+      
+      // Resolve userId based on appRole
+      // DRIVER: use own appUserId from token
+      // SUPERVISOR/ADMIN: use body.userId if provided
+      let userId;
+      if (req.user.appRole === 'DRIVER') {
+        userId = req.user.appUserId;
+      } else {
+        userId = data.userId ? parseInt(data.userId, 10) : req.user.appUserId;
       }
       data.userId = userId;
+      
       const doc = await DocumentService.create(data);
       return ApiResponse.created(res, doc, 'Document created');
     } catch (err) { next(err); }
@@ -35,15 +41,13 @@ class DocumentController {
   static async update(req, res, next) {
     try {
       const existing = await DocumentService.getById(req.params.id);
-      await assertCanAccessDriverRecord(req, existing.userId);
       const data = { ...req.body };
-      if (data.userId !== undefined) {
-        const newUid = parseInt(data.userId, 10);
-        if (!ADMIN_ROLES.has(req.user.role) && newUid !== existing.userId) {
-          throw new AuthorizationError('لا يمكن نقل المستند لمستخدم آخر');
-        }
-        await assertCanAccessDriverRecord(req, newUid);
+      
+      // Prevent transferring to another user for drivers
+      if (req.user.appRole === 'DRIVER' && data.userId && parseInt(data.userId, 10) !== existing.userId) {
+        throw new AuthorizationError('لا يمكن نقل المستند لمستخدم آخر');
       }
+      
       if (req.file) { data.fileUrl = normalizeStoredUploadPath(req.file.path); data.fileName = req.file.originalname; }
       const doc = await DocumentService.update(req.params.id, data, req.user);
       return ApiResponse.success(res, doc, 'Document updated');

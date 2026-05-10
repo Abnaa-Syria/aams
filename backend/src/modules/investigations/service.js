@@ -54,7 +54,7 @@ class InvestigationService {
     });
 
     if (!item) throw new NotFoundError('Investigation');
-    
+
     // Access check
     if (!ADMIN_ROLES.has(currentUser.role)) {
       if (currentUser.role === 'DRIVER' && item.userId !== currentUser.id) {
@@ -120,7 +120,7 @@ class InvestigationService {
 
     const updateData = {};
     const allowedFields = ['category', 'title', 'details', 'status', 'internalNotes', 'outcome', 'employeeResponse'];
-    
+
     allowedFields.forEach(field => {
       if (data[field] !== undefined) {
         updateData[field] = data[field];

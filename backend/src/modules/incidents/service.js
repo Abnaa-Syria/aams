@@ -13,17 +13,15 @@ class IncidentService {
       ...(query.type && { type: query.type }),
       ...(query.severity && { severity: query.severity }),
       ...(query.status && { status: query.status }),
-      ...(query.userId && { userId: parseInt(query.userId) }),
+      ...(query.userId && { appUser: { user: { id: parseInt(query.userId) } } }),
     };
 
-    // Scoping
-    if (currentUser.role === 'DRIVER') {
-      where.userId = currentUser.id;
-    } else if (currentUser.role === 'SUPERVISOR') {
-      where.user = { supervisorId: currentUser.id };
+    // Scoping using appUserId and appRole
+    if (currentUser.appRole === 'DRIVER') {
+      where.appUserId = currentUser.appUserId;
+    } else if (currentUser.appRole === 'SUPERVISOR') {
+      where.appUser = { supervisorId: currentUser.appUserId };
     }
-
-    where = mergeDriverNameIntoUserWhere(where, query);
 
     const [items, total] = await Promise.all([
       prisma.incident.findMany({
@@ -32,7 +30,7 @@ class IncidentService {
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          user: { select: { id: true, fullNameAr: true, identityNumber: true } },
+          appUser: { select: { id: true, user: { select: { id: true, fullNameAr: true, identityNumber: true } } } },
           shift: { select: { id: true, vehicleId: true } },
           attachments: true,
         },
@@ -61,6 +59,13 @@ class IncidentService {
   static async create(userId, data, files = []) {
     const shiftId = data.shiftId ? parseInt(data.shiftId) : undefined;
     
+    // Get user with appUser
+    const user = await prisma.user.findUnique({ 
+      where: { id: userId },
+      include: { appUser: true }
+    });
+    if (!user) throw new NotFoundError('User');
+    
     // Get vehicle from shift if provided
     let vehicleId = null;
     if (shiftId) {
@@ -71,6 +76,7 @@ class IncidentService {
     const incident = await prisma.incident.create({
       data: {
         userId,
+        appUserId: user.appUser?.id || null, // Set appUserId for operational queries
         shiftId,
         type: data.type || 'OTHER',
         customType: data.customType,

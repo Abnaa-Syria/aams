@@ -11,49 +11,59 @@ class LeaveRequestService {
     let where = {
       ...(query.status && { status: query.status }),
       ...(query.leaveType && { leaveType: query.leaveType }),
-      ...(query.userId && { userId: parseInt(query.userId) }),
+      ...(query.userId && { appUser: { user: { id: parseInt(query.userId) } } }),
     };
 
-    // Scoping
-    if (!ADMIN_ROLES.has(currentUser.role)) {
-      if (currentUser.role === 'DRIVER') {
-        where.userId = currentUser.id;
-      } else if (currentUser.role === 'SUPERVISOR') {
-        where.user = { supervisorId: currentUser.id, role: 'DRIVER' };
-      } else {
-        where.userId = -1;
-      }
+    // Scoping using appUserId and appRole
+    if (currentUser.appRole === 'DRIVER') {
+      where.appUserId = currentUser.appUserId;
+    } else if (currentUser.appRole === 'SUPERVISOR') {
+      where.appUser = { supervisorId: currentUser.appUserId };
+    } else if (!ADMIN_ROLES.has(currentUser.role)) {
+      // Non-admin, non-driver/supervisor - no access
+      where.appUserId = -1;
     }
-
-    where = mergeDriverNameIntoUserWhere(where, query);
 
     const [items, total] = await Promise.all([
       prisma.leaveRequest.findMany({
         where, skip, take: limit, orderBy: { createdAt: 'desc' },
-        include: { user: { select: { id: true, fullNameAr: true, identityNumber: true } } },
+        include: { appUser: { select: { id: true, user: { select: { id: true, fullNameAr: true, identityNumber: true } } } } },
       }),
       prisma.leaveRequest.count({ where }),
     ]);
 
-    return { items, meta: buildPaginationMeta(total, page, limit) };
+    // Transform to keep same response format
+    const transformedItems = items.map(item => ({
+      ...item,
+      userId: item.appUser?.user?.id || item.userId,
+      user: item.appUser?.user || item.user,
+    }));
+
+    return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
 
   static async getById(id, currentUser) {
     const item = await prisma.leaveRequest.findUnique({
       where: { id: parseInt(id) },
-      include: { user: { select: { id: true, fullNameAr: true, fullNameEn: true } } },
+      include: { appUser: { select: { id: true, user: { select: { id: true, fullNameAr: true, fullNameEn: true } } } } },
     });
 
     if (!item) throw new NotFoundError('Leave Request');
     
-    // Access check
-    if (!ADMIN_ROLES.has(currentUser.role)) {
-      if (currentUser.role === 'DRIVER' && item.userId !== currentUser.id) {
+    // Access check using appUserId
+    if (currentUser.appRole === 'DRIVER') {
+      const itemAppUserId = item.appUser?.user?.id || item.userId;
+      if (itemAppUserId !== currentUser.appUserId) {
         throw new NotFoundError('Leave Request');
       }
     }
 
-    return item;
+    // Transform to keep same response format
+    return {
+      ...item,
+      userId: item.appUser?.user?.id || item.userId,
+      user: item.appUser?.user || item.user,
+    };
   }
 
   static async getBalances(userId) {

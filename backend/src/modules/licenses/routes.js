@@ -199,10 +199,14 @@ router.get('/:id/download', ...adminPerm(P.DOCUMENTS_READ), async (req, res, nex
  */
 router.post('/', ...adminPerm(P.DOCUMENTS_WRITE), upload.single('file'), async (req, res, next) => {
   try {
-    let userId = parseInt(req.body.userId, 10);
-    if (!ADMIN_ROLES.has(req.user.role)) {
-      if (req.user.role === 'DRIVER') userId = req.user.id;
-      else await assertCanAccessDriverRecord(req, userId);
+    // Resolve userId based on appRole
+    // DRIVER: use own appUserId from token
+    // SUPERVISOR/ADMIN: use body.userId if provided
+    let userId;
+    if (req.user.appRole === 'DRIVER') {
+      userId = req.user.appUserId;
+    } else {
+      userId = req.body.userId ? parseInt(req.body.userId, 10) : req.user.appUserId;
     }
     const data = { ...req.body, userId };
     if (data.issueDate) data.issueDate = new Date(data.issueDate);
@@ -220,18 +224,20 @@ router.put('/:id', ...adminPerm(P.DOCUMENTS_WRITE), upload.single('file'), async
       select: { userId: true },
     });
     if (!existing) throw new NotFoundError('License');
-    await assertCanAccessDriverRecord(req, existing.userId);
+    
     const data = { ...req.body };
     if (data.issueDate) data.issueDate = new Date(data.issueDate);
     if (data.expiryDate) data.expiryDate = new Date(data.expiryDate);
-    if (data.userId !== undefined) {
-      const newUid = parseInt(data.userId, 10);
-      if (!ADMIN_ROLES.has(req.user.role) && newUid !== existing.userId) {
-        throw new AuthorizationError('لا يمكن نقل الرخصة لمستخدم آخر');
-      }
-      data.userId = newUid;
-      await assertCanAccessDriverRecord(req, newUid);
+    
+    // Prevent transferring to another user for drivers
+    if (req.user.appRole === 'DRIVER' && data.userId && parseInt(data.userId, 10) !== existing.userId) {
+      throw new AuthorizationError('لا يمكن نقل الرخصة لمستخدم آخر');
     }
+    
+    if (data.userId !== undefined) {
+      data.userId = parseInt(data.userId, 10);
+    }
+    
     if (req.file) { data.fileUrl = normalizeStoredUploadPath(req.file.path); data.fileName = req.file.originalname; }
     const item = await prisma.license.update({ where: { id: parseInt(req.params.id, 10) }, data });
     return ApiResponse.success(res, item, 'License updated');

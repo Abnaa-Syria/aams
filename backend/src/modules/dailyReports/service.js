@@ -13,20 +13,19 @@ class DailyReportService {
       ...(query.status && { status: query.status }),
     };
 
-    // Scoping logic (Drivers see only theirs, Supervisors see their team)
-    if (currentUser.role === 'DRIVER') {
-      where.userId = currentUser.id;
-    } else if (currentUser.role === 'SUPERVISOR') {
+    // Scoping logic using appUserId and appRole (Drivers see only theirs, Supervisors see their team)
+    if (currentUser.appRole === 'DRIVER') {
+      where.appUserId = currentUser.appUserId;
+    } else if (currentUser.appRole === 'SUPERVISOR') {
       // If supervisor specifies a userId, it must be one of their drivers
       if (query.userId) {
-        where.userId = parseInt(query.userId);
-        where.user = { supervisorId: currentUser.id };
+        where.appUser = { user: { id: parseInt(query.userId) }, supervisorId: currentUser.appUserId };
       } else {
-        where.user = { supervisorId: currentUser.id };
+        where.appUser = { supervisorId: currentUser.appUserId };
       }
     } else if (query.userId) {
       // Admins and other roles can filter by userId freely
-      where.userId = parseInt(query.userId);
+      where.appUser = { user: { id: parseInt(query.userId) } };
     }
 
     if (query.dateFrom || query.dateTo) {
@@ -75,6 +74,13 @@ class DailyReportService {
     const reportDate = new Date(data.reportDate || Date.now());
     reportDate.setHours(0, 0, 0, 0); // Normalize to start of day
 
+    // Get user with appUser
+    const user = await prisma.user.findUnique({ 
+      where: { id: userId },
+      include: { appUser: true }
+    });
+    if (!user) throw new NotFoundError('User');
+
     // 1. Check if a report already exists for this user on this day
     const existing = await prisma.dailyReport.findFirst({
       where: { userId, reportDate },
@@ -96,6 +102,7 @@ class DailyReportService {
     const report = await prisma.dailyReport.create({
       data: {
         userId,
+        appUserId: user.appUser?.id || null, // Set appUserId for operational queries
         shiftId: data.shiftId ? parseInt(data.shiftId) : undefined,
         reportDate,
         totalHours: data.totalHours ? parseFloat(data.totalHours) : undefined,

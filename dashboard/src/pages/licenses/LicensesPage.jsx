@@ -5,6 +5,7 @@ import StatusSelect from '../../components/ui/StatusSelect';
 import Modal from '../../components/ui/Modal';
 import FileUploadField from '../../components/ui/FileUploadField';
 import { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import { apiService } from '../../services/api';
 import { LuPlus, LuPencil } from 'react-icons/lu';
 import toast from 'react-hot-toast';
@@ -37,6 +38,9 @@ const columns = [
 ];
 
 function LicenseModal({ isOpen, onClose, license: lic, onSave }) {
+  const currentUser = useSelector((s) => s.auth.user);
+  const isDriver = currentUser?.appRole === 'DRIVER';
+  
   const [form, setForm] = useState({
     userId: '',
     type: 'DRIVING_LICENSE',
@@ -54,6 +58,10 @@ function LicenseModal({ isOpen, onClose, license: lic, onSave }) {
   useEffect(() => {
     if (isOpen) {
       loadOptions();
+      // If driver, auto-set their own userId
+      if (isDriver && !lic) {
+        setForm(f => ({ ...f, userId: currentUser?.appUserId || '' }));
+      }
       if (lic) {
         setForm({
           userId: lic.userId || '',
@@ -127,19 +135,27 @@ function LicenseModal({ isOpen, onClose, license: lic, onSave }) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={lic ? 'تحديث الرخصة' : 'إنشاء رخصة جديدة'}>
       <form onSubmit={handleSubmit} className="space-y-5 max-h-[calc(100vh-200px)] overflow-y-auto">
-        <div>
-          <label className="block text-sm font-bold text-slate-600 mb-2">الموظف *</label>
-          <select
-            className="form-input form-select"
-            value={form.userId}
-            onChange={(e) => setForm(f => ({ ...f, userId: e.target.value }))}
-            disabled={!!lic}
-            required
-          >
-            <option value="">اختر الموظف</option>
-            {drivers.map(d => <option key={d.id} value={d.id}>{d.fullNameAr}</option>)}
-          </select>
-        </div>
+        {/* Hide employee selection for drivers - they can only add for themselves */}
+        {!isDriver && (
+          <div>
+            <label className="block text-sm font-bold text-slate-600 mb-2">الموظف *</label>
+            <select
+              className="form-input form-select"
+              value={form.userId}
+              onChange={(e) => setForm(f => ({ ...f, userId: e.target.value }))}
+              disabled={!!lic}
+              required
+            >
+              <option value="">اختر الموظف</option>
+              {drivers.map(d => <option key={d.id} value={d.id}>{d.fullNameAr}</option>)}
+            </select>
+          </div>
+        )}
+        {isDriver && (
+          <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+            <span className="text-sm text-slate-500">أنت تقوم بإنشاء رخصة لنفسك</span>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <div>

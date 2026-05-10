@@ -13,7 +13,7 @@ class FuelLogService {
       ...(query.vehicleId && { vehicleId: parseInt(query.vehicleId) }),
       ...(query.status && { status: query.status }),
       ...(query.shiftId && { shiftId: parseInt(query.shiftId) }),
-      ...(query.userId && { userId: parseInt(query.userId) }),
+      ...(query.userId && { appUser: { user: { id: parseInt(query.userId) } } }),
     };
 
     if (query.dateFrom || query.dateTo) {
@@ -22,14 +22,12 @@ class FuelLogService {
       if (query.dateTo) where.fuelDate.lte = new Date(query.dateTo);
     }
 
-    // Scoping
-    if (currentUser.role === 'DRIVER') {
-      where.userId = currentUser.id;
-    } else if (currentUser.role === 'SUPERVISOR') {
-      where.user = { supervisorId: currentUser.id };
+    // Scoping using appUserId and appRole
+    if (currentUser.appRole === 'DRIVER') {
+      where.appUserId = currentUser.appUserId;
+    } else if (currentUser.appRole === 'SUPERVISOR') {
+      where.appUser = { supervisorId: currentUser.appUserId };
     }
-
-    where = mergeDriverNameIntoUserWhere(where, query);
 
     const [items, total] = await Promise.all([
       prisma.fuelLog.findMany({
@@ -38,7 +36,7 @@ class FuelLogService {
         take: limit,
         orderBy: { fuelDate: 'desc' },
         include: {
-          user: { select: { id: true, fullNameAr: true, identityNumber: true } },
+          appUser: { select: { id: true, user: { select: { id: true, fullNameAr: true, identityNumber: true } } } },
           vehicle: { select: { id: true, plateNumber: true, manufacturer: true, model: true, tankCapacity: true } },
           shift: { select: { id: true, startedAt: true } },
         },
@@ -46,18 +44,34 @@ class FuelLogService {
       prisma.fuelLog.count({ where }),
     ]);
 
-    return { items, meta: buildPaginationMeta(total, page, limit) };
+    // Transform to keep same response format
+    const transformedItems = items.map(item => ({
+      ...item,
+      userId: item.appUser?.user?.id || item.userId,
+      user: item.appUser?.user || item.user,
+    }));
+
+    return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
 
   static async getById(id) {
     const item = await prisma.fuelLog.findUnique({
       where: { id: parseInt(id) },
       include: {
-        user: { select: { id: true, fullNameAr: true, fullNameEn: true } },
+        appUser: { select: { id: true, user: { select: { id: true, fullNameAr: true, fullNameEn: true } } } },
         vehicle: true,
         shift: true,
       },
     });
+    
+    // Transform to keep same response format
+    if (item) {
+      return {
+        ...item,
+        userId: item.appUser?.user?.id || item.userId,
+        user: item.appUser?.user || item.user,
+      };
+    }
 
     if (!item) throw new NotFoundError('Fuel Log');
 
@@ -68,6 +82,13 @@ class FuelLogService {
     const vehicleId = parseInt(data.vehicleId);
     const vehicle = await prisma.vehicle.findUnique({ where: { id: vehicleId } });
     if (!vehicle) throw new NotFoundError('Vehicle');
+
+    // Get user with appUser
+    const user = await prisma.user.findUnique({ 
+      where: { id: userId },
+      include: { appUser: true }
+    });
+    if (!user) throw new NotFoundError('User');
 
     const amount = parseFloat(data.amount);
     const liters = data.liters ? parseFloat(data.liters) : null;
@@ -91,6 +112,7 @@ class FuelLogService {
     const log = await prisma.fuelLog.create({
       data: {
         userId,
+        appUserId: user.appUser?.id || null, // Set appUserId for operational queries
         vehicleId,
         shiftId: data.shiftId ? parseInt(data.shiftId) : undefined,
         amount,

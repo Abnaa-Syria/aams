@@ -13,12 +13,13 @@ class TicketService {
       ...(query.category && { category: query.category }),
     };
 
-    if (currentUser.role === 'DRIVER') {
-      where.userId = currentUser.id;
-    } else if (currentUser.role === 'SUPERVISOR') {
+    // Scoping using appUserId and appRole
+    if (currentUser.appRole === 'DRIVER') {
+      where.appUserId = currentUser.appUserId;
+    } else if (currentUser.appRole === 'SUPERVISOR') {
       where.OR = [
-        { userId: currentUser.id },
-        { user: { supervisorId: currentUser.id } }
+        { appUserId: currentUser.appUserId },
+        { appUser: { supervisorId: currentUser.appUserId } }
       ];
     }
 
@@ -26,7 +27,7 @@ class TicketService {
       prisma.ticket.findMany({
         where, skip, take: limit, orderBy: { updatedAt: 'desc' },
         include: { 
-          user: { select: { id: true, fullNameAr: true, identityNumber: true } },
+          appUser: { select: { id: true, user: { select: { id: true, fullNameAr: true, identityNumber: true } } } },
           assignedTo: { select: { id: true, fullNameAr: true } },
           _count: { select: { messages: true } }
         },
@@ -34,14 +35,21 @@ class TicketService {
       prisma.ticket.count({ where }),
     ]);
 
-    return { items, meta: buildPaginationMeta(total, page, limit) };
+    // Transform to keep same response format
+    const transformedItems = items.map(item => ({
+      ...item,
+      userId: item.appUser?.user?.id || item.userId,
+      user: item.appUser?.user || item.user,
+    }));
+
+    return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
 
   static async getById(id, currentUser) {
     const ticket = await prisma.ticket.findUnique({
       where: { id: parseInt(id) },
       include: {
-        user: { select: { id: true, fullNameAr: true, identityNumber: true, mobileNumber: true, profileImageUrl: true } },
+        appUser: { select: { id: true, user: { select: { id: true, fullNameAr: true, identityNumber: true, mobileNumber: true, profileImageUrl: true } } } },
         assignedTo: { select: { id: true, fullNameAr: true } },
         messages: {
           include: {
@@ -54,12 +62,19 @@ class TicketService {
 
     if (!ticket) throw new NotFoundError('Ticket');
     
-    // Authorization check
-    if (currentUser.role === 'DRIVER' && ticket.userId !== currentUser.id) {
+    // Transform to keep same response format
+    const transformedTicket = {
+      ...ticket,
+      userId: ticket.appUser?.user?.id || ticket.userId,
+      user: ticket.appUser?.user || ticket.user,
+    };
+    
+    // Authorization check using appUserId
+    if (currentUser.appRole === 'DRIVER' && transformedTicket.userId !== currentUser.appUserId) {
       throw new BusinessLogicError('Unauthorized to view this ticket');
     }
 
-    return ticket;
+    return transformedTicket;
   }
 
   static async create(userId, data) {

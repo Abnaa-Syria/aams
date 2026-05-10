@@ -26,7 +26,6 @@ async function authenticate(req, res, next) {
         accountStatus: true,
         email: true,
         mobileNumber: true,
-        supervisorId: true,
       },
     });
 
@@ -38,7 +37,11 @@ async function authenticate(req, res, next) {
       throw new AuthenticationError('Account is deactivated');
     }
 
-    req.user = user;
+    req.user = {
+      ...user,
+      appUserId: decoded.appUserId || null,
+      appRole: decoded.appRole || null,
+    };
     req.user.permissions = ROLE_PERMISSIONS[user.role] || [];
     next();
   } catch (error) {

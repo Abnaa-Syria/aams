@@ -16,8 +16,17 @@ enum UserRole {
   HR_ADMIN
   FLEET_ADMIN
   FINANCE_ADMIN
+  // DEPRECATED: DRIVER and SUPERVISOR roles moved to AppUserRole
+  // These are kept temporarily during migration for backward compatibility
+  // After migration phase, update these users to OPERATIONS_ADMIN and create AppUser records
   SUPERVISOR
   DRIVER
+}
+
+// AppUserRole - operational/mobile app roles (linked to AppUser)
+enum AppUserRole {
+  DRIVER
+  SUPERVISOR
 }
 
 enum AccountStatus {
@@ -341,24 +350,26 @@ model User {
   dateOfBirth       DateTime?
   nationality       String?           @db.VarChar(80)
   profileImageUrl   String?           @db.VarChar(500)
-  role              UserRole          @default(DRIVER)
+  role              UserRole          @default(OPERATIONS_ADMIN)
   accountStatus     AccountStatus     @default(PENDING_APPROVAL)
+
+  // TEMPORARY: Operational fields kept during migration - will be removed in cleanup phase
+  // These fields are mirrored in AppUser for DRIVER/SUPERVISOR users
   availabilityStatus AvailabilityStatus @default(OFF_DUTY)
   employmentStatus  EmploymentStatus  @default(ON_DUTY)
   transportType     TransportType?
-
-  // Company identifier (رقم الـ 700)
   sevenHundredNumber String?          @db.VarChar(50)
+  roomNumber        String?           @db.VarChar(50)
+  tags              String?           @db.VarChar(500)
+  notes             String?           @db.Text
+  supervisorId      Int?
 
   // Emergency contact (جهة اتصال الطوارئ)
   emergencyName     String?           @db.VarChar(150)
   emergencyRelation String?           @db.VarChar(100)
   emergencyPhone    String?           @db.VarChar(20)
 
-  // Housing
-  roomNumber        String?           @db.VarChar(50)
-
-  // Employment info
+  // Employment info (for admin/platform users)
   employeeNumber    String?           @unique @db.VarChar(50)
   joinDate          DateTime?
   contractEndDate   DateTime?
@@ -370,15 +381,6 @@ model User {
   branchId          Int?
   city              City?             @relation(fields: [cityId], references: [id])
 
-  // Supervisor assignment
-  supervisorId      Int?
-  supervisor        User?             @relation("SupervisorDrivers", fields: [supervisorId], references: [id])
-  assignedDrivers   User[]            @relation("SupervisorDrivers")
-
-  // Tags
-  tags              String?           @db.VarChar(500)
-  notes             String?           @db.Text
-
   // OTP
   otpCode           String?           @db.VarChar(10)
   otpExpiresAt      DateTime?
@@ -389,7 +391,19 @@ model User {
   updatedAt         DateTime          @updatedAt
   deletedAt         DateTime?
 
-  // Relations
+  // RBAC-only relations (admin operations)
+  loginActivities   LoginActivity[]
+  refreshTokens     RefreshToken[]
+  createdInvestigations Investigation[] @relation("InvestigationCreator")
+  givenRatings      Rating[]          @relation("Rater")
+  assignedTickets   Ticket[]          @relation("AssignedTickets")
+  createdReminders  ScheduledReminder[]  @relation("ReminderCreator")
+
+  // 1:1 relation to AppUser (only for DRIVER/SUPERVISOR operational users)
+  appUser           AppUser?
+
+  // TEMPORARY: Operational relations kept for backward compatibility during migration
+  // These will be migrated to AppUser incrementally - do NOT use in new code
   documents         Document[]
   licenses          License[]
   bankAccounts      BankAccount[]
@@ -404,22 +418,17 @@ model User {
   sentMessages      ChatMessage[]     @relation("SentMessages")
   receivedMessages  ChatMessage[]     @relation("ReceivedMessages")
   investigations    Investigation[]   @relation("InvestigatedUser")
-  createdInvestigations Investigation[] @relation("InvestigationCreator")
   penalties         Penalty[]
   ratings           Rating[]          @relation("RatedUser")
-  givenRatings      Rating[]          @relation("Rater")
   rewards           Reward[]
   leaveRequests     LeaveRequest[]
   salaryAdvances    SalaryAdvance[]
   maintenanceReqs   MaintenanceRequest[]
   auditLogs         AuditLog[]
-  loginActivities   LoginActivity[]
   tickets           Ticket[]          @relation("UserTickets")
-  assignedTickets   Ticket[]          @relation("AssignedTickets")
   ticketMessages    TicketMessage[]
   leaveBalances     LeaveBalance[]
   pushDeviceTokens  PushDeviceToken[]
-  refreshTokens     RefreshToken[]
   odometerLogs      VehicleOdometerLog[]
   payrolls          EmployeePayroll[]
   assetAssignments  AssetAssignment[]
@@ -433,16 +442,56 @@ model User {
   trainerRecords    Trainee[]         @relation("TrainerUser")
   vehicleSwapReqs   VehicleSwapRequest[]
   scheduledReminders ScheduledReminder[] @relation("ReminderTarget")
-  createdReminders  ScheduledReminder[]  @relation("ReminderCreator")
   locationHistory   LocationHistory[]
 
   @@index([accountStatus])
   @@index([role])
-  @@index([supervisorId])
   @@index([cityId])
-  @@index([employmentStatus])
-  @@index([sevenHundredNumber])
   @@map("users")
+}
+
+// AppUser - operational/mobile app users (DRIVER, SUPERVISOR)
+// Linked 1:1 to User for RBAC, contains operational data only
+// Relations to operational models (Shift, FuelLog, etc.) are defined on those models via appUserId
+model AppUser {
+  id                  Int               @id @default(autoincrement())
+  userId              Int               @unique
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // App role - operational role only
+  appRole             AppUserRole       @default(DRIVER)
+
+  // Operational fields (moved from User)
+  availabilityStatus  AvailabilityStatus @default(OFF_DUTY)
+  employmentStatus    EmploymentStatus  @default(ON_DUTY)
+  transportType       TransportType?
+
+  // Supervisor hierarchy (moved from User.supervisorId)
+  supervisorId        Int?
+  supervisor          AppUser?          @relation("SupervisorAppUsers", fields: [supervisorId], references: [id])
+  assignedDrivers     AppUser[]         @relation("SupervisorAppUsers")
+
+  // Additional operational fields (moved from User)
+  sevenHundredNumber  String?           @db.VarChar(50)
+  roomNumber          String?           @db.VarChar(50)
+  tags                String?           @db.VarChar(500)
+  notes               String?           @db.Text
+
+  // Timestamps
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  // Relations to operational models via appUserId
+  shifts              Shift[]
+  fuelLogs            FuelLog[]
+  incidents           Incident[]
+  dailyReports        DailyReport[]
+  violations          Violation[]
+
+  @@index([userId])
+  @@index([appRole])
+  @@index([supervisorId])
+  @@map("app_users")
 }
 
 model PushDeviceToken {
@@ -726,8 +775,15 @@ model VehicleOdometerLog {
 
 model Shift {
   id                Int           @id @default(autoincrement())
+  
+  // TEMPORARY: userId kept for backward compatibility during migration
   userId            Int
   user              User          @relation(fields: [userId], references: [id])
+  
+  // NEW: appUserId for operational queries (to replace userId)
+  appUserId         Int?
+  appUser           AppUser?      @relation(fields: [appUserId], references: [id])
+  
   vehicleId         Int
   vehicle           Vehicle       @relation(fields: [vehicleId], references: [id])
   platformAccountId Int
@@ -815,8 +871,15 @@ model MidShiftRecord {
 
 model FuelLog {
   id            Int           @id @default(autoincrement())
+  
+  // TEMPORARY: userId kept for backward compatibility during migration
   userId        Int
   user          User          @relation(fields: [userId], references: [id])
+  
+  // NEW: appUserId for operational queries
+  appUserId     Int?
+  appUser       AppUser?      @relation(fields: [appUserId], references: [id])
+  
   vehicleId     Int
   vehicle       Vehicle       @relation(fields: [vehicleId], references: [id])
   shiftId       Int?
@@ -834,6 +897,7 @@ model FuelLog {
   updatedAt     DateTime      @updatedAt
 
   @@index([userId])
+  @@index([appUserId])
   @@index([vehicleId])
   @@index([shiftId])
   @@index([fuelDate])
@@ -846,8 +910,15 @@ model FuelLog {
 
 model Violation {
   id              Int             @id @default(autoincrement())
+  
+  // TEMPORARY: userId kept for backward compatibility during migration
   userId          Int
   user            User            @relation(fields: [userId], references: [id])
+  
+  // NEW: appUserId for operational queries
+  appUserId       Int?
+  appUser         AppUser?        @relation(fields: [appUserId], references: [id])
+  
   vehicleId       Int?
   vehicle         Vehicle?        @relation(fields: [vehicleId], references: [id])
   shiftId         Int?
@@ -869,6 +940,7 @@ model Violation {
   updatedAt       DateTime        @updatedAt
 
   @@index([userId])
+  @@index([appUserId])
   @@index([vehicleId])
   @@index([status])
   @@index([penaltyId])
@@ -881,8 +953,15 @@ model Violation {
 
 model Incident {
   id              Int               @id @default(autoincrement())
+  
+  // TEMPORARY: userId kept for backward compatibility during migration
   userId          Int
   user            User              @relation(fields: [userId], references: [id])
+  
+  // NEW: appUserId for operational queries
+  appUserId       Int?
+  appUser         AppUser?          @relation(fields: [appUserId], references: [id])
+  
   shiftId         Int?
   shift           Shift?            @relation(fields: [shiftId], references: [id])
   type            IncidentType      @default(OTHER)
@@ -933,8 +1012,15 @@ model IncidentAttachment {
 
 model DailyReport {
   id              Int           @id @default(autoincrement())
+  
+  // TEMPORARY: userId kept for backward compatibility during migration
   userId          Int
   user            User          @relation(fields: [userId], references: [id])
+  
+  // NEW: appUserId for operational queries
+  appUserId       Int?
+  appUser         AppUser?      @relation(fields: [appUserId], references: [id])
+  
   shiftId         Int?
   shift           Shift?        @relation(fields: [shiftId], references: [id])
   reportDate      DateTime
@@ -952,6 +1038,7 @@ model DailyReport {
   screenshots     ReportScreenshot[]
 
   @@index([userId])
+  @@index([appUserId])
   @@index([reportDate])
   @@index([status])
   @@map("daily_reports")
