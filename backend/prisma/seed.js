@@ -964,7 +964,7 @@ async function main() {
         userId: driver.id,
         currentVehicleId: vehicle.id,
         reason: 'صوت غريب في المحرك',
-        status: 'PENDING'
+        status: 'REQUESTED'
       }
     }).catch(() => {});
 
@@ -1195,7 +1195,6 @@ const ROLES_MAP = {
       if (permissionMap[permKey]) {
         await prisma.rolePermission.create({
           data: { roleId: role.id, permissionId: permissionMap[permKey] },
-          skip: false,
         }).catch(() => {});
       }
     }

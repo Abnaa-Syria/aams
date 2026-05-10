@@ -5,20 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { LuMapPin, LuClock, LuWifiOff } from 'react-icons/lu';
 
-// Fix for default Leaflet icon paths
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-
-let DefaultIcon = L.icon({
-  iconUrl: icon,
-  shadowUrl: iconShadow,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  tooltipAnchor: [16, -28],
-  shadowSize: [41, 41]
-});
-L.Marker.prototype.options.icon = DefaultIcon;
+import { vehicleIcon } from '../../utils/mapIcons';
 
 function RecenterMap({ lat, lng }) {
   const map = useMap();
@@ -133,7 +120,7 @@ export default function VehicleLiveMap({ activeShiftId, vehicle, activeDriver })
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           {position && (
             <>
-              <Marker position={[position.lat, position.lng]}>
+              <Marker position={[position.lat, position.lng]} icon={vehicleIcon}>
                 <Popup>
                   <div className="text-center font-alexandria">
                     <strong className="text-brand-primary block mb-1">موقع المركبة</strong>

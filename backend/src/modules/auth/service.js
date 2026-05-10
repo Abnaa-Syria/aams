@@ -52,9 +52,20 @@ function getClientMeta(req) {
   return { ipAddress: ip, userAgent };
 }
 
-function publicUser(user) {
+async function publicUserWithPermissions(user) {
   if (!user) return null;
   const { passwordHash, otpCode, otpExpiresAt, ...rest } = user;
+  
+  const roleData = await prisma.role.findUnique({
+    where: { key: user.role },
+    include: {
+      permissions: {
+        include: { permission: { select: { key: true } } }
+      }
+    }
+  });
+
+  rest.permissions = roleData ? roleData.permissions.map(rp => rp.permission.key) : [];
   return rest;
 }
 
@@ -139,7 +150,7 @@ class AuthService {
     await recordLoginActivity(user.id, true, ipAddress, userAgent);
 
     return {
-      user: publicUser(user),
+      user: await publicUserWithPermissions(user),
       accessToken,
       refreshToken,
       expiresIn: config.jwt.expiresIn,
@@ -239,7 +250,7 @@ class AuthService {
     await recordLoginActivity(user.id, true, ipAddress, userAgent);
 
     return {
-      user: publicUser(user),
+      user: await publicUserWithPermissions(user),
       accessToken,
       refreshToken,
       expiresIn: config.jwt.expiresIn,
@@ -411,7 +422,7 @@ class AuthService {
     });
 
     return {
-      user: publicUser(user),
+      user: await publicUserWithPermissions(user),
       accessToken,
       refreshToken,
       expiresIn: config.jwt.expiresIn,
@@ -460,7 +471,7 @@ class AuthService {
       throw new NotFoundError('User');
     }
 
-    return user;
+    return await publicUserWithPermissions(user);
   }
 
   static async registerPushToken(userId, { token, provider }) {

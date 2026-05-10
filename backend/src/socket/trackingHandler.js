@@ -71,6 +71,7 @@ function registerTrackingHandlers(io, socket) {
 
   // ── Driver pushes GPS coordinates ──
   socket.on('driver_location_update', async (payload) => {
+    console.log('[Socket Server] Received driver_location_update:', payload);
     try {
       const { shiftId, lat, lng } = payload || {};
 
@@ -98,6 +99,7 @@ function registerTrackingHandlers(io, socket) {
         lng: numericLng,
         timestamp: new Date().toISOString(),
       };
+      console.log('[Socket Server] Broadcasting to admin_dashboard:', broadcastPayload);
       io.to('admin_dashboard').emit('live_tracking_update', broadcastPayload);
 
       // 2️⃣  Throttled DB write — at most once every 30 s per shift

@@ -56,6 +56,7 @@ import SettingsPage from './pages/settings/SettingsPage';
 import AdminsPage from './pages/admins/AdminsPage';
 import AuditLogsPage from './pages/audit-logs/AuditLogsPage';
 import RolesPermissionsPage from './pages/roles-permissions/RolesPermissionsPage';
+import SocketTestPage from './pages/settings/SocketTestPage';
 
 export default function App() {
   return (
@@ -115,6 +116,7 @@ export default function App() {
             <Route path="admins" element={<PermissionRoute anyOf={[P.USERS_WRITE]}><AdminsPage /></PermissionRoute>} />
             <Route path="audit-logs" element={<PermissionRoute anyOf={[P.AUDIT_READ]}><AuditLogsPage /></PermissionRoute>} />
             <Route path="roles-permissions" element={<PermissionRoute anyOf={[P.ROLE_MANAGEMENT]}><RolesPermissionsPage /></PermissionRoute>} />
+            <Route path="socket-test" element={<SocketTestPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

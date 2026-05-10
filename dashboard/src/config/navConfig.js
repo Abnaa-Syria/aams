@@ -17,6 +17,7 @@ export const NAV_GROUPS = [
       { path: '/admins', label: 'المستخدمين الإداريين', iconKey: 'admins', anyOf: [P.USERS_WRITE] },
       { path: '/roles-permissions', label: 'الأدوار والصلاحيات', iconKey: 'roles', anyOf: [P.ROLE_MANAGEMENT] },
       { path: '/audit-logs', label: 'سجل العمليات', iconKey: 'audit', anyOf: [P.AUDIT_READ] },
+      { path: '/socket-test', label: 'اختبار السوكت (Debug)', iconKey: 'audit', anyOf: DASHBOARD_VIEW_PERMISSIONS },
     ],
   },
   {

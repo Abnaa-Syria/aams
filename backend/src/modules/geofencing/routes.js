@@ -15,7 +15,6 @@ const {
 
 router.post(
   '/locations',
-  ...adminPerm(P.FLEET_WRITE),
   authenticate,
   validate(addLocationSchema),
   GeofencingController.logLocation
@@ -23,7 +22,6 @@ router.post(
 
 router.post(
   '/locations/bulk',
-  ...adminPerm(P.FLEET_WRITE),
   authenticate,
   validate(bulkAddLocationSchema),
   GeofencingController.bulkLogLocations

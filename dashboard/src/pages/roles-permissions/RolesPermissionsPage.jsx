@@ -135,9 +135,12 @@ export default function RolesPermissionsPage() {
       apiService.get('/permissions/matrix'),
       apiService.get('/permissions'),
     ]);
-    setRoles(matrixRes.data.roles || []);
-    setPermissions(permsRes.data || []);
-    return matrixRes.data.roles || [];
+    const rolesData = matrixRes.data.data?.roles || [];
+    const permsData = permsRes.data.data || [];
+    
+    setRoles(rolesData);
+    setPermissions(permsData);
+    return rolesData;
   }, []);
 
   useEffect(() => {

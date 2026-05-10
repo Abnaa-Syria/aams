@@ -280,7 +280,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"vehicleId\": 1,\n    \"platformAccountId\": 1,\n    \"startPhotoUrl\": \"https://...\",\n    \"notes\": \"بدايه الشفت\"\n}",
+							"raw": "{\n    \"vehicleId\": 1,\n    \"platformAccountId\": 1,\n    \"startPhotoUrl\": \"https://...\",\n    \"startOdometer\": 1000,\n    \"notes\": \"بدايه الشفت\"\n}",
 							"options": { "raw": { "language": "json" } }
 						},
 						"url": {
@@ -341,7 +341,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"endPhotoUrl\": \"https://...\",\n    \"notes\": \"نهاية الشفت\"\n}",
+							"raw": "{\n    \"endPhotoUrl\": \"https://...\",\n    \"endOdometer\": 1100,\n    \"notes\": \"نهاية الشفت\"\n}",
 							"options": { "raw": { "language": "json" } }
 						},
 						"url": {
@@ -393,6 +393,82 @@
 							}
 						}
 					]
+				}
+			]
+		},
+		{
+			"name": "Geofencing & Tracking",
+			"item": [
+				{
+					"name": "Log Single Location (Driver)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"latitude\": 24.7136,\n    \"longitude\": 46.6753,\n    \"speed\": 60,\n    \"accuracy\": 5,\n    \"heading\": 90\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/geofencing/locations",
+							"host": ["{{base_url}}"],
+							"path": ["geofencing", "locations"]
+						}
+					}
+				},
+				{
+					"name": "Bulk Log Locations (Driver)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"locations\": [\n        { \"latitude\": 24.7136, \"longitude\": 46.6753, \"recordedAt\": \"2023-10-01T10:00:00Z\" },\n        { \"latitude\": 24.7140, \"longitude\": 46.6760, \"recordedAt\": \"2023-10-01T10:01:00Z\" }\n    ]\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/geofencing/locations/bulk",
+							"host": ["{{base_url}}"],
+							"path": ["geofencing", "locations", "bulk"]
+						}
+					}
+				},
+				{
+					"name": "Get Latest Locations (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/geofencing/locations/latest",
+							"host": ["{{base_url}}"],
+							"path": ["geofencing", "locations", "latest"]
+						}
+					}
+				},
+				{
+					"name": "Get Location History (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/geofencing/locations/history?userId={{user_id}}&startDate=2023-01-01&endDate=2024-12-31",
+							"host": ["{{base_url}}"],
+							"path": ["geofencing", "locations", "history"],
+							"query": [
+								{ "key": "userId", "value": "{{user_id}}" },
+								{ "key": "startDate", "value": "2023-01-01" },
+								{ "key": "endDate", "value": "2024-12-31" }
+							]
+						}
+					}
 				}
 			]
 		},
@@ -1352,10 +1428,83 @@
 					}
 				}
 			]
+		},
+		{
+			"name": "System Roles & Permissions",
+			"item": [
+				{
+					"name": "List Permissions",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/permissions",
+							"host": ["{{base_url}}"],
+							"path": ["permissions"]
+						}
+					}
+				},
+				{
+					"name": "Get Permissions Matrix",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/permissions/matrix",
+							"host": ["{{base_url}}"],
+							"path": ["permissions", "matrix"]
+						}
+					}
+				},
+				{
+					"name": "Update Role Permissions",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"permissions\": [\"users:read\", \"fleet:read\"]\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/permissions/matrix/:roleKey",
+							"host": ["{{base_url}}"],
+							"path": ["permissions", "matrix", ":roleKey"],
+							"variable": [{ "key": "roleKey", "value": "OPERATIONS_ADMIN" }]
+						}
+					}
+				},
+				{
+					"name": "List Roles",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/roles",
+							"host": ["{{base_url}}"],
+							"path": ["roles"]
+						}
+					}
+				},
+				{
+					"name": "Create Role",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"key\": \"NEW_ADMIN\",\n    \"labelAr\": \"مدير جديد\",\n    \"labelEn\": \"New Admin\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/roles",
+							"host": ["{{base_url}}"],
+							"path": ["roles"]
+						}
+					}
+				}
+			]
 		}
 	],
 	"variable": [
-		{ "key": "base_url", "value": "http://localhost:3000/api/v1", "type": "string" },
+		{ "key": "base_url", "value": "http://localhost:5000/api/v1", "type": "string" },
 		{ "key": "access_token", "value": "", "type": "string" },
 		{ "key": "refresh_token", "value": "", "type": "string" },
 		{ "key": "user_id", "value": "1", "type": "string" },

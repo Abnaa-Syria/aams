@@ -1,25 +1,12 @@
 import { useEffect, useState, useRef } from 'react';
 import { io } from 'socket.io-client';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, CircleMarker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { apiService } from '../../services/api';
 import { LuMapPin, LuClock, LuWifiOff } from 'react-icons/lu';
 
-// Fix for default Leaflet icon paths in Vite/React
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-
-let DefaultIcon = L.icon({
-  iconUrl: icon,
-  shadowUrl: iconShadow,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  tooltipAnchor: [16, -28],
-  shadowSize: [41, 41]
-});
-L.Marker.prototype.options.icon = DefaultIcon;
+import { driverIcon } from '../../utils/mapIcons';
 
 // Helper component to smoothly center map when coordinates change
 function RecenterMap({ lat, lng }) {
@@ -100,7 +87,9 @@ export default function DriverLiveMap({ driverId }) {
     });
 
     socket.on('live_tracking_update', (payload) => {
-      if (payload && payload.shiftId === activeShift.id) {
+      console.log('[Socket] Received tracking update:', payload);
+      if (payload && Number(payload.shiftId) === Number(activeShift.id)) {
+        console.log('[Map] Updating position to:', payload.lat, payload.lng);
         setPosition({
           lat: payload.lat,
           lng: payload.lng,
@@ -184,11 +173,12 @@ export default function DriverLiveMap({ driverId }) {
       </div>
 
       {/* Map Container */}
-      <div className="relative w-full h-[500px] bg-slate-50 z-0">
+      <div className="relative w-full h-[500px] bg-slate-50 z-[10]">
         <MapContainer 
+          key={driverId}
           center={position ? [position.lat, position.lng] : defaultCenter} 
           zoom={position ? 15 : 12} 
-          style={{ width: '100%', height: '100%', zIndex: 0 }}
+          style={{ width: '100%', height: '100%' }}
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -196,7 +186,16 @@ export default function DriverLiveMap({ driverId }) {
           />
           {position && (
             <>
-              <Marker position={[position.lat, position.lng]}>
+              <CircleMarker 
+                center={[position.lat, position.lng]} 
+                radius={8}
+                pathOptions={{ color: 'white', fillColor: '#FA5103', fillOpacity: 1, weight: 2 }}
+              />
+              <Marker 
+                key={`${position.lat}-${position.lng}-${position.timestamp}`}
+                position={[position.lat, position.lng]} 
+                icon={driverIcon}
+              >
                 <Popup>
                   <div className="text-center font-alexandria">
                     <strong className="text-brand-primary block mb-1">موقع المندوب</strong>
