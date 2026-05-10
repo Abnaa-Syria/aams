@@ -65,44 +65,61 @@ export default function DriverLiveMap({ driverId }) {
 
   // 2. Connect to Socket.io for live updates
   useEffect(() => {
-    if (!activeShift || activeShift.status !== 'ACTIVE') return;
+    // Only connect if we have a shift (even if not active, for monitoring, but usually active)
+    if (!activeShift) return;
 
-    // Use environment variable or fallback to same origin (for dev, backend is usually on 5000)
+    console.log(`[Map] Attempting socket connection for Shift #${activeShift.id} (Status: ${activeShift.status})`);
+
     const backendUrl = import.meta.env.VITE_API_URL?.replace('/api/v1', '') || 'http://localhost:5000';
     
     socketRef.current = io(backendUrl, {
       withCredentials: true,
-      transports: ['websocket', 'polling'] // Try websocket first
+      transports: ['websocket', 'polling']
     });
 
     const socket = socketRef.current;
 
     socket.on('connect', () => {
       setSocketConnected(true);
+      console.log('[Map] Socket connected, joining admin_dashboard...');
       socket.emit('join_admin_dashboard');
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', (reason) => {
       setSocketConnected(false);
+      console.log('[Map] Socket disconnected:', reason);
     });
 
     socket.on('live_tracking_update', (payload) => {
-      console.log('[Socket] Received tracking update:', payload);
-      if (payload && Number(payload.shiftId) === Number(activeShift.id)) {
-        console.log('[Map] Updating position to:', payload.lat, payload.lng);
-        setPosition({
-          lat: payload.lat,
-          lng: payload.lng,
-          timestamp: payload.timestamp
-        });
+      console.log('[Map] Update received:', payload);
+      
+      // Ensure we match the shift AND payload has valid coords
+      const payloadShiftId = Number(payload.shiftId);
+      const activeShiftId = Number(activeShift.id);
+      
+      if (payload && payloadShiftId === activeShiftId) {
+        const lat = parseFloat(payload.lat);
+        const lng = parseFloat(payload.lng);
+        
+        if (!isNaN(lat) && !isNaN(lng)) {
+          console.log('[Map] Updating marker to:', lat, lng);
+          setPosition({
+            lat,
+            lng,
+            timestamp: payload.timestamp || new Date().toISOString()
+          });
+        } else {
+          console.warn('[Map] Invalid coordinates in payload:', payload);
+        }
       }
     });
 
     return () => {
+      console.log('[Map] Cleaning up socket...');
       socket.emit('leave_admin_dashboard');
       socket.disconnect();
     };
-  }, [activeShift]);
+  }, [activeShift?.id, activeShift?.status]); // Re-connect if shift ID or status changes
 
   if (loading) {
     return (
@@ -192,7 +209,7 @@ export default function DriverLiveMap({ driverId }) {
                 pathOptions={{ color: 'white', fillColor: '#FA5103', fillOpacity: 1, weight: 2 }}
               />
               <Marker 
-                key={`${position.lat}-${position.lng}-${position.timestamp}`}
+                key={driverId} // Use stable ID to prevent re-mounting flickering
                 position={[position.lat, position.lng]} 
                 icon={driverIcon}
               >

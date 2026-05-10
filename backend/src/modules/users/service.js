@@ -17,27 +17,45 @@ const USER_SELECT = {
   profileImageUrl: true,
   role: true,
   accountStatus: true,
-  availabilityStatus: true,
-  employmentStatus: true,
-  transportType: true,
-  sevenHundredNumber: true,
-  emergencyName: true,
-  emergencyRelation: true,
-  emergencyPhone: true,
-  roomNumber: true,
-  employeeNumber: true,
-  joinDate: true,
-  contractEndDate: true,
-  jobTitle: true,
-  cityId: true,
-  supervisorId: true,
-  tags: true,
-  notes: true,
   lastLoginAt: true,
   createdAt: true,
   updatedAt: true,
-  city: { select: { id: true, nameAr: true, nameEn: true } },
-  supervisor: { select: { id: true, fullNameAr: true, fullNameEn: true } },
+  appUser: {
+    select: {
+      id: true,
+      appRole: true,
+      availabilityStatus: true,
+      employmentStatus: true,
+      transportType: true,
+      sevenHundredNumber: true,
+      roomNumber: true,
+      tags: true,
+      notes: true,
+      supervisorId: true,
+      supervisor: {
+        select: {
+          id: true,
+          user: {
+            select: {
+              id: true,
+              fullNameAr: true,
+              fullNameEn: true
+            }
+          }
+        }
+      }
+    }
+  },
+  cityId: true,
+  regionId: true,
+  branchId: true,
+  city: {
+    select: {
+      id: true,
+      nameAr: true,
+      nameEn: true
+    }
+  }
 };
 
 const USER_DETAIL_SELECT = {
@@ -72,12 +90,12 @@ class UserService {
       ...searchFilter,
       ...(query.role && { role: query.role }),
       ...(query.accountStatus && { accountStatus: query.accountStatus }),
-      ...(query.employmentStatus && { employmentStatus: query.employmentStatus }),
-      ...(query.transportType && { transportType: query.transportType }),
-      ...(query.cityId && { cityId: parseInt(query.cityId) }),
-      ...(query.supervisorId && { supervisorId: parseInt(query.supervisorId) }),
-      ...(query.sevenHundredNumber && { sevenHundredNumber: query.sevenHundredNumber }),
-      ...(query.roomNumber && { roomNumber: query.roomNumber }),
+      // Operational fields are now on appUser
+      ...(query.employmentStatus && { appUser: { employmentStatus: query.employmentStatus } }),
+      ...(query.transportType && { appUser: { transportType: query.transportType } }),
+      ...(query.supervisorId && { appUser: { supervisorId: parseInt(query.supervisorId) } }),
+      ...(query.sevenHundredNumber && { appUser: { sevenHundredNumber: query.sevenHundredNumber } }),
+      ...(query.roomNumber && { appUser: { roomNumber: query.roomNumber } }),
     };
 
     // Filter by bank account existence or payment method
@@ -106,7 +124,24 @@ class UserService {
       prisma.user.count({ where }),
     ]);
 
-    return { users, meta: buildPaginationMeta(total, page, limit) };
+    // Transform to maintain backward compatibility with frontend
+    const transformedUsers = users.map(u => {
+      const { appUser, ...rest } = u;
+      return {
+        ...rest,
+        appUserId: appUser?.id || null,
+        appRole: appUser?.appRole || null,
+        availabilityStatus: appUser?.availabilityStatus || 'OFF_DUTY',
+        employmentStatus: appUser?.employmentStatus || 'ON_DUTY',
+        supervisorId: appUser?.supervisorId || null,
+        supervisor: appUser?.supervisor?.user || null,
+        // Carry forward other appUser fields if needed
+        transportType: appUser?.transportType || null,
+        roomNumber: appUser?.roomNumber || null,
+      };
+    });
+
+    return { users: transformedUsers, meta: buildPaginationMeta(total, page, limit) };
   }
 
   static async getById(id) {
@@ -115,7 +150,21 @@ class UserService {
       select: USER_DETAIL_SELECT,
     });
     if (!user) throw new NotFoundError('User');
-    return user;
+    const { appUser, ...rest } = user;
+    return {
+      ...rest,
+      appUserId: appUser?.id || null,
+      appRole: appUser?.appRole || null,
+      availabilityStatus: appUser?.availabilityStatus || 'OFF_DUTY',
+      employmentStatus: appUser?.employmentStatus || 'ON_DUTY',
+      supervisorId: appUser?.supervisorId || null,
+      supervisor: appUser?.supervisor?.user || null,
+      transportType: appUser?.transportType || null,
+      roomNumber: appUser?.roomNumber || null,
+      sevenHundredNumber: appUser?.sevenHundredNumber || null,
+      tags: appUser?.tags || null,
+      notes: appUser?.notes || null,
+    };
   }
 
   static async create(data) {
@@ -149,8 +198,6 @@ class UserService {
         ...rest,
         passwordHash,
         dateOfBirth: rest.dateOfBirth ? new Date(rest.dateOfBirth) : undefined,
-        joinDate: rest.joinDate ? new Date(rest.joinDate) : undefined,
-        contractEndDate: rest.contractEndDate ? new Date(rest.contractEndDate) : undefined,
         // If operational user, also create AppUser
         ...(isOperationalUser && {
           appUser: {
@@ -219,8 +266,6 @@ class UserService {
 
     const updateData = { ...data };
     if (updateData.dateOfBirth) updateData.dateOfBirth = new Date(updateData.dateOfBirth);
-    if (updateData.joinDate) updateData.joinDate = new Date(updateData.joinDate);
-    if (updateData.contractEndDate) updateData.contractEndDate = new Date(updateData.contractEndDate);
 
     // Handle AppUser creation/deletion based on role change
     if (!wasOperational && isOperational) {
@@ -319,8 +364,8 @@ class UserService {
       supervisorAppUserId = supervisor.appUser?.id || null;
     }
 
-    // Update both User and AppUser supervisor relationships
-    const updateData = { supervisorId };
+    // Update AppUser supervisor relationships
+    const updateData = {};
     if (user.appUser) {
       updateData.appUser = { update: { supervisorId: supervisorAppUserId } };
     }

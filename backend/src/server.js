@@ -1,5 +1,5 @@
 const http = require('http');
-const app = require('./app');
+const app = require('./app'); 
 const config = require('./config');
 const prisma = require('./config/database');
 const { initSocket } = require('./socket');

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout, getMe } from '../store/authSlice';
@@ -54,7 +54,8 @@ export default function DashboardLayout() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useSelector((state) => state.auth);
 
-  const fetchRecentNotifications = async () => {
+  const fetchRecentNotifications = useCallback(async () => {
+    if (!isAuthenticated) return;
     setLoadingNotifs(true);
     try {
       const { data } = await apiService.get('/notifications/admin/all', { limit: 5 });
@@ -64,22 +65,28 @@ export default function DashboardLayout() {
     } finally {
       setLoadingNotifs(false);
     }
-  };
+  }, [isAuthenticated]);
 
-  useEffect(() => {
-    if (showNotifications) {
-      fetchRecentNotifications();
-    }
-  }, [showNotifications]);
-
+  // 1. Initial Identity Fetch
   useEffect(() => {
     if (isAuthenticated && !user) {
       dispatch(getMe());
     }
+  }, [dispatch, isAuthenticated, user]);
+
+  // 2. Initial Notifications Fetch
+  useEffect(() => {
     if (isAuthenticated) {
       fetchRecentNotifications();
     }
-  }, [dispatch, isAuthenticated, user]);
+  }, [isAuthenticated, fetchRecentNotifications]);
+
+  // 3. Periodic / Manual Refresh
+  useEffect(() => {
+    if (showNotifications) {
+      fetchRecentNotifications();
+    }
+  }, [showNotifications, fetchRecentNotifications]);
 
   const menuGroups = useMemo(() => {
     const role = user?.role;

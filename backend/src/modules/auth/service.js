@@ -466,44 +466,74 @@ class AuthService {
     };
   }
 
-  static async getMe(userId) {
-    const user = await prisma.user.findFirst({
-      where: { id: userId, deletedAt: null },
-      include: {
-        appUser: {
-          select: {
-            id: true,
-            appRole: true,
-            availabilityStatus: true,
-            employmentStatus: true,
-          }
-        }
-      },
-      select: {
-        id: true,
-        identityNumber: true,
-        mobileNumber: true,
-        email: true,
-        fullNameAr: true,
-        fullNameEn: true,
-        gender: true,
-        dateOfBirth: true,
-        nationality: true,
-        profileImageUrl: true,
-        role: true,
-        accountStatus: true,
-        lastLoginAt: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+static async getMe(userId) {
+  const now = new Date();
+  const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    if (!user) {
-      throw new NotFoundError('User');
-    }
+  const user = await prisma.user.findFirst({
+    where: { id: userId, deletedAt: null },
+    select: {
+      id: true,
+      identityNumber: true,
+      mobileNumber: true,
+      email: true,
+      fullNameAr: true,
+      fullNameEn: true,
+      gender: true,
+      dateOfBirth: true,
+      nationality: true,
+      profileImageUrl: true,
+      role: true,
+      accountStatus: true,
+      lastLoginAt: true,
+      createdAt: true,
+      updatedAt: true,
+      appUser: {
+        select: {
+          id: true,
+          appRole: true,
+          availabilityStatus: true,
+          employmentStatus: true,
+          transportType: true,
+          sevenHundredNumber: true,
+          roomNumber: true,
+          supervisorId: true,
+          shifts: {
+            where: { status: "ACTIVE" },
+            select: { id: true, status: true, startTime: true },
+            take: 1,
+          },
+          _count: {
+            select: {
+              shifts: {
+                where: {
+                  createdAt: { gte: firstDayOfMonth },
+                },
+              },
+              dailyReports: true,
+              violations: true,
+              penalties: true,
+              rewards: true,
+            },
+          },
+        },
+      },
+    },
+  });
 
-    return await publicUserWithPermissions(user);
+  if (!user) {
+    throw new NotFoundError('User');
   }
+
+  if (user.appUser) {
+    const activeShift = user.appUser.shifts?.[0] || null;
+    user.appUser.currentShift = activeShift;
+    user.appUser.isOnShift = !!activeShift;
+    delete user.appUser.shifts;
+  }
+
+  return await publicUserWithPermissions(user);
+}
 
   static async registerPushToken(userId, { token, provider }) {
     const p = provider || 'EXPO';
