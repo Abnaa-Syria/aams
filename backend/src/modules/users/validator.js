@@ -17,6 +17,7 @@ const listUsersSchema = z.object({
     sevenHundredNumber: z.string().optional(),
     roomNumber: z.string().optional(),
     hasBankAccount: z.enum(['true', 'false']).optional(),
+    hasVehicle: z.enum(['true', 'false']).optional(),
     paymentMethod: z.enum(['BANK_TRANSFER', 'CASH']).optional(),
     sortBy: z.string().optional(),
     sortOrder: z.enum(['asc', 'desc']).optional(),

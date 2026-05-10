@@ -96,4 +96,124 @@ router.get('/recent-activity', ...adminPerm(...DASHBOARD_VIEW_PERMISSIONS), asyn
   } catch (err) { next(err); }
 });
 
+/**
+ * @openapi
+ * /dashboard/driver:
+ *   get:
+ *     tags: [Dashboard]
+ *     summary: Driver home screen summary (stats + task checklist)
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: stats, tasks, currentShift
+ */
+router.get('/driver', authenticate, async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    // 1. Current Active Shift
+    const currentShift = await prisma.shift.findFirst({
+      where: { userId, status: 'ACTIVE' },
+      include: {
+        vehicle: { select: { id: true, plateNumber: true } },
+        platformAccount: { include: { platform: { select: { nameAr: true } } } },
+      },
+    });
+
+    // 2. Stats & Info
+    const [
+      shiftsToday,
+      dailyReportsToday,
+      dailyReportsMonth,
+      fuelToday,
+      userRating,
+      userProfile,
+    ] = await Promise.all([
+      prisma.shift.findMany({
+        where: { userId, OR: [{ startedAt: { gte: today } }, { status: 'ACTIVE' }] },
+        select: { startedAt: true, endedAt: true },
+      }),
+      prisma.dailyReport.aggregate({
+        where: { userId, createdAt: { gte: today } },
+        _sum: { totalOrders: true, totalHours: true },
+      }),
+      prisma.dailyReport.aggregate({
+        where: { userId, createdAt: { gte: monthStart } },
+        _sum: { totalOrders: true, totalHours: true },
+      }),
+      prisma.fuelLog.aggregate({
+        where: { userId, createdAt: { gte: today } },
+        _sum: { amount: true },
+      }),
+      prisma.rating.aggregate({
+        where: { userId },
+        _avg: { overallScore: true },
+      }),
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { city: { select: { nameAr: true } } },
+      }),
+    ]);
+
+    // Calculate daily hours from shifts (real-time)
+    let hoursToday = 0;
+    shiftsToday.forEach((s) => {
+      const start = s.startedAt ? new Date(s.startedAt) : null;
+      const end = s.endedAt ? new Date(s.endedAt) : new Date();
+      if (start) {
+        hoursToday += (end - start) / (1000 * 60 * 60);
+      }
+    });
+
+    // 3. Task Checklist (for latest shift)
+    let tasks = {
+      shiftStartPhoto: false,
+      midShiftPhoto: false,
+      dailyReport: false,
+    };
+
+    const latestShift = await prisma.shift.findFirst({
+      where: { userId, requestedAt: { gte: today } },
+      orderBy: { requestedAt: 'desc' },
+      include: {
+        midShiftRecords: { take: 1 },
+        dailyReports: { take: 1 },
+      },
+    });
+
+    if (latestShift) {
+      tasks.shiftStartPhoto = !!(latestShift.startPhotoUrl || latestShift.startAppPhotoUrl);
+      tasks.midShiftPhoto = latestShift.midShiftRecords.length > 0;
+      tasks.dailyReport = latestShift.dailyReports.length > 0;
+    }
+
+    const data = {
+      stats: {
+        today: {
+          hours: Number(hoursToday.toFixed(1)),
+          orders: dailyReportsToday._sum.totalOrders || 0,
+          fuel: fuelToday._sum.amount || 0,
+        },
+        monthly: {
+          hours: Number((dailyReportsMonth._sum.totalHours || 0).toFixed(1)),
+          orders: dailyReportsMonth._sum.totalOrders || 0,
+        },
+        rating: userRating._avg.overallScore ? Number(userRating._avg.overallScore.toFixed(1)) : 0,
+      },
+      profile: {
+        city: userProfile?.city?.nameAr || null,
+      },
+      tasks,
+      currentShift,
+    };
+
+    return ApiResponse.success(res, data, 'Driver dashboard loaded');
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

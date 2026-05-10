@@ -619,6 +619,7 @@ model PlatformAccount {
   status          PlatformAccountStatus @default(PENDING_VERIFICATION)
   notes           String?               @db.Text
   fileUrl         String?               @db.VarChar(500)
+  accountScreenshotUrl String?          @db.VarChar(500)
   isAlternate     Boolean               @default(false)
   alternateUsername String?             @db.VarChar(150)
   receiptDate     DateTime?
@@ -744,9 +745,13 @@ model Shift {
   endedAt           DateTime?
   cancelledAt       DateTime?
   cancellationReason String?      @db.Text
+  
+  requestedStartTime DateTime?
+  requestedEndTime   DateTime?
 
   startPhotoUrl     String?       @db.VarChar(500)
   startOdometer     Int?
+  startVehiclePhotoUrl String?    @db.VarChar(500)
   startAppPhotoUrl  String?       @db.VarChar(500)
   endPhotoUrl       String?       @db.VarChar(500)
   endOdometer       Int?
@@ -855,6 +860,7 @@ model Violation {
   amount          Decimal?        @db.Decimal(10, 2)
   reason          String          @db.Text
   location        String?         @db.VarChar(300)
+  driverComment   String?         @db.Text
   violationDate   DateTime?
   vehicleImageUrl String?         @db.VarChar(500)
   violationImageUrl String?       @db.VarChar(500)
@@ -965,6 +971,7 @@ model ReportAppBreakdown {
   orders      Int?
   hours       Decimal?    @db.Decimal(5, 2)
   earnings    Decimal?    @db.Decimal(10, 2)
+  screenshotUrl String?   @db.VarChar(500)
 
   @@index([reportId])
   @@map("report_app_breakdowns")
@@ -1269,6 +1276,7 @@ model SalaryAdvance {
   amount        Decimal       @db.Decimal(10, 2)
   reason        String        @db.Text
   notes         String?       @db.Text
+  deductionType String?       @db.VarChar(50) // full_month, split
   numberOfMonths  Int?          @default(1)
   installmentAmount Decimal?  @db.Decimal(10, 2)
   deductFromCurrent Boolean   @default(false)

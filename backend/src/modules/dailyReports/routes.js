@@ -57,7 +57,7 @@ router.get('/:id', authenticate, DailyReportController.getReport);
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', authenticate, upload.array('screenshots', 10), DailyReportController.createReport);
+router.post('/', authenticate, upload.any(), DailyReportController.createReport);
 
 /**
  * @openapi

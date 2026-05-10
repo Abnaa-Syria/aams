@@ -62,7 +62,7 @@ router.get('/:id/files/file/download', authenticate, async (req, res, next) => {
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', authenticate, upload.single('file'), PlatformAccountController.create);
+router.post('/', authenticate, upload.any(), PlatformAccountController.create);
 
 /**
  * @openapi
@@ -73,7 +73,7 @@ router.post('/', authenticate, upload.single('file'), PlatformAccountController.
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id', authenticate, upload.single('file'), PlatformAccountController.update);
+router.patch('/:id', authenticate, upload.any(), PlatformAccountController.update);
 
 /**
  * @openapi
@@ -95,6 +95,6 @@ router.patch('/:id/verify', ...adminPerm(P.FLEET_WRITE), PlatformAccountControll
  *     security:
  *       - bearerAuth: []
  */
-router.delete('/:id', ...adminPerm(P.FLEET_WRITE), PlatformAccountController.delete);
+router.delete('/:id', authenticate, PlatformAccountController.delete);
 
 module.exports = router;

@@ -103,12 +103,16 @@ class DailyReportService {
         notes: data.notes,
         status: 'SUBMITTED',
         appBreakdowns: {
-          create: appBreakdowns.map(b => ({
-            platformName: b.platformName,
-            orders: b.orders ? parseInt(b.orders) : undefined,
-            hours: b.hours ? parseFloat(b.hours) : undefined,
-            earnings: b.earnings ? parseFloat(b.earnings) : undefined,
-          })),
+          create: appBreakdowns.map(b => {
+            const platformFile = files.find(f => f.fieldname === `screenshot_${b.platformName}`);
+            return {
+              platformName: b.platformName,
+              orders: b.orders ? parseInt(b.orders) : undefined,
+              hours: b.hours ? parseFloat(b.hours) : undefined,
+              earnings: b.earnings ? parseFloat(b.earnings) : undefined,
+              screenshotUrl: platformFile ? normalizeStoredUploadPath(platformFile.path) : undefined,
+            };
+          }),
         },
         screenshots: {
           create: files.map(f => ({

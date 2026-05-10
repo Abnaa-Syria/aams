@@ -1,0 +1,1364 @@
+{
+	"info": {
+		"_postman_id": "aams-driver-app-v2",
+		"name": "AAMS Driver Mobile API - COMPLETE",
+		"description": "Complete API collection for AAMS Driver Mobile Application. Contains all driver-specific endpoints with feature alignment.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"pm.request.headers.add({",
+					"    key: \"Authorization\",",
+					"    value: \"Bearer \" + pm.collectionVariables.get(\"access_token\")",
+					"});"
+				]
+			}
+		}
+	],
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Login (Mobile OTP)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"mobileNumber\": \"0501234567\",\n    \"otp\": \"123456\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login-mobile",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "login-mobile"]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const res = pm.response.json();",
+									"",
+									"if (res.data && res.data.accessToken) {",
+									"    pm.collectionVariables.set(\"access_token\", res.data.accessToken);",
+									"    pm.collectionVariables.set(\"refresh_token\", res.data.refreshToken);",
+									"    pm.collectionVariables.set(\"user_id\", res.data.user.id.toString());",
+									"    console.log(\"✅ Tokens saved successfully\");",
+									"} else {",
+									"    console.log(\"❌ Login failed - check response\", res);",
+									"}"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Send OTP",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"mobileNumber\": \"0501234567\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/send-otp",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "send-otp"]
+						}
+					}
+				},
+				{
+					"name": "Refresh Token",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"refreshToken\": \"{{refresh_token}}\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/refresh-token",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "refresh-token"]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const res = pm.response.json();",
+									"",
+									"if (res.data && res.data.accessToken) {",
+									"    pm.collectionVariables.set(\"access_token\", res.data.accessToken);",
+									"    console.log(\"✅ Access token refreshed\");",
+									"} else {",
+									"    console.log(\"❌ Refresh failed\", res);",
+									"}"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/auth/logout",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "logout"]
+						}
+					}
+				},
+				{
+					"name": "Get My Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/auth/me",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "me"]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const res = pm.response.json();",
+									"",
+									"if (res.data && res.data.id) {",
+									"    pm.collectionVariables.set(\"user_id\", res.data.id.toString());",
+									"    console.log(\"✅ User ID saved:\", res.data.id);",
+									"}"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Update Profile",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"fullNameAr\": \"تم تحديث الاسم\",\n    \"email\": \"driver@example.com\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/me",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "me"]
+						}
+					}
+				},
+				{
+					"name": "Register Push Token",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"ExponentPushToken[xxx]\",\n    \"provider\": \"EXPO\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/push-token",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "push-token"]
+						}
+					}
+				},
+				{
+					"name": "Remove Push Token",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"ExponentPushToken[xxx]\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/push-token",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "push-token"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Dashboard",
+			"item": [
+				{
+					"name": "Driver Home Summary",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/dashboard/driver",
+							"host": ["{{base_url}}"],
+							"path": ["dashboard", "driver"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Shifts",
+			"item": [
+				{
+					"name": "List My Shifts",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/shifts?page=1&limit=10&status=ACTIVE",
+							"host": ["{{base_url}}"],
+							"path": ["shifts"],
+							"query": [
+								{ "key": "page", "value": "1" },
+								{ "key": "limit", "value": "10" },
+								{ "key": "status", "value": "ACTIVE" }
+							]
+						}
+					}
+				},
+				{
+					"name": "Shift Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/shifts/:id",
+							"host": ["{{base_url}}"],
+							"path": ["shifts", ":id"],
+							"variable": [{ "key": "id", "value": "1" }]
+						}
+					}
+				},
+				{
+					"name": "Request Shift Start",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"vehicleId\": 1,\n    \"platformAccountId\": 1,\n    \"startPhotoUrl\": \"https://...\",\n    \"notes\": \"بدايه الشفت\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/shifts/request-start",
+							"host": ["{{base_url}}"],
+							"path": ["shifts", "request-start"]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const res = pm.response.json();",
+									"",
+									"if (res.data && res.data.id) {",
+									"    pm.collectionVariables.set(\"shift_id\", res.data.id.toString());",
+									"    console.log(\"✅ Shift ID saved:\", res.data.id);",
+									"}"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Start Shift (Confirm)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/shifts/:id/start",
+							"host": ["{{base_url}}"],
+							"path": ["shifts", ":id", "start"],
+							"variable": [{ "key": "id", "value": "1" }]
+						}
+					},
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.variables.set(\"id\", pm.collectionVariables.get(\"shift_id\"));"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "End Shift",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"endPhotoUrl\": \"https://...\",\n    \"notes\": \"نهاية الشفت\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/shifts/:id/end",
+							"host": ["{{base_url}}"],
+							"path": ["shifts", ":id", "end"],
+							"variable": [{ "key": "id", "value": "1" }]
+						}
+					},
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.variables.set(\"id\", pm.collectionVariables.get(\"shift_id\"));"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Cancel Shift",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"reason\": \"عطل في المركبة\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/shifts/:id/cancel",
+							"host": ["{{base_url}}"],
+							"path": ["shifts", ":id", "cancel"],
+							"variable": [{ "key": "id", "value": "1" }]
+						}
+					},
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.variables.set(\"id\", pm.collectionVariables.get(\"shift_id\"));"
+								]
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Daily Reports",
+			"item": [
+				{
+					"name": "List Reports",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/daily-reports",
+							"host": ["{{base_url}}"],
+							"path": ["daily-reports"]
+						}
+					}
+				},
+				{
+					"name": "Submit End of Day Report",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "totalOrders", "value": "30", "type": "text" },
+								{ "key": "totalHours", "value": "8.5", "type": "text" },
+								{ "key": "appBreakdowns", "value": "[{\"platformName\": \"Ninja\", \"orders\": 20, \"hours\": 5, \"earnings\": 250}, {\"platformName\": \"Hungerstation\", \"orders\": 10, \"hours\": 3.5, \"earnings\": 120}]", "type": "text" },
+								{ "key": "screenshot_Ninja", "type": "file", "src": [] },
+								{ "key": "screenshot_Hungerstation", "type": "file", "src": [] }
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/daily-reports",
+							"host": ["{{base_url}}"],
+							"path": ["daily-reports"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Platform Accounts",
+			"item": [
+				{
+					"name": "List My Accounts",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/platform-accounts",
+							"host": ["{{base_url}}"],
+							"path": ["platform-accounts"]
+						}
+					}
+				},
+				{
+					"name": "Link New Account (Figma)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "platformId", "value": "1", "type": "text" },
+								{ "key": "username", "value": "user123", "type": "text" },
+								{ "key": "account_screenshot", "type": "file", "src": [] }
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/platform-accounts",
+							"host": ["{{base_url}}"],
+							"path": ["platform-accounts"]
+						}
+					}
+				},
+				{
+					"name": "Delete Account",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/platform-accounts/:id",
+							"host": ["{{base_url}}"],
+							"path": ["platform-accounts", ":id"],
+							"variable": [{ "key": "id", "value": "1" }]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Violations",
+			"item": [
+				{
+					"name": "List My Violations",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/violations",
+							"host": ["{{base_url}}"],
+							"path": ["violations"]
+						}
+					}
+				},
+				{
+					"name": "Violation Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/violations/:id",
+							"host": ["{{base_url}}"],
+							"path": ["violations", ":id"],
+							"variable": [{ "key": "id", "value": "1" }]
+						}
+					}
+				},
+				{
+					"name": "Report Issue/Violation",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "violation_photo", "type": "file", "src": [] },
+								{ "key": "vehicle_photo", "type": "file", "src": [] },
+								{ "key": "amount", "value": "100", "type": "text" },
+								{ "key": "reason", "value": "سرعة زائدة", "type": "text" },
+								{ "key": "location", "value": "طريق الملك فهد", "type": "text" },
+								{ "key": "driver_comment", "value": "تعليق السائق", "type": "text" }
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/violations",
+							"host": ["{{base_url}}"],
+							"path": ["violations"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Incidents",
+			"item": [
+				{
+					"name": "List My Incidents",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/incidents?page=1&limit=10",
+							"host": ["{{base_url}}"],
+							"path": ["incidents"],
+							"query": [
+								{ "key": "page", "value": "1" },
+								{ "key": "limit", "value": "10" }
+							]
+						}
+					}
+				},
+				{
+					"name": "Incident Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/incidents/:id",
+							"host": ["{{base_url}}"],
+							"path": ["incidents", ":id"],
+							"variable": [{ "key": "id", "value": "1" }]
+						}
+					}
+				},
+				{
+					"name": "Report Incident",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "type", "value": "ACCIDENT", "type": "text" },
+								{ "key": "description", "value": "حادث مروري بسيط", "type": "text" },
+								{ "key": "location", "value": "طريق الملك فهد", "type": "text" },
+								{ "key": "photos", "type": "file", "src": [] }
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/incidents",
+							"host": ["{{base_url}}"],
+							"path": ["incidents"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Maintenance Requests",
+			"item": [
+				{
+					"name": "List My Requests",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/maintenance-requests",
+							"host": ["{{base_url}}"],
+							"path": ["maintenance-requests"]
+						}
+					}
+				},
+				{
+					"name": "New Maintenance Request",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"vehicleId\": 1,\n    \"type\": \"MECHANICAL\",\n    \"priority\": \"HIGH\",\n    \"description\": \"تغيير الفرامل\",\n    \"odometer\": 55000\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/maintenance-requests",
+							"host": ["{{base_url}}"],
+							"path": ["maintenance-requests"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Mid-shift Records",
+			"item": [
+				{
+					"name": "List My Records",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/mid-shift-records",
+							"host": ["{{base_url}}"],
+							"path": ["mid-shift-records"]
+						}
+					}
+				},
+				{
+					"name": "Submit Mid-shift Photo",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "shiftId", "value": "1", "type": "text" },
+								{ "key": "photo", "type": "file", "src": [] }
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/mid-shift-records",
+							"host": ["{{base_url}}"],
+							"path": ["mid-shift-records"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Documents",
+			"item": [
+				{
+					"name": "List My Documents",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/documents",
+							"host": ["{{base_url}}"],
+							"path": ["documents"]
+						}
+					}
+				},
+				{
+					"name": "Upload Document",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "type", "value": "NATIONAL_ID", "type": "text" },
+								{ "key": "title", "value": "الهوية الوطنية", "type": "text" },
+								{ "key": "file", "type": "file", "src": [] }
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/documents",
+							"host": ["{{base_url}}"],
+							"path": ["documents"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Licenses",
+			"item": [
+				{
+					"name": "List My Licenses",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/licenses",
+							"host": ["{{base_url}}"],
+							"path": ["licenses"]
+						}
+					}
+				},
+				{
+					"name": "Upload License",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "type", "value": "DRIVING_LICENSE", "type": "text" },
+								{ "key": "licenseNumber", "value": "12345678", "type": "text" },
+								{ "key": "file", "type": "file", "src": [] }
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/licenses",
+							"host": ["{{base_url}}"],
+							"path": ["licenses"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Bank Accounts",
+			"item": [
+				{
+					"name": "List My Bank Accounts",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/bank-accounts",
+							"host": ["{{base_url}}"],
+							"path": ["bank-accounts"]
+						}
+					}
+				},
+				{
+					"name": "Add Bank Account",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "bankName", "value": "الراجحي", "type": "text" },
+								{ "key": "iban", "value": "SA123...", "type": "text" },
+								{ "key": "accountOwnerName", "value": "سائق تجريبي", "type": "text" },
+								{ "key": "proofFile", "type": "file", "src": [] }
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/bank-accounts",
+							"host": ["{{base_url}}"],
+							"path": ["bank-accounts"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Leave Requests",
+			"item": [
+				{
+					"name": "List My Leaves",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/leave-requests",
+							"host": ["{{base_url}}"],
+							"path": ["leave-requests"]
+						}
+					}
+				},
+				{
+					"name": "Get Balances",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/leave-requests/balances/{{user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["leave-requests", "balances", "{{user_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Request Leave",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "type", "value": "ANNUAL", "type": "text" },
+								{ "key": "startDate", "value": "2024-06-01", "type": "text" },
+								{ "key": "endDate", "value": "2024-06-15", "type": "text" },
+								{ "key": "attachment", "type": "file", "src": [] }
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/leave-requests",
+							"host": ["{{base_url}}"],
+							"path": ["leave-requests"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Salary Advances",
+			"item": [
+				{
+					"name": "List My Advances",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/salary-advances",
+							"host": ["{{base_url}}"],
+							"path": ["salary-advances"]
+						}
+					}
+				},
+				{
+					"name": "Request Advance",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"amount\": 500,\n    \"reason\": \"مصاريف شخصية\",\n    \"notes\": \"ملاحظات إضافية\",\n    \"deduction_type\": \"split\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/salary-advances",
+							"host": ["{{base_url}}"],
+							"path": ["salary-advances"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Penalties & Rewards",
+			"item": [
+				{
+					"name": "My Penalties",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/penalties",
+							"host": ["{{base_url}}"],
+							"path": ["penalties"]
+						}
+					}
+				},
+				{
+					"name": "My Rewards",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/rewards",
+							"host": ["{{base_url}}"],
+							"path": ["rewards"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Ratings",
+			"item": [
+				{
+					"name": "My Evaluations",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/ratings",
+							"host": ["{{base_url}}"],
+							"path": ["ratings"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Vehicles",
+			"item": [
+				{
+					"name": "List Vehicles",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/vehicles",
+							"host": ["{{base_url}}"],
+							"path": ["vehicles"]
+						}
+					}
+				},
+				{
+					"name": "Vehicle Profile Summary",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/vehicles/:id/summary",
+							"host": ["{{base_url}}"],
+							"path": ["vehicles", ":id", "summary"],
+							"variable": [{ "key": "id", "value": "1" }]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Location",
+			"item": [
+				{
+					"name": "Log Current Location",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"latitude\": 24.7136,\n    \"longitude\": 46.6753,\n    \"accuracy\": 10,\n    \"speed\": 0\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/geofencing/locations",
+							"host": ["{{base_url}}"],
+							"path": ["geofencing", "locations"]
+						}
+					}
+				},
+				{
+					"name": "Bulk Log Locations",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"locations\": [\n        {\"latitude\": 24.7136, \"longitude\": 46.6753, \"recordedAt\": \"2024-05-10T12:00:00Z\"},\n        {\"latitude\": 24.7140, \"longitude\": 46.6760, \"recordedAt\": \"2024-05-10T12:01:00Z\"}\n    ]\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/geofencing/locations/bulk",
+							"host": ["{{base_url}}"],
+							"path": ["geofencing", "locations", "bulk"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Rest Requests (Break)",
+			"item": [
+				{
+					"name": "List My Breaks",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/break-requests",
+							"host": ["{{base_url}}"],
+							"path": ["break-requests"]
+						}
+					}
+				},
+				{
+					"name": "Request Break",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"shiftId\": 1,\n    \"reason\": \"غداء\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/break-requests",
+							"host": ["{{base_url}}"],
+							"path": ["break-requests"]
+						}
+					}
+				},
+				{
+					"name": "Start Break",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/break-requests/:id/start",
+							"host": ["{{base_url}}"],
+							"path": ["break-requests", ":id", "start"],
+							"variable": [{ "key": "id", "value": "1" }]
+						}
+					}
+				},
+				{
+					"name": "End Break",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/break-requests/:id/end",
+							"host": ["{{base_url}}"],
+							"path": ["break-requests", ":id", "end"],
+							"variable": [{ "key": "id", "value": "1" }]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Notifications",
+			"item": [
+				{
+					"name": "List My Notifications",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/notifications?page=1&limit=20",
+							"host": ["{{base_url}}"],
+							"path": ["notifications"],
+							"query": [
+								{ "key": "page", "value": "1" },
+								{ "key": "limit", "value": "20" }
+							]
+						}
+					}
+				},
+				{
+					"name": "Unread Count",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/notifications/unread-count",
+							"host": ["{{base_url}}"],
+							"path": ["notifications", "unread-count"]
+						}
+					}
+				},
+				{
+					"name": "Mark as Read",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/notifications/:id/read",
+							"host": ["{{base_url}}"],
+							"path": ["notifications", ":id", "read"],
+							"variable": [{ "key": "id", "value": "1" }]
+						}
+					}
+				},
+				{
+					"name": "Mark All Read",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/notifications/read-all",
+							"host": ["{{base_url}}"],
+							"path": ["notifications", "read-all"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Assets",
+			"item": [
+				{
+					"name": "My Asset Assignments",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/assets/assignments",
+							"host": ["{{base_url}}"],
+							"path": ["assets", "assignments"]
+						}
+					}
+				},
+				{
+					"name": "Asset Catalog",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/assets/catalog",
+							"host": ["{{base_url}}"],
+							"path": ["assets", "catalog"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Support",
+			"item": [
+				{
+					"name": "Tickets",
+					"item": [
+						{
+							"name": "List My Tickets",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+								],
+								"url": {
+							"raw": "{{base_url}}/tickets",
+							"host": ["{{base_url}}"],
+							"path": ["tickets"]
+						}
+							}
+						},
+						{
+							"name": "Create Ticket",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"title\": \"مشكلة في التطبيق\",\n    \"description\": \"التطبيق لا يفتح\",\n    \"category\": \"TECHNICAL\",\n    \"priority\": \"HIGH\"\n}",
+									"options": { "raw": { "language": "json" } }
+								},
+								"url": {
+							"raw": "{{base_url}}/tickets",
+							"host": ["{{base_url}}"],
+							"path": ["tickets"]
+						}
+							}
+						},
+						{
+							"name": "Get Ticket Details (includes messages)",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+								],
+								"description": "Messages are included in the response of this endpoint automatically.",
+						"url": {
+							"raw": "{{base_url}}/tickets/:id",
+							"host": ["{{base_url}}"],
+							"path": ["tickets", ":id"],
+							"variable": [{ "key": "id", "value": "1" }]
+						}
+							}
+						},
+						{
+							"name": "Send Ticket Message",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+								],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{ "key": "message", "value": "ردي على التحقيق", "type": "text" },
+										{ "key": "attachment", "type": "file", "src": [] }
+									]
+								},
+						"url": {
+							"raw": "{{base_url}}/tickets/:id/messages",
+							"host": ["{{base_url}}"],
+							"path": ["tickets", ":id", "messages"],
+							"variable": [{ "key": "id", "value": "1" }]
+						}
+							}
+						}
+					]
+				},
+				{
+					"name": "Chat",
+					"item": [
+						{
+							"name": "My Conversations",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+								],
+								"url": {
+							"raw": "{{base_url}}/chat/conversations",
+							"host": ["{{base_url}}"],
+							"path": ["chat", "conversations"]
+						}
+							}
+						},
+						{
+							"name": "Send Message",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+								],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{ "key": "receiverId", "value": "5", "type": "text" },
+										{ "key": "message", "value": "مرحبا", "type": "text" }
+									]
+								},
+								"url": {
+							"raw": "{{base_url}}/chat/send",
+							"host": ["{{base_url}}"],
+							"path": ["chat", "send"]
+						}
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Users",
+			"item": [
+				{
+					"name": "List Unassigned Drivers",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/users?role=DRIVER&accountStatus=ACTIVE&hasVehicle=false&limit=100",
+							"host": ["{{base_url}}"],
+							"path": ["users"],
+							"query": [
+								{ "key": "role", "value": "DRIVER" },
+								{ "key": "accountStatus", "value": "ACTIVE" },
+								{ "key": "hasVehicle", "value": "false" },
+								{ "key": "limit", "value": "100" }
+							]
+						}
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{ "key": "base_url", "value": "http://localhost:3000/api/v1", "type": "string" },
+		{ "key": "access_token", "value": "", "type": "string" },
+		{ "key": "refresh_token", "value": "", "type": "string" },
+		{ "key": "user_id", "value": "1", "type": "string" },
+		{ "key": "shift_id", "value": "", "type": "string" }
+	]
+}

@@ -71,8 +71,8 @@ router.post(
   '/',
   authenticate,
   upload.fields([
-    { name: 'vehicleImage', maxCount: 1 },
-    { name: 'violationImage', maxCount: 1 },
+    { name: 'vehicle_photo', maxCount: 1 },
+    { name: 'violation_photo', maxCount: 1 },
     { name: 'bikeImage', maxCount: 1 },
   ]),
   ViolationController.createViolation

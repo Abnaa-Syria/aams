@@ -87,6 +87,13 @@ class UserService {
       where.bankAccounts = { none: {} };
     }
 
+    // Filter by vehicle assignment
+    if (query.hasVehicle === 'true') {
+      where.vehicleAssignment = { some: { isActive: true } };
+    } else if (query.hasVehicle === 'false') {
+      where.vehicleAssignment = { none: { isActive: true } };
+    }
+
     if (query.paymentMethod) {
       where.bankAccounts = {
         ...(where.bankAccounts || {}),
