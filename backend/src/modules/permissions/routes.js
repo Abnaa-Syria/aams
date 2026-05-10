@@ -90,6 +90,8 @@ router.get('/matrix', async (req, res, next) => {
     const roleList = roles.map((r) => ({
       key: r.key,
       label: ROLE_LABELS[r.key] || r.labelAr,
+      labelAr: r.labelAr,
+      labelEn: r.labelEn,
       isSystem: r.isSystem,
       permissionCount: r.permissions.length,
       permissions: r.permissions.map((rp) => rp.permission.key),

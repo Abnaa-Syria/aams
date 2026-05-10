@@ -73,6 +73,9 @@
 
 /* Existing component classes */
 .page-container { @apply p-4 md:p-8 max-w-[1600px] mx-auto w-full; }
+.table-responsive {
+  @apply overflow-x-auto w-full rounded-3xl;
+}
 .card { 
   @apply bg-white/70 backdrop-blur-xl rounded-3xl border border-white/60 p-6 shadow-premium transition-all duration-300;
 }

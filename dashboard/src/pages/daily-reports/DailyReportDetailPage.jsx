@@ -91,7 +91,7 @@ export default function DailyReportDetailPage() {
           {row.appBreakdowns?.length > 0 && (
             <div className="bg-white rounded-3xl shadow-premium border border-slate-100 overflow-hidden">
               <div className="px-6 py-4 border-b border-slate-100 text-sm font-black text-slate-800">تفصيل المنصات</div>
-              <div className="overflow-x-auto">
+              <div className="table-responsive">
                 <table className="w-full text-start text-sm">
                   <thead>
                     <tr className="bg-slate-50 text-xs font-bold text-slate-500">
