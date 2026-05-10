@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import { updateUser } from '../../store/authSlice';
 import { apiService } from '../../services/api';
 import { 
   LuUser, LuSettings, LuSmartphone, LuDatabase, LuPlus, LuPencil, 
@@ -146,6 +147,7 @@ function ProfileField({ label, value }) {
 }
 
 export default function SettingsPage() {
+  const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
   const [settings, setSettings] = useState([]);
   const [platforms, setPlatforms] = useState([]);
@@ -232,7 +234,8 @@ export default function SettingsPage() {
   const handleProfileUpdate = async (formData) => {
     setSaving(true);
     try {
-      await apiService.put('/auth/me', formData);
+      const { data } = await apiService.put('/auth/me', formData);
+      dispatch(updateUser(data.data));
       showToast('تم تحديث الملف الشخصي بنجاح');
       setProfileModal({ open: false, section: null });
     } catch { showToast('فشل تحديث الملف', 'error'); } finally { setSaving(false); }

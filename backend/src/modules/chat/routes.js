@@ -196,4 +196,39 @@ router.get('/admin/conversations', ...adminPerm(P.COMPLIANCE_READ), async (req, 
   } catch (err) { next(err); }
 });
 
+/**
+ * @openapi
+ * /chat/messages/{partnerId}:
+ *   delete:
+ *     tags: [Chat]
+ *     summary: Delete all messages with a partner
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: partnerId
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Messages deleted
+ */
+router.delete('/messages/:partnerId', authenticate, async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const partnerId = parseInt(req.params.partnerId, 10);
+
+    await prisma.chatMessage.deleteMany({
+      where: {
+        OR: [
+          { senderId: userId, receiverId: partnerId },
+          { senderId: partnerId, receiverId: userId },
+        ],
+      },
+    });
+
+    return ApiResponse.success(res, null, 'Chat history cleared');
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

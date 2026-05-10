@@ -21,7 +21,7 @@ const columns = [
 
 const statusOptions = [
   { value: 'PENDING', label: 'معلق' },
-  { value: 'APPROVED', label: 'مطبق' },
+  { value: 'APPLIED', label: 'مطبق' },
   { value: 'APPEALED', label: 'معترض' },
   { value: 'CANCELLED', label: 'ملغي' },
 ];

@@ -21,15 +21,14 @@ export default function DataTable({ columns, data, loading, onRowClick, emptyMes
   return (
     /* التعديل الجوهري: تغليف الجدول بالكامل داخل كارت أبيض ذو حواف ناعمة وظل */
     <div className="bg-white rounded-2xl shadow-premium border border-slate-100 overflow-hidden">
-      <div className="overflow-x-auto custom-scrollbar">
-        <table className="w-full text-start border-collapse">
+      <div className="overflow-x-auto custom-scrollbar touch-pan-x">
+        <table className="min-w-full text-start border-collapse">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-100">
               {columns.map((col) => (
                 <th 
                   key={col.key} 
-                  /* تخفيف سماكة الخط ليتناسب مع الإسكندرية واستخدام text-start */
-                  className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wide text-start"
+                  className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wide text-start whitespace-nowrap"
                   style={col.width ? { width: col.width } : {}}
                 >
                   {col.label}

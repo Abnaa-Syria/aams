@@ -8,7 +8,7 @@ import Pagination from '../../components/ui/Pagination';
 import StatusBadge from '../../components/ui/StatusBadge';
 import Modal from '../../components/ui/Modal';
 import toast from 'react-hot-toast';
-import { LuPlus, LuSearch, LuFilter, LuUsers, LuRefreshCw } from 'react-icons/lu';
+import { LuPlus, LuSearch, LuFilter, LuUsers, LuRefreshCw, LuMessageSquare } from 'react-icons/lu';
 
 export default function DriversPage() {
   const { user: authUser } = useSelector((s) => s.auth);
@@ -53,7 +53,20 @@ export default function DriversPage() {
     { key: 'accountStatus', label: 'الحالة', render: (val) => <StatusBadge status={val} /> },
     { key: 'city', label: 'المدينة', render: (val) => val?.nameAr || '—' },
     { key: 'supervisor', label: 'المشرف', render: (val) => val?.fullNameAr || '—' },
-    { key: 'createdAt', label: 'تاريخ التسجيل', render: (val) => val ? new Date(val).toLocaleDateString('ar-SA') : '—' },
+    { 
+      key: 'actions', 
+      label: 'مراسلة', 
+      stopRowClick: true,
+      render: (_, row) => (
+        <button 
+          onClick={(e) => { e.stopPropagation(); navigate(`/chat?userId=${row.id}`); }}
+          className="w-10 h-10 rounded-xl bg-brand-light text-brand-primary flex items-center justify-center hover:bg-brand-primary hover:text-white transition-all shadow-sm"
+          title="بدء محادثة"
+        >
+          <LuMessageSquare size={18} />
+        </button>
+      )
+    },
   ];
 
   return (

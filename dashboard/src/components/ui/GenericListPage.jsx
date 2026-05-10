@@ -83,7 +83,7 @@ export default function GenericListPage({
         </div>
       )}
 
-      <div className="card !p-0 overflow-hidden border-none ring-1 ring-slate-200/50">
+      <div className="card !p-0 border-none ring-1 ring-slate-200/50">
         <DataTable columns={columns} data={data} loading={loading} onRowClick={onRowClick} />
         <Pagination meta={meta} onPageChange={(p) => setParams(prev => ({ ...prev, page: p }))} />
       </div>

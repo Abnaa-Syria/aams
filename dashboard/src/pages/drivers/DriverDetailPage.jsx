@@ -10,7 +10,7 @@ import {
   LuArrowRight, LuUser, LuFileText, LuShield, LuClock, LuSmartphone, 
   LuFuel, LuTriangleAlert, LuCircleAlert, LuClipboardList, LuGift, 
   LuSearch, LuCalendarOff, LuDollarSign, LuWrench, LuMapPin, LuMail, LuPhone, LuIdCard, LuChevronLeft,
-  LuMap, LuEye, LuPen, LuActivity, LuUserPlus
+  LuMap, LuEye, LuPen, LuActivity, LuUserPlus, LuMessageSquare
 } from 'react-icons/lu';
 import { resolveUploadUrl } from '../../utils/apiOrigin';
 import { hasAnyPermission, PERMISSIONS as P } from '../../utils/rolePermissions';
@@ -46,7 +46,11 @@ const FIELD_TRANSLATIONS = {
   description: 'الوصف',
   cost: 'التكلفة',
   employeeNumber: 'الرقم الوظيفي',
-  identityNumber: 'رقم الهوية'
+  identityNumber: 'رقم الهوية',
+  profileImageUrl: 'الصورة الشخصية',
+  fileUrl: 'رابط الملف',
+  receiptUrl: 'رابط الإيصال',
+  attachmentUrl: 'المرفق'
 };
 
 const STATUS_TRANSLATIONS = {
@@ -133,6 +137,7 @@ export default function DriverDetailPage() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createForm, setCreateForm] = useState({});
+  const [fileAttachment, setFileAttachment] = useState(null);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
 
   const handleView = (record) => {
@@ -223,14 +228,20 @@ export default function DriverDetailPage() {
   const handleCreateOpen = () => {
     // Set initial state based on tab
     let initialForm = { userId: parseInt(id) };
-    if (tab === 'leaves') initialForm = { ...initialForm, leaveType: 'ANNUAL', startDate: new Date().toISOString().split('T')[0], endDate: new Date().toISOString().split('T')[0] };
-    if (tab === 'penalties') initialForm = { ...initialForm, type: 'FINANCIAL', amount: 0, penaltyDate: new Date().toISOString().split('T')[0], reason: '' };
+    const today = new Date().toISOString().split('T')[0];
+    
+    if (tab === 'documents') initialForm = { ...initialForm, type: 'NATIONAL_ID', title: '', issueDate: today, expiryDate: today };
+    if (tab === 'licenses') initialForm = { ...initialForm, type: 'DRIVING_LICENSE', title: '', licenseNumber: '', issueDate: today, expiryDate: today };
+    if (tab === 'fuel') initialForm = { ...initialForm, fuelDate: today, amount: 0, liters: 0, vehicleId: driver.vehicleAssignment?.[0]?.vehicleId };
+    if (tab === 'violations') initialForm = { ...initialForm, reason: '', violationDate: today, amount: 0 };
+    if (tab === 'leaves') initialForm = { ...initialForm, leaveType: 'ANNUAL', startDate: today, endDate: today };
+    if (tab === 'penalties') initialForm = { ...initialForm, type: 'FINANCIAL', amount: 0, penaltyDate: today, reason: '' };
     if (tab === 'rewards') initialForm = { ...initialForm, category: 'PERFORMANCE', amount: 0, reason: '' };
-    if (tab === 'fuel') initialForm = { ...initialForm, fuelDate: new Date().toISOString(), amount: 0, liters: 0 };
-    if (tab === 'maintenance') initialForm = { ...initialForm, priority: 'MEDIUM', issueType: 'MECHANICAL' };
+    if (tab === 'maintenance') initialForm = { ...initialForm, priority: 'MEDIUM', issueType: 'MECHANICAL', vehicleId: driver.vehicleAssignment?.[0]?.vehicleId };
     if (tab === 'salary') initialForm = { ...initialForm, amount: 0, reason: '' };
     
     setCreateForm(initialForm);
+    setFileAttachment(null);
     setCreateModalOpen(true);
   };
 
@@ -253,9 +264,26 @@ export default function DriverDetailPage() {
         default: return;
       }
       
-      await apiService.post(endpoint, createForm);
+      if (fileAttachment) {
+        const formData = new FormData();
+        Object.entries(createForm).forEach(([key, val]) => {
+          formData.append(key, val);
+        });
+        
+        // Determine correct field name for the backend
+        let fieldName = 'file';
+        if (tab === 'fuel') fieldName = 'receipt';
+        else if (tab === 'leaves' || tab === 'maintenance') fieldName = 'attachment';
+        
+        formData.append(fieldName, fileAttachment);
+        await apiService.upload(endpoint, formData);
+      } else {
+        await apiService.post(endpoint, createForm);
+      }
+
       toast.success('تمت الإضافة بنجاح');
       setCreateModalOpen(false);
+      setFileAttachment(null);
       loadTab();
       loadSummary();
     } catch (err) {
@@ -480,6 +508,13 @@ export default function DriverDetailPage() {
 
           {/* Action Section */}
           <div className="flex gap-3">
+             <button 
+               onClick={() => navigate(`/chat?userId=${driver.id}`)}
+               className="btn bg-brand-light text-brand-primary hover:bg-brand-primary hover:text-white !rounded-2xl flex items-center gap-2"
+             >
+               <LuMessageSquare size={18} />
+               مراسلة
+             </button>
              {canWriteUser && (
                 <button 
                   onClick={() => setShowStatus(true)}
@@ -647,42 +682,40 @@ export default function DriverDetailPage() {
             </div>
           </div>
         ) : (
-          <div className="bg-white rounded-3xl shadow-premium border border-slate-100 overflow-hidden">
-            <DataTable
-              columns={[
-                ...(tabColumns[tab] || []),
-                {
-                  key: 'actions',
-                  label: 'إجراءات',
-                  stopRowClick: true,
-                  render: (_, record) => (
-                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <DataTable
+            columns={[
+              ...(tabColumns[tab] || []),
+              {
+                key: 'actions',
+                label: 'إجراءات',
+                stopRowClick: true,
+                render: (_, record) => (
+                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleView(record); }}
+                      className="w-8 h-8 rounded-xl flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-brand-light hover:text-brand-primary transition-colors"
+                      title="عرض التفاصيل"
+                    >
+                      <LuEye size={16} />
+                    </button>
+                    {canWriteUser && (
                       <button
-                        onClick={(e) => { e.stopPropagation(); handleView(record); }}
-                        className="w-8 h-8 rounded-xl flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-brand-light hover:text-brand-primary transition-colors"
-                        title="عرض التفاصيل"
+                        onClick={(e) => { e.stopPropagation(); handleEdit(record, e); }}
+                        className="w-8 h-8 rounded-xl flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition-colors"
+                        title="تعديل السجل"
                       >
-                        <LuEye size={16} />
+                        <LuPen size={16} />
                       </button>
-                      {canWriteUser && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleEdit(record, e); }}
-                          className="w-8 h-8 rounded-xl flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition-colors"
-                          title="تعديل السجل"
-                        >
-                          <LuPen size={16} />
-                        </button>
-                      )}
-                    </div>
-                  ),
-                }
-              ]}
-              data={tabData}
-              loading={tabLoading}
-              emptyMessage="لا توجد سجلات متاحة في هذا التصنيف حالياً"
-              onRowClick={(row) => handleView(row)}
-            />
-          </div>
+                    )}
+                  </div>
+                ),
+              }
+            ]}
+            data={tabData}
+            loading={tabLoading}
+            emptyMessage="لا توجد سجلات متاحة في هذا التصنيف حالياً"
+            onRowClick={(row) => handleView(row)}
+          />
         )}
       </div>
 
@@ -745,14 +778,15 @@ export default function DriverDetailPage() {
                   // 3. Smart Formatting: Images & Status
                   if (key === 'status') {
                     displayValue = <StatusBadge status={value} />;
-                  } else if (typeof value === 'string' && (value.match(/\.(jpg|jpeg|png|gif|webp)$/i) || value.includes('uploads/'))) {
+                  } else if (typeof value === 'string' && (value.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp|pdf)$/i) || value.includes('uploads/'))) {
                     isPreview = true;
+                    const isPdf = value.toLowerCase().endsWith('.pdf') || value.toLowerCase().includes('.pdf?');
                     displayValue = (
                       <a href={resolveUploadUrl(value)} target="_blank" rel="noopener noreferrer" className="block mt-2">
-                        {value.match(/\.(pdf)$/i) ? (
+                        {isPdf ? (
                           <div className="inline-flex items-center gap-2 bg-slate-100 text-brand-primary px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-200 transition-colors">
                             <LuFileText size={18} />
-                            عرض الملف المرفق
+                            عرض الملف المرفق (PDF)
                           </div>
                         ) : (
                           <img src={resolveUploadUrl(value)} alt="Attachment" className="max-w-[200px] rounded-xl border-4 border-white shadow-sm hover:scale-105 transition-transform" />
@@ -845,6 +879,130 @@ export default function DriverDetailPage() {
       {/* Universal Create Modal */}
       <Modal isOpen={createModalOpen} onClose={() => setCreateModalOpen(false)} title={`إضافة ${TABS.find(t => t.id === tab)?.label} جديد`}>
         <form onSubmit={handleCreateSubmit} className="space-y-4">
+           {tab === 'documents' && (
+             <>
+               <div className="space-y-1">
+                 <label className="text-xs font-black text-slate-500 uppercase">نوع المستند</label>
+                 <select className="form-input !rounded-xl" value={createForm.type} onChange={e => setCreateForm({...createForm, type: e.target.value})}>
+                    <option value="NATIONAL_ID">هوية وطنية</option>
+                    <option value="IQAMA">إقامة</option>
+                    <option value="PASSPORT">جواز سفر</option>
+                    <option value="WORK_CONTRACT">عقد عمل</option>
+                    <option value="OTHER">آخر</option>
+                 </select>
+               </div>
+               <div className="space-y-1">
+                 <label className="text-xs font-black text-slate-500 uppercase">العنوان / المسمى</label>
+                 <input className="form-input !rounded-xl" value={createForm.title} onChange={e => setCreateForm({...createForm, title: e.target.value})} required placeholder="مثال: صورة الهوية"/>
+               </div>
+               <div className="grid grid-cols-2 gap-4">
+                 <div className="space-y-1">
+                   <label className="text-xs font-black text-slate-500 uppercase">تاريخ الإصدار</label>
+                   <input type="date" className="form-input !rounded-xl" value={createForm.issueDate} onChange={e => setCreateForm({...createForm, issueDate: e.target.value})}/>
+                 </div>
+                 <div className="space-y-1">
+                   <label className="text-xs font-black text-slate-500 uppercase">تاريخ الانتهاء</label>
+                   <input type="date" className="form-input !rounded-xl" value={createForm.expiryDate} onChange={e => setCreateForm({...createForm, expiryDate: e.target.value})}/>
+                 </div>
+               </div>
+             </>
+           )}
+
+           {tab === 'licenses' && (
+             <>
+               <div className="space-y-1">
+                 <label className="text-xs font-black text-slate-500 uppercase">نوع الرخصة</label>
+                 <select className="form-input !rounded-xl" value={createForm.type} onChange={e => setCreateForm({...createForm, type: e.target.value})}>
+                    <option value="DRIVING_LICENSE">رخصة قيادة</option>
+                    <option value="TRANSPORT_LICENSE">بطاقة تشغيل</option>
+                    <option value="MEDICAL_CERTIFICATE">شهادة صحية</option>
+                    <option value="OTHER_CERTIFICATE">أخرى</option>
+                 </select>
+               </div>
+               <div className="space-y-1">
+                 <label className="text-xs font-black text-slate-500 uppercase">المسمى</label>
+                 <input className="form-input !rounded-xl" value={createForm.title} onChange={e => setCreateForm({...createForm, title: e.target.value})} required placeholder="مثال: رخصة عمومي"/>
+               </div>
+               <div className="space-y-1">
+                 <label className="text-xs font-black text-slate-500 uppercase">رقم الرخصة</label>
+                 <input className="form-input !rounded-xl" value={createForm.licenseNumber} onChange={e => setCreateForm({...createForm, licenseNumber: e.target.value})}/>
+               </div>
+               <div className="grid grid-cols-2 gap-4">
+                 <div className="space-y-1">
+                   <label className="text-xs font-black text-slate-500 uppercase">تاريخ الإصدار</label>
+                   <input type="date" className="form-input !rounded-xl" value={createForm.issueDate} onChange={e => setCreateForm({...createForm, issueDate: e.target.value})}/>
+                 </div>
+                 <div className="space-y-1">
+                   <label className="text-xs font-black text-slate-500 uppercase">تاريخ الانتهاء</label>
+                   <input type="date" className="form-input !rounded-xl" value={createForm.expiryDate} onChange={e => setCreateForm({...createForm, expiryDate: e.target.value})}/>
+                 </div>
+               </div>
+             </>
+           )}
+
+           {tab === 'fuel' && (
+             <>
+               <div className="space-y-1">
+                 <label className="text-xs font-black text-slate-500 uppercase">المبلغ</label>
+                 <input type="number" className="form-input !rounded-xl" value={createForm.amount} onChange={e => setCreateForm({...createForm, amount: parseFloat(e.target.value)})}/>
+               </div>
+               <div className="space-y-1">
+                 <label className="text-xs font-black text-slate-500 uppercase">اللترات</label>
+                 <input type="number" className="form-input !rounded-xl" value={createForm.liters} onChange={e => setCreateForm({...createForm, liters: parseFloat(e.target.value)})}/>
+               </div>
+               <div className="space-y-1">
+                 <label className="text-xs font-black text-slate-500 uppercase">التاريخ</label>
+                 <input type="date" className="form-input !rounded-xl" value={createForm.fuelDate} onChange={e => setCreateForm({...createForm, fuelDate: e.target.value})}/>
+               </div>
+             </>
+           )}
+
+           {tab === 'violations' && (
+             <>
+               <div className="space-y-1">
+                 <label className="text-xs font-black text-slate-500 uppercase">السبب / نوع المخالفة</label>
+                 <input className="form-input !rounded-xl" value={createForm.reason} onChange={e => setCreateForm({...createForm, reason: e.target.value})} required />
+               </div>
+               <div className="space-y-1">
+                 <label className="text-xs font-black text-slate-500 uppercase">المبلغ</label>
+                 <input type="number" className="form-input !rounded-xl" value={createForm.amount} onChange={e => setCreateForm({...createForm, amount: parseFloat(e.target.value)})}/>
+               </div>
+               <div className="space-y-1">
+                 <label className="text-xs font-black text-slate-500 uppercase">تاريخ المخالفة</label>
+                 <input type="date" className="form-input !rounded-xl" value={createForm.violationDate} onChange={e => setCreateForm({...createForm, violationDate: e.target.value})}/>
+               </div>
+             </>
+           )}
+
+           {tab === 'maintenance' && (
+             <>
+               <div className="space-y-1">
+                 <label className="text-xs font-black text-slate-500 uppercase">نوع العطل</label>
+                 <select className="form-input !rounded-xl" value={createForm.issueType} onChange={e => setCreateForm({...createForm, issueType: e.target.value})}>
+                    <option value="MECHANICAL">ميكانيكي</option>
+                    <option value="ELECTRICAL">كهربائي</option>
+                    <option value="ACCIDENT">حادث</option>
+                    <option value="TIRES">إطارات</option>
+                    <option value="OIL">تغيير زيت</option>
+                    <option value="OTHER">أخرى</option>
+                 </select>
+               </div>
+               <div className="space-y-1">
+                 <label className="text-xs font-black text-slate-500 uppercase">الأولوية</label>
+                 <select className="form-input !rounded-xl" value={createForm.priority} onChange={e => setCreateForm({...createForm, priority: e.target.value})}>
+                    <option value="LOW">منخفضة</option>
+                    <option value="MEDIUM">متوسطة</option>
+                    <option value="HIGH">عالية</option>
+                    <option value="URGENT">طارئة</option>
+                 </select>
+               </div>
+               <div className="space-y-1">
+                 <label className="text-xs font-black text-slate-500 uppercase">الوصف</label>
+                 <textarea className="form-input !rounded-xl min-h-[80px]" value={createForm.description} onChange={e => setCreateForm({...createForm, description: e.target.value})} required />
+               </div>
+             </>
+           )}
+
            {tab === 'penalties' && (
              <>
                <div className="space-y-1">
@@ -934,10 +1092,10 @@ export default function DriverDetailPage() {
                    <input type="date" className="form-input !rounded-xl" value={createForm.endDate} onChange={e => setCreateForm({...createForm, endDate: e.target.value})}/>
                  </div>
                </div>
-                <div className="space-y-1">
-                   <label className="text-xs font-black text-slate-500 uppercase">السبب (مطلوب)</label>
-                   <textarea className="form-input !rounded-xl min-h-[80px]" value={createForm.reason} onChange={e => setCreateForm({...createForm, reason: e.target.value})} required />
-                 </div>
+                 <div className="space-y-1">
+                    <label className="text-xs font-black text-slate-500 uppercase">السبب (مطلوب)</label>
+                    <textarea className="form-input !rounded-xl min-h-[80px]" value={createForm.reason} onChange={e => setCreateForm({...createForm, reason: e.target.value})} required />
+                  </div>
              </>
            )}
 
@@ -954,11 +1112,43 @@ export default function DriverDetailPage() {
              </>
            )}
 
-           {/* Add buttons */}
-           <div className="flex gap-3 pt-6">
-              <button type="submit" className="flex-1 btn btn-primary !rounded-xl !py-3 justify-center">إتمام الإضافة</button>
-              <button type="button" onClick={() => setCreateModalOpen(false)} className="flex-1 btn bg-slate-100 text-slate-500 !rounded-xl !py-3 justify-center">إلغاء</button>
-           </div>
+           {['documents', 'licenses', 'fuel', 'leaves', 'maintenance'].includes(tab) && (
+              <div className="space-y-1">
+                <label className="text-xs font-black text-slate-500 uppercase">إرفاق صورة / ملف</label>
+                <div className="flex flex-col gap-2">
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    id="attachment-upload"
+                    onChange={e => setFileAttachment(e.target.files[0])}
+                  />
+                  <label 
+                    htmlFor="attachment-upload"
+                    className="flex items-center justify-center gap-3 p-4 border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer hover:bg-slate-50 hover:border-brand-primary transition-all group"
+                  >
+                    <LuFileText className="text-slate-400 group-hover:text-brand-primary" size={24} />
+                    <span className="text-sm font-bold text-slate-500 group-hover:text-brand-primary">
+                      {fileAttachment ? fileAttachment.name : 'اضغط لاختيار ملف (صورة أو PDF)'}
+                    </span>
+                  </label>
+                  {fileAttachment && (
+                    <button 
+                      type="button" 
+                      onClick={() => setFileAttachment(null)}
+                      className="text-[0.65rem] font-black text-red-500 hover:underline w-fit"
+                    >
+                      حذف الملف المختار
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Add buttons */}
+            <div className="flex gap-3 pt-6">
+               <button type="submit" className="flex-1 btn btn-primary !rounded-xl !py-3 justify-center">إتمام الإضافة</button>
+               <button type="button" onClick={() => setCreateModalOpen(false)} className="flex-1 btn bg-slate-100 text-slate-500 !rounded-xl !py-3 justify-center">إلغاء</button>
+            </div>
         </form>
       </Modal>
     </div>

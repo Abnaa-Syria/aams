@@ -10,7 +10,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import RowActions from '../../components/ui/RowActions';
 import PermissionGate from '../../components/auth/PermissionGate';
 import { PERMISSIONS as P, hasAnyPermission } from '../../utils/rolePermissions';
-import { LuPencil, LuPlus, LuTrash2 } from 'react-icons/lu';
+import { LuPencil, LuPlus, LuTrash2, LuMessageSquare } from 'react-icons/lu';
 
 const statusOptions = [
   { value: 'ACTIVE', label: 'نشط' },
@@ -128,19 +128,22 @@ export default function SupervisorsPage() {
       label: 'إجراءات',
       stopRowClick: true,
       render: (_, row) => (
-        <PermissionGate anyOf={[P.USERS_WRITE]}>
-          <RowActions>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEdit(row)}>
+        <RowActions>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => navigate(`/chat?userId=${row.id}`)} title="مراسلة">
+            <LuMessageSquare size={16} />
+          </button>
+          <PermissionGate anyOf={[P.USERS_WRITE]}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEdit(row)} title="تعديل">
               <LuPencil size={16} />
             </button>
-            <button type="button" className="btn btn-danger btn-sm" onClick={() => setConfirmDelete(row)}>
+            <button type="button" className="btn btn-danger btn-sm" onClick={() => setConfirmDelete(row)} title="حذف">
               <LuTrash2 size={16} />
             </button>
-          </RowActions>
-        </PermissionGate>
+          </PermissionGate>
+        </RowActions>
       ),
     },
-  ]), []);
+  ]), [navigate]);
 
   return (
     <>

@@ -31,9 +31,13 @@ class PlatformAccountService {
   }
 
   static async getById(id, currentUser) {
+    const accountId = parseInt(id);
     const item = await prisma.platformAccount.findFirst({
-      where: { id: parseInt(id), deletedAt: null },
-      include: { user: { select: { id: true, fullNameAr: true } }, platform: true },
+      where: { id: accountId, deletedAt: null },
+      include: { 
+        user: { select: { id: true, fullNameAr: true, identityNumber: true, mobileNumber: true } }, 
+        platform: true 
+      },
     });
     if (!item) throw new NotFoundError('Platform Account');
     
@@ -42,7 +46,37 @@ class PlatformAccountService {
        throw new NotFoundError('Platform Account');
     }
 
-    return item;
+    // Fetch Shifts (Orders)
+    const shifts = await prisma.shift.findMany({
+      where: { platformAccountId: accountId },
+      include: {
+        user: { select: { id: true, fullNameAr: true } },
+        dailyReports: { select: { totalOrders: true } }
+      },
+      orderBy: { startedAt: 'desc' },
+      take: 50
+    });
+
+    // Fetch Audit Logs (Assignment History)
+    const auditLogs = await prisma.auditLog.findMany({
+      where: {
+        entity: 'PlatformAccount',
+        entityId: String(accountId),
+      },
+      include: {
+        user: { select: { id: true, fullNameAr: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return {
+      ...item,
+      shifts: shifts.map(s => ({
+        ...s,
+        totalOrders: s.dailyReports.reduce((sum, r) => sum + (r.totalOrders || 0), 0)
+      })),
+      auditLogs
+    };
   }
 
   static async create(userId, data, file = null, adminId) {

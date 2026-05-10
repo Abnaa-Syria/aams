@@ -109,8 +109,9 @@ class PenaltyService {
     const existing = await prisma.penalty.findUnique({ where: { id: parseInt(id) } });
     if (!existing) throw new NotFoundError('Penalty');
 
-    const updateData = { status };
-    if (status === 'APPLIED') {
+    const effectiveStatus = status === 'APPROVED' ? 'APPLIED' : status;
+    const updateData = { status: effectiveStatus };
+    if (effectiveStatus === 'APPLIED') {
       updateData.approvedBy = adminId;
       updateData.approvedAt = new Date();
     }

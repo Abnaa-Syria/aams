@@ -7,7 +7,7 @@ import DataTable from '../../components/ui/DataTable';
 import Modal from '../../components/ui/Modal';
 import RowActions from '../../components/ui/RowActions';
 import toast from 'react-hot-toast';
-import { LuArrowRight, LuUser, LuUserPlus, LuPhone, LuMail, LuIdCard, LuUsers, LuCalendar, LuBriefcase, LuExternalLink, LuUserMinus, LuChevronLeft } from 'react-icons/lu';
+import { LuArrowRight, LuUser, LuUserPlus, LuPhone, LuMail, LuIdCard, LuUsers, LuCalendar, LuBriefcase, LuExternalLink, LuUserMinus, LuChevronLeft, LuMessageSquare } from 'react-icons/lu';
 import { hasAnyPermission, PERMISSIONS as P } from '../../utils/rolePermissions';
 
 export default function SupervisorDetailPage() {
@@ -179,6 +179,13 @@ export default function SupervisorDetailPage() {
 
           {/* Action Section */}
           <div className="flex gap-3">
+             <button 
+               onClick={() => navigate(`/chat?userId=${supervisor.id}`)}
+               className="btn bg-brand-light text-brand-primary hover:bg-brand-primary hover:text-white !rounded-2xl flex items-center gap-2"
+             >
+               <LuMessageSquare size={18} />
+               مراسلة
+             </button>
              {canWrite && (
                 <button 
                   onClick={openAssignModal}

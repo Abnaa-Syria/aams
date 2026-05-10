@@ -4,6 +4,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { logout, getMe } from '../store/authSlice';
 import { NAV_GROUPS } from '../config/navConfig';
 import { canSeeNavItem } from '../utils/rolePermissions';
+import { apiService } from '../services/api';
+import { resolveUploadUrl } from '../utils/apiOrigin';
 import {
   LuLayoutDashboard, LuUsers, LuUserCog, LuTruck, LuFileText, LuShield,
   LuBanknote, LuSmartphone, LuClock, LuFuel, LuTriangleAlert, LuCircleAlert,
@@ -45,13 +47,37 @@ const ICON_MAP = {
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [collapsedGroups, setCollapsedGroups] = useState({});
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [loadingNotifs, setLoadingNotifs] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useSelector((state) => state.auth);
 
+  const fetchRecentNotifications = async () => {
+    setLoadingNotifs(true);
+    try {
+      const { data } = await apiService.get('/notifications/admin/all', { limit: 5 });
+      setNotifications(data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch notifications', err);
+    } finally {
+      setLoadingNotifs(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showNotifications) {
+      fetchRecentNotifications();
+    }
+  }, [showNotifications]);
+
   useEffect(() => {
     if (isAuthenticated && !user) {
       dispatch(getMe());
+    }
+    if (isAuthenticated) {
+      fetchRecentNotifications();
     }
   }, [dispatch, isAuthenticated, user]);
 
@@ -168,7 +194,7 @@ export default function DashboardLayout() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         {/* Top Header */}
-        <header className="bg-white/80 backdrop-blur-md border-b border-slate-100 px-8 py-5 flex items-center justify-between sticky top-0 z-90 shadow-sm">
+        <header className="bg-white/80 backdrop-blur-md border-b border-slate-100 px-8 py-5 flex items-center justify-between sticky top-0 z-[100] shadow-sm">
           <div className="flex items-center gap-8">
             <button 
               type="button" 
@@ -188,10 +214,71 @@ export default function DashboardLayout() {
           </div>
           
           <div className="flex items-center gap-5">
-            <button className="relative w-11 h-11 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-all">
-              <LuBell size={20} />
-              <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-brand-primary border-2 border-white rounded-full"></span>
-            </button>
+            <div className="relative">
+              <button 
+                onClick={() => setShowNotifications(!showNotifications)}
+                className={`relative w-11 h-11 rounded-2xl flex items-center justify-center transition-all ${
+                  showNotifications ? 'bg-brand-primary text-white shadow-orange' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                }`}
+              >
+                <LuBell size={20} />
+                {!showNotifications && notifications.some(n => !n.isRead) && (
+                  <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-brand-primary border-2 border-white rounded-full"></span>
+                )}
+              </button>
+
+              {showNotifications && (
+                <>
+                  <div className="fixed inset-0 z-[105]" onClick={() => setShowNotifications(false)}></div>
+                  <div className="absolute left-0 mt-3 w-[350px] bg-white rounded-[2rem] shadow-premium border border-slate-100 z-[110] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="p-6 border-b border-slate-50 flex items-center justify-between">
+                      <h4 className="text-sm font-black text-slate-800">الإشعارات الأخيرة</h4>
+                      <button 
+                        onClick={() => { navigate('/notifications'); setShowNotifications(false); }}
+                        className="text-[0.7rem] font-black text-brand-primary hover:underline"
+                      >
+                        عرض الكل
+                      </button>
+                    </div>
+                    
+                    <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
+                      {loadingNotifs ? (
+                        <div className="p-12 text-center text-slate-400 font-bold text-xs flex flex-col items-center gap-3">
+                          <LuBell className="animate-bounce opacity-20" size={32} />
+                          جاري التحميل...
+                        </div>
+                      ) : notifications.length > 0 ? (
+                        notifications.map((n) => (
+                          <div 
+                            key={n.id} 
+                            onClick={() => { navigate('/notifications'); setShowNotifications(false); }}
+                            className={`p-5 border-b border-slate-50 last:border-b-0 hover:bg-slate-50 transition-colors cursor-pointer text-right ${!n.isRead ? 'bg-brand-light/20' : ''}`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${!n.isRead ? 'bg-brand-primary text-white' : 'bg-slate-100 text-slate-400'}`}>
+                                <LuBell size={14} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-black text-slate-800 truncate mb-1">{n.title}</p>
+                                <p className="text-[0.65rem] font-medium text-slate-500 line-clamp-2 leading-relaxed">{n.body}</p>
+                                <span className="text-[0.6rem] font-bold text-slate-400 mt-2 block italic">
+                                  {new Date(n.createdAt).toLocaleDateString('ar-SA')}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-12 text-center">
+                          <LuBell size={48} className="mx-auto mb-4 text-slate-100" />
+                          <p className="text-slate-400 font-bold italic text-xs">لا توجد إشعارات جديدة</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
             <div className="w-px h-6 bg-slate-200 mx-1"></div>
             <div className="flex items-center gap-3">
               <div className="flex flex-col items-end hidden sm:flex">

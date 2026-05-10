@@ -492,6 +492,9 @@ class AuthService {
         updateData[field] = data[field];
       }
     }
+
+    if (updateData.dateOfBirth) updateData.dateOfBirth = new Date(updateData.dateOfBirth);
+
     const user = await prisma.user.update({
       where: { id: userId },
       data: updateData,
@@ -522,6 +525,11 @@ class AuthService {
         updateData[field] = data[field];
       }
     }
+
+    if (updateData.dateOfBirth) updateData.dateOfBirth = new Date(updateData.dateOfBirth);
+    if (updateData.joinDate) updateData.joinDate = new Date(updateData.joinDate);
+    if (updateData.contractEndDate) updateData.contractEndDate = new Date(updateData.contractEndDate);
+
     const user = await prisma.user.update({
       where: { id: userId },
       data: updateData,
