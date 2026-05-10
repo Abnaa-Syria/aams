@@ -14,7 +14,7 @@ function requirePermission(...required) {
     const granted = ROLE_PERMISSIONS[req.user.role] || [];
     const ok = required.some((p) => granted.includes(p));
     if (!ok) {
-      return next(new AuthorizationError('ليس لديك صلاحية لتنفيذ هذا الإجراء'));
+      return next(new AuthorizationError('ليس لديك صلاحية لتنفيذ هذا الإجراء', required));
     }
     return next();
   };

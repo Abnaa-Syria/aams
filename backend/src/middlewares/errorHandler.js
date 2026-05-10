@@ -2,11 +2,15 @@ const { AppError } = require('../utils/errors');
 
 function errorHandler(err, req, res, _next) {
   if (err.isOperational) {
-    return res.status(err.statusCode).json({
+    const payload = {
       success: false,
       message: err.message,
       ...(err.errors && { errors: err.errors }),
-    });
+    };
+    if (err.statusCode === 403 && err.required) {
+      payload.requiredPermissions = err.required;
+    }
+    return res.status(err.statusCode).json(payload);
   }
 
   if (err.name === 'JsonWebTokenError') {

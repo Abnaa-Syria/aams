@@ -1,12 +1,14 @@
 const router = require('express').Router();
 const { authenticate, authorize } = require('../../middlewares/auth');
+const { adminPerm } = require('../../middlewares/adminGuard');
+const { PERMISSIONS: P } = require('../../constants/permissions');
 const prisma = require('../../config/database');
 const bcrypt = require('bcryptjs');
 const ApiResponse = require('../../utils/response');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
 
-const ADMIN_ROLES = ['SUPER_ADMIN', 'OPERATIONS_ADMIN', 'HR_ADMIN', 'FLEET_ADMIN', 'FINANCE_ADMIN'];
+const ADMIN_ROLES = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'OPERATIONS_ADMIN', 'HR_ADMIN', 'FLEET_ADMIN', 'FINANCE_ADMIN', 'SAFETY_ADMIN'];
 const ADMIN_SELECT = {
   id: true, identityNumber: true, fullNameAr: true, fullNameEn: true,
   email: true, mobileNumber: true, role: true, accountStatus: true,
@@ -51,12 +53,12 @@ const ADMIN_SELECT = {
  *               mobileNumber: { type: string }
  *               role:
  *                 type: string
- *                 enum: [SUPER_ADMIN, OPERATIONS_ADMIN, HR_ADMIN, FLEET_ADMIN, FINANCE_ADMIN]
+ *                 enum: [SUPER_ADMIN, COMPANY_ADMIN, OPERATIONS_ADMIN, HR_ADMIN, FLEET_ADMIN, FINANCE_ADMIN, SAFETY_ADMIN]
  *     responses:
  *       201:
  *         description: Created
  */
-router.get('/', authenticate, authorize('SUPER_ADMIN'), async (req, res, next) => {
+router.get('/', ...adminPerm(P.USERS_READ), async (req, res, next) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query);
     const where = { role: { in: ADMIN_ROLES }, deletedAt: null };
@@ -111,17 +113,17 @@ router.get('/', authenticate, authorize('SUPER_ADMIN'), async (req, res, next) =
  *       200:
  *         description: Deleted
  */
-router.get('/:id', authenticate, authorize('SUPER_ADMIN'), async (req, res, next) => {
+router.get('/:id', ...adminPerm(P.USERS_READ), async (req, res, next) => {
   try {
     const item = await prisma.user.findFirst({ where: { id: parseInt(req.params.id), role: { in: ADMIN_ROLES } }, select: ADMIN_SELECT });
     return ApiResponse.success(res, item);
   } catch (err) { next(err); }
 });
 
-router.post('/', authenticate, authorize('SUPER_ADMIN'), async (req, res, next) => {
+router.post('/', ...adminPerm(P.USERS_WRITE), async (req, res, next) => {
   try {
     const { identityNumber, password, fullNameAr, fullNameEn, email, mobileNumber, role } = req.body;
-    if (!ADMIN_ROLES.includes(role)) return ApiResponse.badRequest(res, 'Invalid admin role');
+    if (role && !ADMIN_ROLES.includes(role)) return ApiResponse.badRequest(res, 'Invalid admin role');
 
     const passwordHash = await bcrypt.hash(password, 12);
     const item = await prisma.user.create({
@@ -134,7 +136,7 @@ router.post('/', authenticate, authorize('SUPER_ADMIN'), async (req, res, next) 
   } catch (err) { next(err); }
 });
 
-router.put('/:id', authenticate, authorize('SUPER_ADMIN'), async (req, res, next) => {
+router.put('/:id', ...adminPerm(P.USERS_WRITE), async (req, res, next) => {
   try {
     const { fullNameAr, fullNameEn, email, mobileNumber, role } = req.body;
     const data = { fullNameAr, fullNameEn, email, mobileNumber };
@@ -170,7 +172,7 @@ router.put('/:id', authenticate, authorize('SUPER_ADMIN'), async (req, res, next
  *       200:
  *         description: Password reset
  */
-router.patch('/:id/reset-password', authenticate, authorize('SUPER_ADMIN'), async (req, res, next) => {
+router.patch('/:id/reset-password', ...adminPerm(P.USERS_WRITE), async (req, res, next) => {
   try {
     const passwordHash = await bcrypt.hash(req.body.password, 12);
     await prisma.user.update({ where: { id: parseInt(req.params.id) }, data: { passwordHash } });
@@ -179,7 +181,7 @@ router.patch('/:id/reset-password', authenticate, authorize('SUPER_ADMIN'), asyn
   } catch (err) { next(err); }
 });
 
-router.delete('/:id', authenticate, authorize('SUPER_ADMIN'), async (req, res, next) => {
+router.delete('/:id', ...adminPerm(P.USERS_WRITE), async (req, res, next) => {
   try {
     await prisma.user.update({ where: { id: parseInt(req.params.id) }, data: { deletedAt: new Date(), accountStatus: 'ARCHIVED' } });
     await logAudit({ userId: req.user.id, action: 'DELETE_ADMIN_USER', entity: 'User', entityId: req.params.id });

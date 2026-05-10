@@ -71,7 +71,8 @@ export const NAV_GROUPS = [
     items: [
       { path: '/analytics', label: 'التقارير والتحليلات', iconKey: 'analytics', anyOf: DASHBOARD_VIEW_PERMISSIONS },
       { path: '/settings', label: 'الإعدادات', iconKey: 'settings', anyOf: [P.SETTINGS_READ] },
-      { path: '/admins', label: 'المستخدمين الإداريين', iconKey: 'admins', superAdminOnly: true },
+      { path: '/admins', label: 'المستخدمين الإداريين', iconKey: 'admins', anyOf: [P.USERS_WRITE] },
+      { path: '/roles-permissions', label: 'الأدوار والصلاحيات', iconKey: 'roles', anyOf: [P.ROLE_MANAGEMENT] },
       { path: '/audit-logs', label: 'سجل العمليات', iconKey: 'audit', anyOf: [P.AUDIT_READ] },
     ],
   },
