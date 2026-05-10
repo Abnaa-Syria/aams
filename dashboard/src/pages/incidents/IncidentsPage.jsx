@@ -84,6 +84,7 @@ function IncidentModal({ isOpen, onClose, incident, onSave }) {
             value={form.userId} 
             onChange={(e) => setForm(f => ({ ...f, userId: e.target.value }))}
             required
+            disabled={!!incident}
           >
             <option value="">اختر السائق</option>
             {drivers.map(d => <option key={d.id} value={d.id}>{d.fullNameAr}</option>)}

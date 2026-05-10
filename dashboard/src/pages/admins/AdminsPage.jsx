@@ -67,7 +67,7 @@ function AdminForm({ initial, onSubmit, loading }) {
         </select>
       </FormField>
       <div className="flex justify-end gap-3 pt-4">
-        <button type="button" onClick={onSubmit} disabled={loading} className="btn-primary">
+        <button type="button" onClick={onSubmit} disabled={loading} className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-60">
           {loading ? 'جارٍ الحفظ...' : 'حفظ'}
         </button>
       </div>
@@ -161,7 +161,7 @@ export default function AdminsPage() {
   ];
 
   const createButton = (
-    <button onClick={openCreate} className="btn-primary flex items-center gap-2">
+    <button onClick={openCreate} className="btn btn-primary flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60">
       <LuPlus size={18} /> إضافة مستخدم
     </button>
   );
@@ -184,7 +184,7 @@ export default function AdminsPage() {
             <input className="form-input" type="password" value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} placeholder="••••••••" />
           </FormField>
           <div className="flex justify-end gap-3 pt-2">
-            <button onClick={handleReset} disabled={loading} className="btn-primary">{loading ? 'جارٍ...' : 'تغيير كلمة المرور'}</button>
+            <button onClick={handleReset} disabled={loading} className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-60">{loading ? 'جارٍ...' : 'تغيير كلمة المرور'}</button>
           </div>
         </div>
       </Modal>

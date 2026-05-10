@@ -9,6 +9,16 @@ export const NAV_GROUPS = [
     label: 'الرئيسية',
     items: [{ path: '/', label: 'لوحة التحكم', iconKey: 'dashboard', anyOf: DASHBOARD_VIEW_PERMISSIONS }],
   },
+    {
+    label: 'النظام',
+    items: [
+      { path: '/analytics', label: 'التقارير والتحليلات', iconKey: 'analytics', anyOf: DASHBOARD_VIEW_PERMISSIONS },
+      { path: '/settings', label: 'الإعدادات', iconKey: 'settings', anyOf: [P.SETTINGS_READ] },
+      { path: '/admins', label: 'المستخدمين الإداريين', iconKey: 'admins', anyOf: [P.USERS_WRITE] },
+      { path: '/roles-permissions', label: 'الأدوار والصلاحيات', iconKey: 'roles', anyOf: [P.ROLE_MANAGEMENT] },
+      { path: '/audit-logs', label: 'سجل العمليات', iconKey: 'audit', anyOf: [P.AUDIT_READ] },
+    ],
+  },
   {
     label: 'إدارة الموظفين',
     items: [
@@ -66,14 +76,5 @@ export const NAV_GROUPS = [
       { path: '/salary-advances', label: 'السلف', iconKey: 'salary', anyOf: [P.FINANCE_READ, P.HR_READ] },
     ],
   },
-  {
-    label: 'النظام',
-    items: [
-      { path: '/analytics', label: 'التقارير والتحليلات', iconKey: 'analytics', anyOf: DASHBOARD_VIEW_PERMISSIONS },
-      { path: '/settings', label: 'الإعدادات', iconKey: 'settings', anyOf: [P.SETTINGS_READ] },
-      { path: '/admins', label: 'المستخدمين الإداريين', iconKey: 'admins', anyOf: [P.USERS_WRITE] },
-      { path: '/roles-permissions', label: 'الأدوار والصلاحيات', iconKey: 'roles', anyOf: [P.ROLE_MANAGEMENT] },
-      { path: '/audit-logs', label: 'سجل العمليات', iconKey: 'audit', anyOf: [P.AUDIT_READ] },
-    ],
-  },
+
 ];

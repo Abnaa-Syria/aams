@@ -139,7 +139,11 @@ export default function RolesPermissionsPage() {
             <span className="text-sm text-amber-600 font-bold flex items-center gap-1">
               <LuCircleAlert size={16} /> هناك تغييرات غير محفوظة
             </span>
-            <button onClick={handleSave} disabled={saving} className="btn-primary flex items-center gap-2">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="btn btn-primary flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
+            >
               {saving ? <><LuLoader className="animate-spin" size={16} />جارٍ الحفظ...</> : <><LuCheck size={16} />حفظ التغييرات</>}
             </button>
           </div>

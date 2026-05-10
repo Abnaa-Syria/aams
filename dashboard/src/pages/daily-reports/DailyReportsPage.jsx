@@ -80,6 +80,7 @@ function DailyReportModal({ isOpen, onClose, report, onSave }) {
             value={form.userId} 
             onChange={(e) => setForm(f => ({ ...f, userId: e.target.value }))}
             required
+            disabled={!!report}
           >
             <option value="">اختر السائق</option>
             {drivers.map(d => <option key={d.id} value={d.id}>{d.fullNameAr}</option>)}
