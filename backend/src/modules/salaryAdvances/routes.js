@@ -13,7 +13,7 @@ const SalaryAdvanceController = require('./controller');
  *     security:
  *       - bearerAuth: []
  */
-router.get('/', authenticate, SalaryAdvanceController.list);
+router.get('/', ...adminPerm(P.FINANCE_READ), SalaryAdvanceController.list);
 
 /**
  * @openapi
@@ -24,7 +24,7 @@ router.get('/', authenticate, SalaryAdvanceController.list);
  *     security:
  *       - bearerAuth: []
  */
-router.get('/:id', authenticate, SalaryAdvanceController.getById);
+router.get('/:id', ...adminPerm(P.FINANCE_READ), SalaryAdvanceController.getById);
 
 /**
  * @openapi
@@ -35,7 +35,7 @@ router.get('/:id', authenticate, SalaryAdvanceController.getById);
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', authenticate, SalaryAdvanceController.create);
+router.post('/', ...adminPerm(P.FINANCE_WRITE), SalaryAdvanceController.create);
 
 /**
  * @openapi
@@ -68,6 +68,6 @@ router.patch('/:id/review', ...adminPerm(P.FINANCE_APPROVE), SalaryAdvanceContro
  *     security:
  *       - bearerAuth: []
  */
-router.delete('/:id', authenticate, SalaryAdvanceController.cancel);
+router.delete('/:id', ...adminPerm(P.FINANCE_WRITE), SalaryAdvanceController.cancel);
 
 module.exports = router;

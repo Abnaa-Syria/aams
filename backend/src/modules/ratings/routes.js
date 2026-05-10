@@ -33,7 +33,7 @@ const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
  *       200:
  *         description: Ratings list
  */
-router.get('/', authenticate, async (req, res, next) => {
+router.get('/', ...adminPerm(P.FLEET_READ), async (req, res, next) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query);
     let where = {
@@ -71,7 +71,7 @@ router.get('/', authenticate, async (req, res, next) => {
  *       200:
  *         description: _avg fields and _count
  */
-router.get('/user/:userId/average', authenticate, async (req, res, next) => {
+router.get('/user/:userId/average', ...adminPerm(P.FLEET_READ), async (req, res, next) => {
   try {
     const targetUserId = parseInt(req.params.userId, 10);
     await assertCanAccessDriverRecord(req, targetUserId);
@@ -101,7 +101,7 @@ router.get('/user/:userId/average', authenticate, async (req, res, next) => {
  *       200:
  *         description: Rating
  */
-router.get('/:id', authenticate, async (req, res, next) => {
+router.get('/:id', ...adminPerm(P.FLEET_READ), async (req, res, next) => {
   try {
     const item = await prisma.rating.findUnique({
       where: { id: parseInt(req.params.id) },

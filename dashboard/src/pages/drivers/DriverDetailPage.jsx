@@ -14,6 +14,7 @@ import {
 } from 'react-icons/lu';
 import { resolveUploadUrl } from '../../utils/apiOrigin';
 import { hasAnyPermission, PERMISSIONS as P } from '../../utils/rolePermissions';
+import PermissionGate from '../../components/auth/PermissionGate';
 import DriverLiveMap from './DriverLiveMap';
 
 const FIELD_TRANSLATIONS = {
@@ -562,14 +563,16 @@ export default function DriverDetailPage() {
         </div>
 
         {/* Dynamic Add Button */}
-        {['documents', 'licenses', 'fuel', 'violations', 'penalties', 'rewards', 'investigations', 'leaves', 'salary', 'maintenance'].includes(tab) && canWriteUser && (
-           <button 
-             onClick={handleCreateOpen}
-             className="btn btn-primary !rounded-2xl shadow-premium hover:shadow-premium-hover transition-all animate-in zoom-in duration-300 flex items-center gap-2"
-           >
-             <LuUserPlus size={18} />
-             إضافة {TABS.find(t => t.id === tab)?.label} جديد
-           </button>
+        {['documents', 'licenses', 'fuel', 'violations', 'penalties', 'rewards', 'investigations', 'leaves', 'salary', 'maintenance'].includes(tab) && (
+          <PermissionGate anyOf={[P.USERS_WRITE]}>
+            <button 
+              onClick={handleCreateOpen}
+              className="btn btn-primary !rounded-2xl shadow-premium hover:shadow-premium-hover transition-all animate-in zoom-in duration-300 flex items-center gap-2"
+            >
+              <LuUserPlus size={18} />
+              إضافة {TABS.find(t => t.id === tab)?.label} جديد
+            </button>
+          </PermissionGate>
         )}
       </div>
 
@@ -698,7 +701,7 @@ export default function DriverDetailPage() {
                     >
                       <LuEye size={16} />
                     </button>
-                    {canWriteUser && (
+                    <PermissionGate anyOf={[P.USERS_WRITE]}>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleEdit(record, e); }}
                         className="w-8 h-8 rounded-xl flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition-colors"
@@ -706,7 +709,7 @@ export default function DriverDetailPage() {
                       >
                         <LuPen size={16} />
                       </button>
-                    )}
+                    </PermissionGate>
                   </div>
                 ),
               }
@@ -810,18 +813,20 @@ export default function DriverDetailPage() {
               <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
                 <span className="text-xs font-black text-slate-500 uppercase tracking-widest">تحديث الحالة السريع:</span>
                 <div className="flex gap-2 w-full sm:w-auto">
-                  <button 
-                    onClick={() => handleQuickStatusChange('APPROVED')}
-                    className="flex-1 sm:flex-none btn bg-emerald-50 text-emerald-600 hover:bg-emerald-100 !rounded-xl !py-2 !text-xs"
-                  >
-                    موافقة / اعتماد
-                  </button>
-                  <button 
-                    onClick={() => handleQuickStatusChange('REJECTED')}
-                    className="flex-1 sm:flex-none btn bg-red-50 text-red-600 hover:bg-red-100 !rounded-xl !py-2 !text-xs"
-                  >
-                    رفض / إلغاء
-                  </button>
+                  <PermissionGate anyOf={[P.USERS_WRITE]}>
+                    <button 
+                      onClick={() => handleQuickStatusChange('APPROVED')}
+                      className="flex-1 sm:flex-none btn bg-emerald-50 text-emerald-600 hover:bg-emerald-100 !rounded-xl !py-2 !text-xs"
+                    >
+                      موافقة / اعتماد
+                    </button>
+                    <button 
+                      onClick={() => handleQuickStatusChange('REJECTED')}
+                      className="flex-1 sm:flex-none btn bg-red-50 text-red-600 hover:bg-red-100 !rounded-xl !py-2 !text-xs"
+                    >
+                      رفض / إلغاء
+                    </button>
+                  </PermissionGate>
                 </div>
               </div>
             )}

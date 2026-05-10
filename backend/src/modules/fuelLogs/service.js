@@ -108,7 +108,7 @@ class FuelLogService {
       action: 'CREATE_FUEL_LOG',
       entity: 'FuelLog',
       entityId: String(log.id),
-      newValue: { amount, liters, paymentMethod },
+      newValue: { amount, liters },
     });
 
     return log;

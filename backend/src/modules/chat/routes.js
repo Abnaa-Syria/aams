@@ -22,7 +22,7 @@ const { AuthorizationError } = require('../../utils/errors');
  *       200:
  *         description: Conversations array
  */
-router.get('/conversations', authenticate, async (req, res, next) => {
+router.get('/conversations', ...adminPerm(P.USERS_READ), async (req, res, next) => {
   try {
     const userId = req.user.id;
     // Get unique conversation partners
@@ -78,7 +78,7 @@ router.get('/conversations', authenticate, async (req, res, next) => {
  *       200:
  *         description: Paginated messages
  */
-router.get('/messages/:partnerId', authenticate, async (req, res, next) => {
+router.get('/messages/:partnerId', ...adminPerm(P.USERS_READ), async (req, res, next) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query);
     const userId = req.user.id;
@@ -129,7 +129,7 @@ router.get('/messages/:partnerId', authenticate, async (req, res, next) => {
  *       403:
  *         description: Policy violation
  */
-router.post('/send', authenticate, upload.single('attachment'), async (req, res, next) => {
+router.post('/send', ...adminPerm(P.USERS_WRITE), upload.single('attachment'), async (req, res, next) => {
   try {
     const receiverId = parseInt(req.body.receiverId, 10);
     const { role, id: senderId, supervisorId } = req.user;
@@ -213,7 +213,7 @@ router.get('/admin/conversations', ...adminPerm(P.COMPLIANCE_READ), async (req, 
  *       200:
  *         description: Messages deleted
  */
-router.delete('/messages/:partnerId', authenticate, async (req, res, next) => {
+router.delete('/messages/:partnerId', ...adminPerm(P.USERS_WRITE), async (req, res, next) => {
   try {
     const userId = req.user.id;
     const partnerId = parseInt(req.params.partnerId, 10);

@@ -1129,6 +1129,80 @@ async function main() {
   }
   console.log('Notification templates created');
 
+  // ============================================================
+  // RBAC — Seed permissions + roles from constants (idempotent)
+  // ============================================================
+  const PERMISSIONS_MAP = {
+    'users:read': { labelAr: 'عرض المستخدمين', labelEn: 'View Users', category: 'users' },
+    'users:write': { labelAr: 'إدارة المستخدمين', labelEn: 'Manage Users', category: 'users' },
+    'fleet:read': { labelAr: 'عرض الأسطول', labelEn: 'View Fleet', category: 'fleet' },
+    'fleet:write': { labelAr: 'إدارة الأسطول', labelEn: 'Manage Fleet', category: 'fleet' },
+    'documents:read': { labelAr: 'عرض المستندات', labelEn: 'View Documents', category: 'documents' },
+    'documents:review': { labelAr: 'مراجعة المستندات', labelEn: 'Review Documents', category: 'documents' },
+    'documents:write': { labelAr: 'إدارة المستندات', labelEn: 'Manage Documents', category: 'documents' },
+    'shifts:read': { labelAr: 'عرض المناوبات', labelEn: 'View Shifts', category: 'shifts' },
+    'shifts:approve': { labelAr: 'اعتماد المناوبات', labelEn: 'Approve Shifts', category: 'shifts' },
+    'shifts:write': { labelAr: 'إدارة المناوبات', labelEn: 'Manage Shifts', category: 'shifts' },
+    'hr:read': { labelAr: 'عرض الموارد البشرية', labelEn: 'View HR', category: 'hr' },
+    'hr:approve': { labelAr: 'اعتماد الموارد البشرية', labelEn: 'Approve HR', category: 'hr' },
+    'hr:write': { labelAr: 'إدارة الموارد البشرية', labelEn: 'Manage HR', category: 'hr' },
+    'finance:read': { labelAr: 'عرض الأمور المالية', labelEn: 'View Finance', category: 'finance' },
+    'finance:approve': { labelAr: 'اعتماد الأمور المالية', labelEn: 'Approve Finance', category: 'finance' },
+    'finance:write': { labelAr: 'إدارة الأمور المالية', labelEn: 'Manage Finance', category: 'finance' },
+    'settings:read': { labelAr: 'عرض الإعدادات', labelEn: 'View Settings', category: 'settings' },
+    'settings:write': { labelAr: 'إدارة الإعدادات', labelEn: 'Manage Settings', category: 'settings' },
+    'audit:read': { labelAr: 'عرض سجلات التدقيق', labelEn: 'View Audit Logs', category: 'audit' },
+    'compliance:read': { labelAr: 'عرض الامتثال والسلامة', labelEn: 'View Compliance', category: 'compliance' },
+    'compliance:write': { labelAr: 'إدارة الامتثال والسلامة', labelEn: 'Manage Compliance', category: 'compliance' },
+    'inventory:read': { labelAr: 'عرض المخزون', labelEn: 'View Inventory', category: 'inventory' },
+    'inventory:write': { labelAr: 'إدارة المخزون', labelEn: 'Manage Inventory', category: 'inventory' },
+    'role:management': { labelAr: 'إدارة الأدوار والصلاحيات', labelEn: 'Manage Roles', category: 'role' },
+    'dashboard:view': { labelAr: 'عرض لوحة التحكم', labelEn: 'View Dashboard', category: 'dashboard' },
+  };
+
+  const ALL_PERMISSION_KEYS = Object.keys(PERMISSIONS_MAP);
+
+const ROLES_MAP = {
+    SUPER_ADMIN:       { labelAr: 'مدير عام',       labelEn: 'Super Admin',       isSystem: true,  perms: Object.keys(PERMISSIONS_MAP) },
+    OPERATIONS_ADMIN:  { labelAr: 'مدير عمليات',   labelEn: 'Operations Admin',  isSystem: true,  perms: ['users:read', 'users:write', 'fleet:read', 'fleet:write', 'documents:read', 'documents:review', 'documents:write', 'shifts:read', 'shifts:approve', 'shifts:write', 'hr:read', 'hr:approve', 'hr:write', 'finance:read', 'finance:approve', 'finance:write', 'settings:read', 'settings:write', 'audit:read', 'compliance:read', 'compliance:write', 'inventory:read', 'inventory:write', 'dashboard:view'] },
+    HR_ADMIN:          { labelAr: 'مدير موارد بشرية', labelEn: 'HR Admin',         isSystem: true,  perms: ['users:read', 'documents:read', 'documents:review', 'documents:write', 'hr:read', 'hr:approve', 'hr:write', 'compliance:read', 'settings:read', 'inventory:read', 'dashboard:view'] },
+    FLEET_ADMIN:       { labelAr: 'مدير أسطول',     labelEn: 'Fleet Admin',        isSystem: true,  perms: ['users:read', 'fleet:read', 'fleet:write', 'shifts:read', 'shifts:approve', 'shifts:write', 'documents:read', 'documents:review', 'documents:write', 'settings:read', 'compliance:read', 'compliance:write', 'inventory:read', 'inventory:write', 'dashboard:view'] },
+    FINANCE_ADMIN:     { labelAr: 'مدير مالي',       labelEn: 'Finance Admin',     isSystem: true,  perms: ['users:read', 'finance:read', 'finance:approve', 'finance:write', 'hr:read', 'documents:read', 'settings:read', 'dashboard:view'] },
+    SUPERVISOR:        { labelAr: 'مشرف',            labelEn: 'Supervisor',        isSystem: false, perms: ['users:read', 'shifts:read', 'shifts:write', 'documents:read', 'compliance:read'] },
+    DRIVER:            { labelAr: 'سائق',             labelEn: 'Driver',            isSystem: false, perms: [] },
+  };
+
+  const permissionMap = {};
+  for (const [key, meta] of Object.entries(PERMISSIONS_MAP)) {
+    const row = await prisma.permission.upsert({
+      where: { key },
+      update: { labelAr: meta.labelAr, labelEn: meta.labelEn, category: meta.category },
+      create: { key, labelAr: meta.labelAr, labelEn: meta.labelEn, category: meta.category },
+    });
+    permissionMap[key] = row.id;
+  }
+
+  for (const [roleKey, meta] of Object.entries(ROLES_MAP)) {
+    const role = await prisma.role.upsert({
+      where: { key: roleKey },
+      update: { labelAr: meta.labelAr, labelEn: meta.labelEn, isSystem: meta.isSystem },
+      create: { key: roleKey, labelAr: meta.labelAr, labelEn: meta.labelEn, isSystem: meta.isSystem },
+    });
+
+    await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
+
+    for (const permKey of meta.perms) {
+      if (permissionMap[permKey]) {
+        await prisma.rolePermission.create({
+          data: { roleId: role.id, permissionId: permissionMap[permKey] },
+          skip: false,
+        }).catch(() => {});
+      }
+    }
+  }
+
+  console.log('Roles & permissions seeded');
+
   console.log('Seeding completed successfully!');
   console.log('---');
   console.log('Admin login: identityNumber=1000000001, password=admin123');

@@ -14,8 +14,8 @@ const {
 
 // --- ASSET CATALOG ---
 
-router.get('/catalog', authenticate, AssetController.listAssets);
-router.get('/catalog/:id', authenticate, AssetController.getAsset);
+router.get('/catalog', ...adminPerm(P.INVENTORY_READ), authenticate, AssetController.listAssets);
+router.get('/catalog/:id', ...adminPerm(P.INVENTORY_READ), authenticate, AssetController.getAsset);
 
 router.post(
   '/catalog',
@@ -33,7 +33,7 @@ router.put(
 
 // --- ASSET ASSIGNMENTS ---
 
-router.get('/assignments', authenticate, AssetController.listAssignments);
+router.get('/assignments', ...adminPerm(P.INVENTORY_READ), authenticate, AssetController.listAssignments);
 
 router.post(
   '/assignments',

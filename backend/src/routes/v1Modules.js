@@ -34,6 +34,8 @@ const auditLogRoutes = require('../modules/auditLogs/routes');
 const dashboardRoutes = require('../modules/dashboard/routes');
 const reportsRoutes = require('../modules/reports/routes');
 const adminUserRoutes = require('../modules/adminUsers/routes');
+const permissionsRoutes = require('../modules/permissions/routes');
+const rolesRoutes = require('../modules/roles/routes');
 const assetRoutes = require('../modules/assets/routes');
 const geofencingRoutes = require('../modules/geofencing/routes');
 const complaintRoutes = require('../modules/complaints/routes');
@@ -78,6 +80,8 @@ const v1RouteModules = [
   { segment: 'dashboard', router: dashboardRoutes },
   { segment: 'reports', router: reportsRoutes },
   { segment: 'admin-users', router: adminUserRoutes },
+  { segment: 'permissions', router: permissionsRoutes },
+  { segment: 'roles', router: rolesRoutes },
   { segment: 'assets', router: assetRoutes },
   { segment: 'geofencing', router: geofencingRoutes },
   { segment: 'complaints', router: complaintRoutes },

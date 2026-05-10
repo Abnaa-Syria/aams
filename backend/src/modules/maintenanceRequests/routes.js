@@ -18,9 +18,9 @@ const { streamAttachmentDownload } = require('../../utils/streamAttachment');
  *     security:
  *       - bearerAuth: []
  */
-router.get('/', authenticate, MaintenanceRequestController.listRequests);
+router.get('/', ...adminPerm(P.INVENTORY_READ), MaintenanceRequestController.listRequests);
 
-router.get('/:id/attachment/download', authenticate, async (req, res, next) => {
+router.get('/:id/attachment/download', ...adminPerm(P.INVENTORY_READ), async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
     const row = await prisma.maintenanceRequest.findUnique({
@@ -37,7 +37,7 @@ router.get('/:id/attachment/download', authenticate, async (req, res, next) => {
   }
 });
 
-router.get('/:id/attachments/:attachmentId/download', authenticate, async (req, res, next) => {
+router.get('/:id/attachments/:attachmentId/download', ...adminPerm(P.INVENTORY_READ), async (req, res, next) => {
   try {
     const requestId = parseInt(req.params.id, 10);
     const attachmentId = parseInt(req.params.attachmentId, 10);
@@ -64,7 +64,7 @@ router.get('/:id/attachments/:attachmentId/download', authenticate, async (req, 
  *     security:
  *       - bearerAuth: []
  */
-router.get('/:id', authenticate, MaintenanceRequestController.getRequest);
+router.get('/:id', ...adminPerm(P.INVENTORY_READ), MaintenanceRequestController.getRequest);
 
 /**
  * @openapi
@@ -77,7 +77,7 @@ router.get('/:id', authenticate, MaintenanceRequestController.getRequest);
  */
 router.post(
   '/',
-  authenticate,
+  ...adminPerm(P.INVENTORY_WRITE),
   upload.fields([
     { name: 'attachments', maxCount: 10 },
     { name: 'attachment', maxCount: 1 },

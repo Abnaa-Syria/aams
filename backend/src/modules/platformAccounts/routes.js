@@ -35,9 +35,9 @@ router.get('/', ...adminPerm(P.FLEET_READ), PlatformAccountController.list);
  *     security:
  *       - bearerAuth: []
  */
-router.get('/:id', authenticate, PlatformAccountController.getById);
+router.get('/:id', ...adminPerm(P.FLEET_READ), PlatformAccountController.getById);
 
-router.get('/:id/files/file/download', authenticate, async (req, res, next) => {
+router.get('/:id/files/file/download', ...adminPerm(P.FLEET_READ), async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
     const platformAccount = await prisma.platformAccount.findFirst({
@@ -62,7 +62,7 @@ router.get('/:id/files/file/download', authenticate, async (req, res, next) => {
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', authenticate, upload.any(), PlatformAccountController.create);
+router.post('/', ...adminPerm(P.FLEET_WRITE), upload.single('file'), PlatformAccountController.create);
 
 /**
  * @openapi
@@ -73,7 +73,7 @@ router.post('/', authenticate, upload.any(), PlatformAccountController.create);
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id', authenticate, upload.any(), PlatformAccountController.update);
+router.patch('/:id', ...adminPerm(P.FLEET_WRITE), upload.single('file'), PlatformAccountController.update);
 
 /**
  * @openapi

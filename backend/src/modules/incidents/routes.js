@@ -18,9 +18,9 @@ const { streamAttachmentDownload } = require('../../utils/streamAttachment');
  *     security:
  *       - bearerAuth: []
  */
-router.get('/', authenticate, IncidentController.listIncidents);
+router.get('/', ...adminPerm(P.COMPLIANCE_READ), IncidentController.listIncidents);
 
-router.get('/:id/attachments/:attachmentId/download', authenticate, async (req, res, next) => {
+router.get('/:id/attachments/:attachmentId/download', ...adminPerm(P.COMPLIANCE_READ), async (req, res, next) => {
   try {
     const incidentId = parseInt(req.params.id, 10);
     const attachmentId = parseInt(req.params.attachmentId, 10);
@@ -46,7 +46,7 @@ router.get('/:id/attachments/:attachmentId/download', authenticate, async (req, 
  *     security:
  *       - bearerAuth: []
  */
-router.get('/:id', authenticate, IncidentController.getIncident);
+router.get('/:id', ...adminPerm(P.COMPLIANCE_READ), IncidentController.getIncident);
 
 /**
  * @openapi
@@ -57,7 +57,7 @@ router.get('/:id', authenticate, IncidentController.getIncident);
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', authenticate, upload.array('attachments', 5), IncidentController.createIncident);
+router.post('/', ...adminPerm(P.COMPLIANCE_WRITE), upload.array('attachments', 5), IncidentController.createIncident);
 
 /**
  * @openapi

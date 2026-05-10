@@ -5,6 +5,8 @@ import { LuChevronLeft } from 'react-icons/lu';
 
 import { apiService } from '../../services/api';
 import StatusBadge from '../../components/ui/StatusBadge';
+import PermissionGate from '../../components/auth/PermissionGate';
+import { PERMISSIONS as P } from '../../utils/rolePermissions';
 
 function formatShiftAction(action) {
   switch (action) {

@@ -21,8 +21,9 @@ class AuthenticationError extends AppError {
 }
 
 class AuthorizationError extends AppError {
-  constructor(message = 'Insufficient permissions') {
+  constructor(message = 'Insufficient permissions', required = null) {
     super(message, 403);
+    this.required = required;
   }
 }
 

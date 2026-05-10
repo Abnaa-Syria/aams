@@ -21,7 +21,7 @@ export default function DataTable({ columns, data, loading, onRowClick, emptyMes
   return (
     /* التعديل الجوهري: تغليف الجدول بالكامل داخل كارت أبيض ذو حواف ناعمة وظل */
     <div className="bg-white rounded-2xl shadow-premium border border-slate-100 overflow-hidden">
-      <div className="overflow-x-auto custom-scrollbar touch-pan-x">
+      <div className="table-responsive custom-scrollbar touch-pan-x">
         <table className="min-w-full text-start border-collapse">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-100">

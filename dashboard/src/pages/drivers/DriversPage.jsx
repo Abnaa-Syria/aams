@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { apiService } from '../../services/api';
 import { hasAnyPermission, PERMISSIONS as P } from '../../utils/rolePermissions';
+import PermissionGate from '../../components/auth/PermissionGate';
 import DataTable from '../../components/ui/DataTable';
 import Pagination from '../../components/ui/Pagination';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -90,7 +91,7 @@ export default function DriversPage() {
           >
             <LuRefreshCw size={20} className={loading ? 'animate-spin' : ''} />
           </button>
-          {canCreate && (
+          <PermissionGate anyOf={[P.USERS_WRITE]}>
             <button 
               type="button" 
               className="btn btn-primary shadow-orange" 
@@ -99,7 +100,7 @@ export default function DriversPage() {
               <LuPlus size={20} />
               إضافة سائق جديد
             </button>
-          )}
+          </PermissionGate>
         </div>
       </div>
 

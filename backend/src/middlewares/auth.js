@@ -3,6 +3,8 @@ const config = require('../config');
 const prisma = require('../config/database');
 const { AuthenticationError, AuthorizationError } = require('../utils/errors');
 
+const { ROLE_PERMISSIONS } = require('../constants/permissions');
+
 async function authenticate(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
@@ -37,6 +39,7 @@ async function authenticate(req, res, next) {
     }
 
     req.user = user;
+    req.user.permissions = ROLE_PERMISSIONS[user.role] || [];
     next();
   } catch (error) {
     next(error);

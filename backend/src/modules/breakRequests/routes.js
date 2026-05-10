@@ -9,10 +9,11 @@ const {
   reviewBreakRequestSchema,
 } = require('./validator');
 
-router.get('/', authenticate, BreakRequestController.list);
+router.get('/', ...adminPerm(P.SHIFTS_READ), authenticate, BreakRequestController.list);
 
 router.post(
   '/',
+  ...adminPerm(P.SHIFTS_WRITE),
   authenticate,
   validate(createBreakRequestSchema),
   BreakRequestController.create
@@ -25,7 +26,7 @@ router.patch(
   BreakRequestController.review
 );
 
-router.post('/:id/start', authenticate, BreakRequestController.startBreak);
-router.post('/:id/end', authenticate, BreakRequestController.endBreak);
+router.post('/:id/start', ...adminPerm(P.SHIFTS_WRITE), authenticate, BreakRequestController.startBreak);
+router.post('/:id/end', ...adminPerm(P.SHIFTS_WRITE), authenticate, BreakRequestController.endBreak);
 
 module.exports = router;

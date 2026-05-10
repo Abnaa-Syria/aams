@@ -10,11 +10,12 @@ const {
   resolveComplaintSchema,
 } = require('./validator');
 
-router.get('/', authenticate, ComplaintController.list);
-router.get('/:id', authenticate, ComplaintController.getById);
+router.get('/', ...adminPerm(P.HR_READ), authenticate, ComplaintController.list);
+router.get('/:id', ...adminPerm(P.HR_READ), authenticate, ComplaintController.getById);
 
 router.post(
   '/',
+  ...adminPerm(P.HR_WRITE),
   authenticate,
   upload.single('photo'),
   validate(createComplaintSchema),

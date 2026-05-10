@@ -130,7 +130,7 @@ router.get('/expiring', ...adminPerm(P.DOCUMENTS_READ), async (req, res, next) =
  *       200:
  *         description: Updated
  */
-router.get('/:id', authenticate, async (req, res, next) => {
+router.get('/:id', ...adminPerm(P.DOCUMENTS_READ), async (req, res, next) => {
   try {
     const item = await prisma.license.findFirst({ where: { id: parseInt(req.params.id), deletedAt: null }, include: { user: { select: { id: true, fullNameAr: true, fullNameEn: true } } } });
     if (!item) throw new NotFoundError('License');
@@ -139,7 +139,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.get('/:id/download', authenticate, async (req, res, next) => {
+router.get('/:id/download', ...adminPerm(P.DOCUMENTS_READ), async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
     const item = await prisma.license.findFirst({
@@ -197,7 +197,7 @@ router.get('/:id/download', authenticate, async (req, res, next) => {
  *       201:
  *         description: Created
  */
-router.post('/', authenticate, upload.single('file'), async (req, res, next) => {
+router.post('/', ...adminPerm(P.DOCUMENTS_WRITE), upload.single('file'), async (req, res, next) => {
   try {
     let userId = parseInt(req.body.userId, 10);
     if (!ADMIN_ROLES.has(req.user.role)) {
@@ -213,7 +213,7 @@ router.post('/', authenticate, upload.single('file'), async (req, res, next) => 
   } catch (err) { next(err); }
 });
 
-router.put('/:id', authenticate, upload.single('file'), async (req, res, next) => {
+router.put('/:id', ...adminPerm(P.DOCUMENTS_WRITE), upload.single('file'), async (req, res, next) => {
   try {
     const existing = await prisma.license.findFirst({
       where: { id: parseInt(req.params.id, 10), deletedAt: null },
@@ -247,7 +247,7 @@ router.put('/:id', authenticate, upload.single('file'), async (req, res, next) =
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id', authenticate, upload.single('file'), async (req, res, next) => {
+router.patch('/:id', ...adminPerm(P.DOCUMENTS_WRITE), upload.single('file'), async (req, res, next) => {
   try {
     const existing = await prisma.license.findFirst({
       where: { id: parseInt(req.params.id, 10), deletedAt: null },
@@ -325,7 +325,7 @@ router.patch('/:id/review', ...adminPerm(P.DOCUMENTS_REVIEW), async (req, res, n
  *       200:
  *         description: Deleted
  */
-router.delete('/:id', ...adminPerm(P.DOCUMENTS_REVIEW), async (req, res, next) => {
+router.delete('/:id', ...adminPerm(P.DOCUMENTS_WRITE), async (req, res, next) => {
   try {
     await prisma.license.update({ where: { id: parseInt(req.params.id) }, data: { deletedAt: new Date() } });
     return ApiResponse.success(res, null, 'License deleted');

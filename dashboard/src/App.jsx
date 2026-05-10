@@ -3,10 +3,11 @@ import { Provider } from 'react-redux';
 import { Toaster } from 'react-hot-toast';
 import { store } from './store';
 import DashboardLayout from './layouts/DashboardLayout';
-import ProtectedRoute from './routes/ProtectedRoute';
+import PermissionRoute from './routes/PermissionRoute';
+import { PERMISSIONS as P, DASHBOARD_VIEW_PERMISSIONS } from './utils/rolePermissions';
 
-// Pages
 import LoginPage from './pages/auth/LoginPage';
+import UnauthorizedPage from './pages/unauthorized/UnauthorizedPage';
 import DashboardHome from './pages/dashboard/DashboardHome';
 import DriversPage from './pages/drivers/DriversPage';
 import DriverDetailPage from './pages/drivers/DriverDetailPage';
@@ -54,6 +55,7 @@ import AnalyticsPage from './pages/analytics/AnalyticsPage';
 import SettingsPage from './pages/settings/SettingsPage';
 import AdminsPage from './pages/admins/AdminsPage';
 import AuditLogsPage from './pages/audit-logs/AuditLogsPage';
+import RolesPermissionsPage from './pages/roles-permissions/RolesPermissionsPage';
 
 export default function App() {
   return (
@@ -62,55 +64,57 @@ export default function App() {
         <Toaster position="top-center" toastOptions={{ style: { fontFamily: 'Almarai', direction: 'rtl' } }} />
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-            <Route index element={<DashboardHome />} />
-            <Route path="drivers" element={<DriversPage />} />
-            <Route path="drivers/:id" element={<DriverDetailPage />} />
-            <Route path="supervisors" element={<SupervisorsPage />} />
-            <Route path="supervisors/:id" element={<SupervisorDetailPage />} />
-            <Route path="vehicles" element={<VehiclesPage />} />
-            <Route path="vehicles/:id" element={<VehicleDetailPage />} />
-            <Route path="documents" element={<DocumentsPage />} />
-            <Route path="documents/:id" element={<DocumentDetailPage />} />
-            <Route path="licenses" element={<LicensesPage />} />
-            <Route path="licenses/:id" element={<LicenseDetailPage />} />
-            <Route path="bank-accounts" element={<BankAccountsPage />} />
-            <Route path="bank-accounts/:id" element={<BankAccountDetailPage />} />
-            <Route path="platform-accounts" element={<PlatformAccountsPage />} />
-            <Route path="platform-accounts/:id" element={<PlatformAccountDetailPage />} />
-            <Route path="shifts" element={<ShiftsPage />} />
-            <Route path="shifts/:id" element={<ShiftDetailPage />} />
-            <Route path="fuel" element={<FuelLogsPage />} />
-            <Route path="fuel/:id" element={<FuelLogDetailPage />} />
-            <Route path="violations" element={<ViolationsPage />} />
-            <Route path="violations/:id" element={<ViolationDetailPage />} />
-            <Route path="incidents" element={<IncidentsPage />} />
-            <Route path="incidents/:id" element={<IncidentDetailPage />} />
-            <Route path="daily-reports" element={<DailyReportsPage />} />
-            <Route path="daily-reports/:id" element={<DailyReportDetailPage />} />
-            <Route path="notifications" element={<NotificationsPage />} />
-            <Route path="tickets" element={<TicketsPage />} />
-            <Route path="tickets/:id" element={<TicketDetailPage />} />
-            <Route path="chat" element={<ChatPage />} />
-            <Route path="investigations" element={<InvestigationsPage />} />
-            <Route path="investigations/:id" element={<InvestigationDetailPage />} />
-            <Route path="penalties" element={<PenaltiesPage />} />
-            <Route path="penalties/:id" element={<PenaltyDetailPage />} />
-            <Route path="ratings" element={<RatingsPage />} />
-            <Route path="ratings/:id" element={<RatingDetailPage />} />
-            <Route path="rewards" element={<RewardsPage />} />
-            <Route path="rewards/:id" element={<RewardDetailPage />} />
-            <Route path="leaves" element={<LeavesPage />} />
-            <Route path="leaves/:id" element={<LeaveDetailPage />} />
-            <Route path="salary-advances" element={<SalaryAdvancesPage />} />
-            <Route path="salary-advances/:id" element={<SalaryAdvanceDetailPage />} />
+          <Route path="/unauthorized" element={<UnauthorizedPage />} />
+          <Route path="/" element={<DashboardLayout />}>
+            <Route index element={<PermissionRoute anyOf={DASHBOARD_VIEW_PERMISSIONS}><DashboardHome /></PermissionRoute>} />
+            <Route path="drivers" element={<PermissionRoute anyOf={[P.USERS_READ]}><DriversPage /></PermissionRoute>} />
+            <Route path="drivers/:id" element={<PermissionRoute anyOf={[P.USERS_READ]}><DriverDetailPage /></PermissionRoute>} />
+            <Route path="supervisors" element={<PermissionRoute anyOf={[P.USERS_READ]}><SupervisorsPage /></PermissionRoute>} />
+            <Route path="supervisors/:id" element={<PermissionRoute anyOf={[P.USERS_READ]}><SupervisorDetailPage /></PermissionRoute>} />
+            <Route path="vehicles" element={<PermissionRoute anyOf={[P.FLEET_READ]}><VehiclesPage /></PermissionRoute>} />
+            <Route path="vehicles/:id" element={<PermissionRoute anyOf={[P.FLEET_READ]}><VehicleDetailPage /></PermissionRoute>} />
+            <Route path="documents" element={<PermissionRoute anyOf={[P.DOCUMENTS_READ]}><DocumentsPage /></PermissionRoute>} />
+            <Route path="documents/:id" element={<PermissionRoute anyOf={[P.DOCUMENTS_READ]}><DocumentDetailPage /></PermissionRoute>} />
+            <Route path="licenses" element={<PermissionRoute anyOf={[P.DOCUMENTS_READ]}><LicensesPage /></PermissionRoute>} />
+            <Route path="licenses/:id" element={<PermissionRoute anyOf={[P.DOCUMENTS_READ]}><LicenseDetailPage /></PermissionRoute>} />
+            <Route path="bank-accounts" element={<PermissionRoute anyOf={[P.FINANCE_READ]}><BankAccountsPage /></PermissionRoute>} />
+            <Route path="bank-accounts/:id" element={<PermissionRoute anyOf={[P.FINANCE_READ]}><BankAccountDetailPage /></PermissionRoute>} />
+            <Route path="platform-accounts" element={<PermissionRoute anyOf={[P.FLEET_READ]}><PlatformAccountsPage /></PermissionRoute>} />
+            <Route path="platform-accounts/:id" element={<PermissionRoute anyOf={[P.FLEET_READ]}><PlatformAccountDetailPage /></PermissionRoute>} />
+            <Route path="shifts" element={<PermissionRoute anyOf={[P.SHIFTS_READ]}><ShiftsPage /></PermissionRoute>} />
+            <Route path="shifts/:id" element={<PermissionRoute anyOf={[P.SHIFTS_READ]}><ShiftDetailPage /></PermissionRoute>} />
+            <Route path="fuel" element={<PermissionRoute anyOf={[P.FLEET_READ]}><FuelLogsPage /></PermissionRoute>} />
+            <Route path="fuel/:id" element={<PermissionRoute anyOf={[P.FLEET_READ]}><FuelLogDetailPage /></PermissionRoute>} />
+            <Route path="violations" element={<PermissionRoute anyOf={[P.COMPLIANCE_READ]}><ViolationsPage /></PermissionRoute>} />
+            <Route path="violations/:id" element={<PermissionRoute anyOf={[P.COMPLIANCE_READ]}><ViolationDetailPage /></PermissionRoute>} />
+            <Route path="incidents" element={<PermissionRoute anyOf={[P.COMPLIANCE_READ]}><IncidentsPage /></PermissionRoute>} />
+            <Route path="incidents/:id" element={<PermissionRoute anyOf={[P.COMPLIANCE_READ]}><IncidentDetailPage /></PermissionRoute>} />
+            <Route path="daily-reports" element={<PermissionRoute anyOf={[P.SHIFTS_READ]}><DailyReportsPage /></PermissionRoute>} />
+            <Route path="daily-reports/:id" element={<PermissionRoute anyOf={[P.SHIFTS_READ]}><DailyReportDetailPage /></PermissionRoute>} />
+            <Route path="notifications" element={<PermissionRoute anyOf={[P.USERS_READ]}><NotificationsPage /></PermissionRoute>} />
+            <Route path="tickets" element={<PermissionRoute anyOf={[P.USERS_READ]}><TicketsPage /></PermissionRoute>} />
+            <Route path="tickets/:id" element={<PermissionRoute anyOf={[P.USERS_READ]}><TicketDetailPage /></PermissionRoute>} />
+            <Route path="chat" element={<PermissionRoute anyOf={[P.USERS_READ]}><ChatPage /></PermissionRoute>} />
+            <Route path="investigations" element={<PermissionRoute anyOf={[P.COMPLIANCE_READ]}><InvestigationsPage /></PermissionRoute>} />
+            <Route path="investigations/:id" element={<PermissionRoute anyOf={[P.COMPLIANCE_READ]}><InvestigationDetailPage /></PermissionRoute>} />
+            <Route path="penalties" element={<PermissionRoute anyOf={[P.COMPLIANCE_READ]}><PenaltiesPage /></PermissionRoute>} />
+            <Route path="penalties/:id" element={<PermissionRoute anyOf={[P.COMPLIANCE_READ]}><PenaltyDetailPage /></PermissionRoute>} />
+            <Route path="ratings" element={<PermissionRoute anyOf={[P.FLEET_READ]}><RatingsPage /></PermissionRoute>} />
+            <Route path="ratings/:id" element={<PermissionRoute anyOf={[P.FLEET_READ]}><RatingDetailPage /></PermissionRoute>} />
+            <Route path="rewards" element={<PermissionRoute anyOf={[P.HR_READ]}><RewardsPage /></PermissionRoute>} />
+            <Route path="rewards/:id" element={<PermissionRoute anyOf={[P.HR_READ]}><RewardDetailPage /></PermissionRoute>} />
+            <Route path="leaves" element={<PermissionRoute anyOf={[P.HR_READ]}><LeavesPage /></PermissionRoute>} />
+            <Route path="leaves/:id" element={<PermissionRoute anyOf={[P.HR_READ]}><LeaveDetailPage /></PermissionRoute>} />
+            <Route path="salary-advances" element={<PermissionRoute anyOf={[P.FINANCE_READ]}><SalaryAdvancesPage /></PermissionRoute>} />
+            <Route path="salary-advances/:id" element={<PermissionRoute anyOf={[P.FINANCE_READ]}><SalaryAdvanceDetailPage /></PermissionRoute>} />
             <Route path="maintenance" element={<Navigate to="/maintenance-requests" replace />} />
-            <Route path="maintenance-requests" element={<MaintenancePage />} />
-            <Route path="maintenance-requests/:id" element={<MaintenanceRequestDetailPage />} />
-            <Route path="analytics" element={<AnalyticsPage />} />
-            <Route path="settings" element={<SettingsPage />} />
-            <Route path="admins" element={<AdminsPage />} />
-            <Route path="audit-logs" element={<AuditLogsPage />} />
+            <Route path="maintenance-requests" element={<PermissionRoute anyOf={[P.INVENTORY_READ]}><MaintenancePage /></PermissionRoute>} />
+            <Route path="maintenance-requests/:id" element={<PermissionRoute anyOf={[P.INVENTORY_READ]}><MaintenanceRequestDetailPage /></PermissionRoute>} />
+            <Route path="analytics" element={<PermissionRoute anyOf={DASHBOARD_VIEW_PERMISSIONS}><AnalyticsPage /></PermissionRoute>} />
+            <Route path="settings" element={<PermissionRoute anyOf={[P.SETTINGS_READ]}><SettingsPage /></PermissionRoute>} />
+            <Route path="admins" element={<PermissionRoute anyOf={[P.USERS_WRITE]}><AdminsPage /></PermissionRoute>} />
+            <Route path="audit-logs" element={<PermissionRoute anyOf={[P.AUDIT_READ]}><AuditLogsPage /></PermissionRoute>} />
+            <Route path="roles-permissions" element={<PermissionRoute anyOf={[P.ROLE_MANAGEMENT]}><RolesPermissionsPage /></PermissionRoute>} />
           </Route>
         </Routes>
       </BrowserRouter>

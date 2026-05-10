@@ -423,7 +423,7 @@ export default function SettingsPage() {
 
         {tab === 'masterData' && (
           <div className="bg-white rounded-3xl shadow-premium border border-slate-100 overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="table-responsive">
               <table className="w-full text-right border-collapse">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-100">

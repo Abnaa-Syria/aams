@@ -13,7 +13,7 @@ const RewardController = require('./controller');
  *     security:
  *       - bearerAuth: []
  */
-router.get('/', authenticate, RewardController.list);
+router.get('/', ...adminPerm(P.HR_READ), RewardController.list);
 
 /**
  * @openapi
@@ -35,7 +35,7 @@ router.get('/summary', ...adminPerm(P.HR_READ, P.HR_APPROVE), RewardController.g
  *     security:
  *       - bearerAuth: []
  */
-router.get('/:id', authenticate, RewardController.getById);
+router.get('/:id', ...adminPerm(P.HR_READ), RewardController.getById);
 
 /**
  * @openapi
