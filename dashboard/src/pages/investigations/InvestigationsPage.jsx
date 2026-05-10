@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import GenericListPage from '../../components/ui/GenericListPage';
 import StatusBadge from '../../components/ui/StatusBadge';
+import StatusSelect from '../../components/ui/StatusSelect';
 import Modal from '../../components/ui/Modal';
 import FileUploadField from '../../components/ui/FileUploadField';
 import UserSelect from '../../components/ui/UserSelect';
@@ -40,6 +41,7 @@ export default function InvestigationsPage() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedInvestigation, setSelectedInvestigation] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
   const [form, setForm] = useState({
     userId: '',
     category: '',
@@ -78,6 +80,7 @@ export default function InvestigationsPage() {
       setShowCreate(false);
       setForm({ userId: '', category: '', title: '', details: '', internalNotes: '', status: 'OPEN' });
       setAttachments([]);
+      setReloadToken(t => t + 1);
     } catch (err) {
       toast.error(err.response?.data?.message || 'حدث خطأ');
     } finally {
@@ -104,6 +107,7 @@ export default function InvestigationsPage() {
       toast.success('تم تحديث التحقيق بنجاح');
       setEditModalOpen(false);
       setAttachments([]);
+      setReloadToken(t => t + 1);
     } catch (err) {
       toast.error(err.response?.data?.message || 'حدث خطأ');
     } finally {
@@ -137,12 +141,35 @@ export default function InvestigationsPage() {
       <GenericListPage
         title="التحقيقات"
         apiUrl="/investigations"
-        columns={columns}
+        columns={[...columns.slice(0, -1), {
+          key: 'actions',
+          label: '',
+          stopRowClick: true,
+          render: (_, row) => (
+            <div className="flex items-center gap-2">
+              <StatusSelect
+                id={row.id}
+                currentStatus={row.status}
+                apiUrl={`/investigations/${row.id}`}
+                options={statusOptions}
+                size="xs"
+                onSuccess={() => setReloadToken((t) => t + 1)}
+              />
+              <button 
+                onClick={(e) => { e.stopPropagation(); openEditModal(row); }} 
+                className="p-2 text-slate-400 hover:text-primary transition-colors"
+              >
+                <LuPencil size={16} />
+              </button>
+            </div>
+          ),
+        }]}
         onRowClick={(row) => navigate(`/investigations/${row.id}`)}
         createButton={createButton}
+        reloadToken={reloadToken}
         filters={[
           { key: 'driverName', type: 'text', placeholder: 'اسم السائق' },
-          { key: 'status', type: 'select', placeholder: 'الحالة', options: [{ value: 'OPEN', label: 'مفتوح' }, { value: 'PENDING_RESPONSE', label: 'بانتظار الرد' }, { value: 'UNDER_REVIEW', label: 'قيد المراجعة' }, { value: 'CLOSED', label: 'مغلق' }] },
+          { key: 'status', type: 'select', placeholder: 'الحالة', options: statusOptions },
         ]}
       />
 

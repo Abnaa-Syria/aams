@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import GenericListPage from '../../components/ui/GenericListPage';
 import StatusBadge from '../../components/ui/StatusBadge';
+import StatusSelect from '../../components/ui/StatusSelect';
 import Modal from '../../components/ui/Modal';
 import FileUploadField from '../../components/ui/FileUploadField';
 import { useState, useEffect } from 'react';
@@ -188,10 +189,9 @@ function IncidentModal({ isOpen, onClose, incident, onSave }) {
             {loading ? 'حفظ...' : 'حفظ'}
           </button>
           <button type="button" onClick={onClose} className="btn btn-secondary flex-1">إلغاء</button>
-          </div>
-        </form>
-      </div>
-    </div>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -232,14 +232,29 @@ export default function IncidentsPage() {
       <GenericListPage 
         title="الحوادث والطوارئ" 
         apiUrl="/incidents" 
-        columns={columns.map(col => col.key === 'actions' ? { ...col, render: (v, row) => (
-          <button 
-            onClick={(e) => { e.stopPropagation(); openUpdateModal(row); }} 
-            className="p-2 text-slate-400 hover:text-primary transition-colors"
-          >
-            <LuPencil size={16} />
-          </button>
-        ), stopRowClick: true } : col)} 
+        columns={[...columns.slice(0, -1), {
+          key: 'actions',
+          label: '',
+          stopRowClick: true,
+          render: (_, row) => (
+            <div className="flex items-center gap-2">
+              <StatusSelect
+                id={row.id}
+                currentStatus={row.status}
+                apiUrl={`/incidents/${row.id}`}
+                options={statusOptions}
+                size="xs"
+                onSuccess={() => setReloadToken((t) => t + 1)}
+              />
+              <button 
+                onClick={(e) => { e.stopPropagation(); openUpdateModal(row); }} 
+                className="p-2 text-slate-400 hover:text-primary transition-colors"
+              >
+                <LuPencil size={16} />
+              </button>
+            </div>
+          ),
+        }]} 
         onRowClick={(row) => navigate(`/incidents/${row.id}`)} 
         createButton={createButton}
         reloadToken={reloadToken}
@@ -247,7 +262,7 @@ export default function IncidentsPage() {
           { key: 'driverName', type: 'text', placeholder: 'اسم السائق' },
           { key: 'type', type: 'select', placeholder: 'النوع', options: Object.entries(typeLabels).map(([v, l]) => ({ value: v, label: l })) },
           { key: 'severity', type: 'select', placeholder: 'الخطورة', options: [{ value: 'LOW', label: 'منخفض' }, { value: 'MEDIUM', label: 'متوسط' }, { value: 'HIGH', label: 'عالي' }, { value: 'CRITICAL', label: 'حرج' }] },
-          { key: 'status', type: 'select', placeholder: 'الحالة', options: [{ value: 'OPEN', label: 'مفتوح' }, { value: 'IN_PROGRESS', label: 'قيد التنفيذ' }, { value: 'RESOLVED', label: 'تم الحل' }, { value: 'CLOSED', label: 'مغلق' }] },
+          { key: 'status', type: 'select', placeholder: 'الحالة', options: statusOptions },
         ]} 
       />
       <IncidentModal 

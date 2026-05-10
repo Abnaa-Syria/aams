@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import GenericListPage from '../../components/ui/GenericListPage';
 import StatusBadge from '../../components/ui/StatusBadge';
+import StatusSelect from '../../components/ui/StatusSelect';
 import Modal from '../../components/ui/Modal';
 import FileUploadField from '../../components/ui/FileUploadField';
 import { useState, useEffect } from 'react';
@@ -222,20 +223,35 @@ export default function DailyReportsPage() {
       <GenericListPage 
         title="التقارير اليومية" 
         apiUrl="/daily-reports" 
-        columns={columns.map(col => col.key === 'actions' ? { ...col, render: (v, row) => (
-          <button 
-            onClick={(e) => { e.stopPropagation(); openUpdateModal(row); }} 
-            className="p-2 text-slate-400 hover:text-primary transition-colors"
-          >
-            <LuPencil size={16} />
-          </button>
-        ), stopRowClick: true } : col)} 
+        columns={[...columns.slice(0, -1), {
+          key: 'actions',
+          label: '',
+          stopRowClick: true,
+          render: (_, row) => (
+            <div className="flex items-center gap-2">
+              <StatusSelect
+                id={row.id}
+                currentStatus={row.status}
+                apiUrl={`/daily-reports/${row.id}`}
+                options={statusOptions}
+                size="xs"
+                onSuccess={() => setReloadToken((t) => t + 1)}
+              />
+              <button 
+                onClick={(e) => { e.stopPropagation(); openUpdateModal(row); }} 
+                className="p-2 text-slate-400 hover:text-primary transition-colors"
+              >
+                <LuPencil size={16} />
+              </button>
+            </div>
+          ),
+        }]} 
         onRowClick={(row) => navigate(`/daily-reports/${row.id}`)} 
         createButton={createButton}
         reloadToken={reloadToken}
         filters={[
           { key: 'driverName', type: 'text', placeholder: 'اسم السائق' },
-          { key: 'status', type: 'select', placeholder: 'الحالة', options: [{ value: 'SUBMITTED', label: 'مقدم' }, { value: 'UNDER_REVIEW', label: 'قيد المراجعة' }, { value: 'APPROVED', label: 'مقبول' }, { value: 'REJECTED', label: 'مرفوض' }, { value: 'NEEDS_REVISION', label: 'يحتاج تعديل' }] },
+          { key: 'status', type: 'select', placeholder: 'الحالة', options: statusOptions },
           { key: 'dateFrom', type: 'date', placeholder: 'من تاريخ' },
           { key: 'dateTo', type: 'date', placeholder: 'إلى تاريخ' },
         ]} 

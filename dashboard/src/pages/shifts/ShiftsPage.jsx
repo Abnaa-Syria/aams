@@ -1,5 +1,6 @@
 import GenericListPage from '../../components/ui/GenericListPage';
 import StatusBadge from '../../components/ui/StatusBadge';
+import StatusSelect from '../../components/ui/StatusSelect';
 import Modal from '../../components/ui/Modal';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
@@ -27,7 +28,7 @@ const columns = [
   { key: 'endedAt', label: 'وقت الانتهاء', render: (v) => v ? new Date(v).toLocaleTimeString('ar-SA') : '—' },
   { key: 'actions', label: 'الإجراءات', render: (v, row) => (
     <button 
-      onClick={(e) => { e.stopPropagation(); /* open update modal */ }} 
+      onClick={(e) => { e.stopPropagation(); }} 
       className="p-2 text-slate-400 hover:text-primary transition-colors"
     >
       <LuPencil size={16} />
@@ -66,15 +67,15 @@ function ShiftModal({ isOpen, onClose, shift, onSave }) {
         apiService.get('/vehicles', { limit: 500 }),
         apiService.get('/platform-accounts', { limit: 500 }),
       ]);
-      setDrivers(driversRes.data.data);
-      setVehicles(vehiclesRes.data.data);
-      setPlatforms(platformsRes.data.data);
+      setDrivers(driversRes.data?.data || []);
+      setVehicles(vehiclesRes.data?.data || []);
+      setPlatforms(platformsRes.data?.data || []);
     } catch (error) {
       console.error('Failed to load options', error);
     }
   };
 
-const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
@@ -166,60 +167,6 @@ const handleSubmit = async (e) => {
     </Modal>
   );
 }
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-        <h3 className="text-lg font-bold mb-4">{shift ? 'تحديث الشفت' : 'إنشاء شفت جديد'}</h3>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <select 
-            className="form-input form-select" 
-            value={form.userId} 
-            onChange={(e) => setForm(f => ({ ...f, userId: e.target.value }))}
-            required
-            disabled={!!shift}
-          >
-            <option value="">اختر السائق</option>
-            {drivers.map(d => <option key={d.id} value={d.id}>{d.fullNameAr}</option>)}
-          </select>
-          <select 
-            className="form-input form-select" 
-            value={form.vehicleId} 
-            onChange={(e) => setForm(f => ({ ...f, vehicleId: e.target.value }))}
-            required
-          >
-            <option value="">اختر المركبة</option>
-            {vehicles.map(v => <option key={v.id} value={v.id}>{v.plateNumber}</option>)}
-          </select>
-          <select 
-            className="form-input form-select" 
-            value={form.platformAccountId} 
-            onChange={(e) => setForm(f => ({ ...f, platformAccountId: e.target.value }))}
-            required
-          >
-            <option value="">اختر المنصة</option>
-            {platforms.map(p => <option key={p.id} value={p.id}>{p.platform.nameAr}</option>)}
-          </select>
-          <textarea 
-            className="form-input" 
-            placeholder="ملاحظات" 
-            value={form.notes} 
-            onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))}
-          />
-          <div className="flex gap-2">
-            <button type="submit" className="btn btn-primary flex-1" disabled={loading}>
-              {loading ? 'حفظ...' : 'حفظ'}
-            </button>
-            <button type="button" onClick={onClose} className="btn btn-secondary flex-1">إلغاء</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
 
 export default function ShiftsPage() {
   const navigate = useNavigate();
@@ -228,18 +175,13 @@ export default function ShiftsPage() {
   const [selectedShift, setSelectedShift] = useState(null);
   const [reloadToken, setReloadToken] = useState(0);
 
-const handleCreate = async (formData) => {
+  const handleCreate = async (formData) => {
     await apiService.upload('/shifts/request-start', formData);
     setReloadToken(t => t + 1);
   };
 
   const handleUpdate = async (formData) => {
     await apiService.upload(`/shifts/${selectedShift.id}`, formData);
-    setReloadToken(t => t + 1);
-  };
-
-  const handleUpdate = async (form) => {
-    await apiService.put(`/shifts/${selectedShift.id}`, form);
     setReloadToken(t => t + 1);
   };
 
@@ -263,32 +205,35 @@ const handleCreate = async (formData) => {
       <GenericListPage
         title="إدارة الشفتات"
         apiUrl="/shifts"
-        columns={columns.map(col => col.key === 'actions' ? { ...col, render: (v, row) => (
-          <button 
-            onClick={(e) => { e.stopPropagation(); openUpdateModal(row); }} 
-            className="p-2 text-slate-400 hover:text-primary transition-colors"
-          >
-            <LuPencil size={16} />
-          </button>
-        ), stopRowClick: true } : col)}
+        columns={[...columns.slice(0, -1), {
+          key: 'actions',
+          label: '',
+          stopRowClick: true,
+          render: (_, row) => (
+            <div className="flex items-center gap-2">
+              <StatusSelect
+                id={row.id}
+                currentStatus={row.status}
+                apiUrl={`/shifts/${row.id}`}
+                options={statusOptions}
+                size="xs"
+                onSuccess={() => setReloadToken((t) => t + 1)}
+              />
+              <button 
+                onClick={(e) => { e.stopPropagation(); openUpdateModal(row); }} 
+                className="p-2 text-slate-400 hover:text-primary transition-colors"
+              >
+                <LuPencil size={16} />
+              </button>
+            </div>
+          ),
+        }]}
         onRowClick={(row) => navigate(`/shifts/${row.id}`)}
         createButton={createButton}
         reloadToken={reloadToken}
         filters={[
           { key: 'driverName', type: 'text', placeholder: 'اسم السائق' },
-          {
-            key: 'status',
-            type: 'select',
-            placeholder: 'الحالة',
-            options: [
-              { value: 'REQUESTED', label: 'مطلوب' },
-              { value: 'APPROVED', label: 'مقبول' },
-              { value: 'ACTIVE', label: 'نشط' },
-              { value: 'ENDED', label: 'منتهي' },
-              { value: 'REJECTED', label: 'مرفوض' },
-              { value: 'CANCELLED', label: 'ملغي' },
-            ],
-          },
+          { key: 'status', type: 'select', placeholder: 'الحالة', options: statusOptions },
           { key: 'dateFrom', type: 'date', placeholder: 'من تاريخ' },
           { key: 'dateTo', type: 'date', placeholder: 'إلى تاريخ' },
         ]}
