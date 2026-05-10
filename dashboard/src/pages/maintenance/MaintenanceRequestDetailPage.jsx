@@ -4,6 +4,8 @@ import toast from 'react-hot-toast';
 import { apiService } from '../../services/api';
 import StatusBadge from '../../components/ui/StatusBadge';
 import AttachmentGallery from '../../components/attachments/AttachmentGallery';
+import Modal from '../../components/ui/Modal';
+import FileUploadField from '../../components/ui/FileUploadField';
 import {
   LuChevronLeft,
   LuUser,
@@ -12,6 +14,7 @@ import {
   LuClock,
   LuText,
   LuHash,
+  LuPencil,
 } from 'react-icons/lu';
 
 function formatDateTime(v) {
@@ -39,11 +42,36 @@ function LabelValue({ label, value, icon: Icon }) {
   );
 }
 
+const statusOptions = [
+  { value: 'REQUESTED', label: 'مطلوب' },
+  { value: 'APPROVED', label: 'مقبول' },
+  { value: 'IN_PROGRESS', label: 'قيد التنفيذ' },
+  { value: 'COMPLETED', label: 'مكتمل' },
+  { value: 'CANCELLED', label: 'ملغي' },
+];
+
+const priorityOptions = [
+  { value: 'LOW', label: 'منخفض' },
+  { value: 'MEDIUM', label: 'متوسط' },
+  { value: 'HIGH', label: 'عالي' },
+  { value: 'URGENT', label: 'عاجل' },
+];
+
 export default function MaintenanceRequestDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [item, setItem] = useState(null);
+
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editForm, setEditForm] = useState({
+    status: 'REQUESTED',
+    priority: 'MEDIUM',
+    technicianNotes: '',
+    adminNotes: '',
+  });
+  const [newAttachments, setNewAttachments] = useState([]);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -91,6 +119,44 @@ export default function MaintenanceRequestDetailPage() {
     return [];
   }, [item, id]);
 
+  const openEditModal = () => {
+    setEditForm({
+      status: item?.status || 'REQUESTED',
+      priority: item?.priority || 'MEDIUM',
+      technicianNotes: item?.technicianNotes || '',
+      adminNotes: item?.adminNotes || '',
+    });
+    setNewAttachments([]);
+    setEditModalOpen(true);
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    setEditLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('status', editForm.status);
+      formData.append('priority', editForm.priority);
+      formData.append('technicianNotes', editForm.technicianNotes);
+      formData.append('adminNotes', editForm.adminNotes);
+      
+      if (newAttachments.length > 0) {
+        newAttachments.forEach(file => {
+          formData.append('attachments', file);
+        });
+      }
+      
+      await apiService.upload(`/maintenance-requests/${id}`, formData);
+      toast.success('تم تحديث الطلب بنجاح');
+      setEditModalOpen(false);
+      load();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'فشل في التحديث');
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -131,6 +197,14 @@ export default function MaintenanceRequestDetailPage() {
           </div>
 
           <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={openEditModal}
+              className="btn btn-primary !rounded-2xl flex items-center gap-2"
+            >
+              <LuPencil size={18} />
+              تعديل
+            </button>
             <button
               type="button"
               onClick={() => navigate('/maintenance-requests')}
@@ -210,5 +284,75 @@ export default function MaintenanceRequestDetailPage() {
         </div>
       </div>
     </div>
+  );
+
+  return (
+    <Modal isOpen={editModalOpen} onClose={() => setEditModalOpen(false)} title="تحديث طلب الصيانة">
+      <form onSubmit={handleEditSubmit} className="space-y-5">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-bold text-slate-600 mb-2">الحالة</label>
+            <select
+              className="form-input form-select"
+              value={editForm.status}
+              onChange={(e) => setEditForm(f => ({ ...f, status: e.target.value }))}
+            >
+              {statusOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-slate-600 mb-2">الأولوية</label>
+            <select
+              className="form-input form-select"
+              value={editForm.priority}
+              onChange={(e) => setEditForm(f => ({ ...f, priority: e.target.value }))}
+            >
+              {priorityOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-bold text-slate-600 mb-2">ملاحظات الفني</label>
+          <textarea
+            className="form-input"
+            placeholder="ملاحظات الفني"
+            value={editForm.technicianNotes}
+            onChange={(e) => setEditForm(f => ({ ...f, technicianNotes: e.target.value }))}
+            rows={3}
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-bold text-slate-600 mb-2">ملاحظات الإدارة</label>
+          <textarea
+            className="form-input"
+            placeholder="ملاحظات الإدارة"
+            value={editForm.adminNotes}
+            onChange={(e) => setEditForm(f => ({ ...f, adminNotes: e.target.value }))}
+            rows={3}
+          />
+        </div>
+
+        <FileUploadField
+          label="إضافة مرفقات جديدة (يمكن رفع أكثر من ملف)"
+          value={newAttachments}
+          onChange={setNewAttachments}
+          multiple={true}
+          accept="image/*,.pdf"
+          optional={true}
+        />
+
+        <div className="flex justify-end gap-3 pt-4">
+          <button
+            type="submit"
+            disabled={editLoading}
+            className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {editLoading ? 'جارٍ الحفظ...' : 'حفظ'}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }

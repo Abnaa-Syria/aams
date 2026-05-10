@@ -1,10 +1,19 @@
 import { useNavigate } from 'react-router-dom';
 import GenericListPage from '../../components/ui/GenericListPage';
 import StatusBadge from '../../components/ui/StatusBadge';
+import Modal from '../../components/ui/Modal';
+import FileUploadField from '../../components/ui/FileUploadField';
 import { useState, useEffect } from 'react';
 import { apiService } from '../../services/api';
 import { LuPlus, LuPencil } from 'react-icons/lu';
 import toast from 'react-hot-toast';
+
+const statusOptions = [
+  { value: 'PENDING', label: 'معلق' },
+  { value: 'APPROVED', label: 'مقبول' },
+  { value: 'REJECTED', label: 'مرفوض' },
+  { value: 'FLAGGED', label: 'مشبوه' },
+];
 
 const columns = [
   { key: 'user', label: 'السائق', render: (v) => v?.fullNameAr || '—' },
@@ -25,10 +34,19 @@ const columns = [
 ];
 
 function FuelLogModal({ isOpen, onClose, fuelLog, onSave }) {
-  const [form, setForm] = useState({ userId: '', vehicleId: '', amount: '', liters: '', fuelDate: '' });
+  const [form, setForm] = useState({ 
+    userId: '', 
+    vehicleId: '', 
+    amount: '', 
+    liters: '', 
+    fuelDate: '',
+    status: 'PENDING',
+    reviewNotes: '',
+  });
   const [drivers, setDrivers] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [receipt, setReceipt] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -40,10 +58,21 @@ function FuelLogModal({ isOpen, onClose, fuelLog, onSave }) {
           amount: fuelLog.amount || '',
           liters: fuelLog.liters || '',
           fuelDate: fuelLog.fuelDate ? new Date(fuelLog.fuelDate).toISOString().split('T')[0] : '',
+          status: fuelLog.status || 'PENDING',
+          reviewNotes: fuelLog.reviewNotes || '',
         });
       } else {
-        setForm({ userId: '', vehicleId: '', amount: '', liters: '', fuelDate: '' });
+        setForm({ 
+          userId: '', 
+          vehicleId: '', 
+          amount: '', 
+          liters: '', 
+          fuelDate: '',
+          status: 'PENDING',
+          reviewNotes: '',
+        });
       }
+      setReceipt(null);
     }
   }, [isOpen, fuelLog]);
 
@@ -64,7 +93,23 @@ function FuelLogModal({ isOpen, onClose, fuelLog, onSave }) {
     e.preventDefault();
     setLoading(true);
     try {
-      await onSave(form);
+      const formData = new FormData();
+      formData.append('userId', form.userId);
+      formData.append('vehicleId', form.vehicleId);
+      formData.append('amount', form.amount);
+      formData.append('liters', form.liters);
+      formData.append('fuelDate', form.fuelDate);
+      
+      if (fuelLog) {
+        formData.append('status', form.status);
+        formData.append('reviewNotes', form.reviewNotes);
+      }
+      
+      if (receipt instanceof File) {
+        formData.append('receipt', receipt);
+      }
+      
+      await onSave(formData);
       onClose();
       toast.success(fuelLog ? 'تم تحديث سجل الوقود' : 'تم إنشاء سجل الوقود');
     } catch (error) {
@@ -74,66 +119,98 @@ function FuelLogModal({ isOpen, onClose, fuelLog, onSave }) {
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-        <h3 className="text-lg font-bold mb-4">{fuelLog ? 'تحديث سجل الوقود' : 'إنشاء سجل وقود جديد'}</h3>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <select 
-            className="form-input form-select" 
-            value={form.userId} 
-            onChange={(e) => setForm(f => ({ ...f, userId: e.target.value }))}
-            required
-            disabled={!!fuelLog}
-          >
-            <option value="">اختر السائق</option>
-            {drivers.map(d => <option key={d.id} value={d.id}>{d.fullNameAr}</option>)}
-          </select>
-          <select 
-            className="form-input form-select" 
-            value={form.vehicleId} 
-            onChange={(e) => setForm(f => ({ ...f, vehicleId: e.target.value }))}
-            required
-          >
-            <option value="">اختر المركبة</option>
-            {vehicles.map(v => <option key={v.id} value={v.id}>{v.plateNumber}</option>)}
-          </select>
-          <input 
-            type="number" 
-            step="0.01" 
-            className="form-input" 
-            placeholder="المبلغ" 
-            value={form.amount} 
-            onChange={(e) => setForm(f => ({ ...f, amount: e.target.value }))}
-            required
-          />
-          <input 
-            type="number" 
-            step="0.01" 
-            className="form-input" 
-            placeholder="اللترات" 
-            value={form.liters} 
-            onChange={(e) => setForm(f => ({ ...f, liters: e.target.value }))}
-            required
-          />
-          <input 
-            type="date" 
-            className="form-input" 
-            value={form.fuelDate} 
-            onChange={(e) => setForm(f => ({ ...f, fuelDate: e.target.value }))}
-            required
-          />
-          <div className="flex gap-2">
-            <button type="submit" className="btn btn-primary flex-1" disabled={loading}>
-              {loading ? 'حفظ...' : 'حفظ'}
-            </button>
-            <button type="button" onClick={onClose} className="btn btn-secondary flex-1">إلغاء</button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal isOpen={isOpen} onClose={onClose} title={fuelLog ? 'تحديث سجل الوقود' : 'إنشاء سجل وقود جديد'}>
+      <form onSubmit={handleSubmit} className="space-y-5 max-h-[calc(100vh-200px)] overflow-y-auto">
+        <select 
+          className="form-input form-select" 
+          value={form.userId} 
+          onChange={(e) => setForm(f => ({ ...f, userId: e.target.value }))}
+          required
+          disabled={!!fuelLog}
+        >
+          <option value="">اختر السائق</option>
+          {drivers.map(d => <option key={d.id} value={d.id}>{d.fullNameAr}</option>)}
+        </select>
+        <select 
+          className="form-input form-select" 
+          value={form.vehicleId} 
+          onChange={(e) => setForm(f => ({ ...f, vehicleId: e.target.value }))}
+          required
+          disabled={!!fuelLog}
+        >
+          <option value="">اختر المركبة</option>
+          {vehicles.map(v => <option key={v.id} value={v.id}>{v.plateNumber}</option>)}
+        </select>
+        <input 
+          type="number" 
+          step="0.01" 
+          className="form-input" 
+          placeholder="المبلغ" 
+          value={form.amount} 
+          onChange={(e) => setForm(f => ({ ...f, amount: e.target.value }))}
+          required
+        />
+        <input 
+          type="number" 
+          step="0.01" 
+          className="form-input" 
+          placeholder="اللترات" 
+          value={form.liters} 
+          onChange={(e) => setForm(f => ({ ...f, liters: e.target.value }))}
+          required
+        />
+        <input 
+          type="date" 
+          className="form-input" 
+          value={form.fuelDate} 
+          onChange={(e) => setForm(f => ({ ...f, fuelDate: e.target.value }))}
+          required
+        />
+
+        <FileUploadField
+          label="صورة الإيصال"
+          value={receipt || (fuelLog?.receiptUrl && !Array.isArray(fuelLog?.receiptUrl) ? [fuelLog.receiptUrl] : null)}
+          onChange={setReceipt}
+          multiple={false}
+          accept="image/*,.pdf"
+          optional={true}
+        />
+
+        {fuelLog && (
+          <>
+            <div>
+              <label className="block text-sm font-bold text-slate-600 mb-2">الحالة</label>
+              <select
+                className="form-input form-select"
+                value={form.status}
+                onChange={(e) => setForm(f => ({ ...f, status: e.target.value }))}
+              >
+                {statusOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-slate-600 mb-2">ملاحظات المراجعة</label>
+              <textarea
+                className="form-input"
+                placeholder="أضف ملاحظاتك على السجل"
+                value={form.reviewNotes}
+                onChange={(e) => setForm(f => ({ ...f, reviewNotes: e.target.value }))}
+                rows={3}
+              />
+            </div>
+          </>
+        )}
+
+        <div className="flex gap-2">
+          <button type="submit" className="btn btn-primary flex-1" disabled={loading}>
+            {loading ? 'حفظ...' : 'حفظ'}
+          </button>
+          <button type="button" onClick={onClose} className="btn btn-secondary flex-1">إلغاء</button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -145,12 +222,12 @@ export default function FuelLogsPage() {
   const [reloadToken, setReloadToken] = useState(0);
 
   const handleCreate = async (form) => {
-    await apiService.post('/fuel-logs', form);
+    await apiService.upload('/fuel-logs', form);
     setReloadToken(t => t + 1);
   };
 
   const handleUpdate = async (form) => {
-    await apiService.patch(`/fuel-logs/${selectedFuelLog.id}`, form);
+    await apiService.upload(`/fuel-logs/${selectedFuelLog.id}`, form);
     setReloadToken(t => t + 1);
   };
 

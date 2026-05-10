@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { LuChevronLeft, LuDownload, LuFileText, LuUser, LuCalendar } from 'react-icons/lu';
+import { LuChevronLeft, LuDownload, LuFileText, LuUser, LuCalendar, LuPencil } from 'react-icons/lu';
 
 import api, { apiService } from '../../services/api';
 import StatusBadge from '../../components/ui/StatusBadge';
 import PdfViewer from '../../components/pdf/PdfViewer';
+import Modal from '../../components/ui/Modal';
+import FileUploadField from '../../components/ui/FileUploadField';
 import { resolveUploadUrl } from '../../utils/apiOrigin';
 
 const typeLabels = {
@@ -14,6 +16,15 @@ const typeLabels = {
   MEDICAL_CERTIFICATE: 'شهادة طبية',
   OTHER_CERTIFICATE: 'شهادة أخرى',
 };
+
+const statusOptions = [
+  { value: 'PENDING', label: 'معلق' },
+  { value: 'VALID', label: 'صالح' },
+  { value: 'NEAR_EXPIRY', label: 'قارب الانتهاء' },
+  { value: 'EXPIRED', label: 'منتهي' },
+  { value: 'UNDER_REVIEW', label: 'قيد المراجعة' },
+  { value: 'REJECTED', label: 'مرفوض' },
+];
 
 function formatDate(v) {
   if (!v) return '—';
@@ -82,6 +93,14 @@ export default function LicenseDetailPage() {
   const [downloading, setDownloading] = useState(false);
   const [pdfBlob, setPdfBlob] = useState(null);
   const [pdfPreviewLoading, setPdfPreviewLoading] = useState(false);
+  
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editForm, setEditForm] = useState({
+    status: 'PENDING',
+    reviewNotes: '',
+    file: null,
+  });
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -148,6 +167,38 @@ export default function LicenseDetailPage() {
     };
   }, [fileKind, id]);
 
+  const openEditModal = () => {
+    setEditForm({
+      status: item?.status || 'PENDING',
+      reviewNotes: item?.reviewNotes || '',
+      file: null,
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    setEditLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('status', editForm.status);
+      formData.append('reviewNotes', editForm.reviewNotes);
+      
+      if (editForm.file instanceof File) {
+        formData.append('file', editForm.file);
+      }
+      
+      await apiService.upload(`/licenses/${id}`, formData);
+      toast.success('تم تحديث الرخصة بنجاح');
+      setEditModalOpen(false);
+      load();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'فشل في التحديث');
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -170,6 +221,14 @@ export default function LicenseDetailPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={openEditModal}
+            className="btn btn-primary !rounded-2xl flex items-center gap-2"
+          >
+            <LuPencil size={18} />
+            تعديل
+          </button>
           <button
             type="button"
             onClick={onDownload}
@@ -290,8 +349,55 @@ export default function LicenseDetailPage() {
             </div>
           </div>
         </div>
-      </div>
+</div>
     </div>
+  );
+
+  return (
+    <Modal isOpen={editModalOpen} onClose={() => setEditModalOpen(false)} title="تحديث الرخصة">
+      <form onSubmit={handleEditSubmit} className="space-y-5">
+        <div>
+          <label className="block text-sm font-bold text-slate-600 mb-2">الحالة</label>
+          <select
+            className="form-input form-select"
+            value={editForm.status}
+            onChange={(e) => setEditForm(f => ({ ...f, status: e.target.value }))}
+          >
+            {statusOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-bold text-slate-600 mb-2">ملاحظات المراجعة</label>
+          <textarea
+            className="form-input"
+            placeholder="أضف ملاحظاتك على الرخصة"
+            value={editForm.reviewNotes}
+            onChange={(e) => setEditForm(f => ({ ...f, reviewNotes: e.target.value }))}
+            rows={3}
+          />
+        </div>
+
+        <FileUploadField
+          label="ملف الرخصة (اختياري)"
+          value={editForm.file}
+          onChange={(file) => setEditForm(f => ({ ...f, file }))}
+          multiple={false}
+          accept=".pdf,.jpg,.jpeg,.png"
+          optional={true}
+        />
+
+        <div className="flex justify-end gap-3 pt-4">
+          <button
+            type="submit"
+            disabled={editLoading}
+            className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {editLoading ? 'جارٍ الحفظ...' : 'حفظ'}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 

@@ -7,7 +7,7 @@ import UserSelect from '../../components/ui/UserSelect';
 import { apiService } from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { LuPlus, LuEye } from 'react-icons/lu';
+import { LuPlus, LuPencil, LuEye } from 'react-icons/lu';
 
 const columns = [
   { key: 'user', label: 'الموظف', render: (v) => v?.fullNameAr || '—' },
@@ -15,6 +15,14 @@ const columns = [
   { key: 'reason', label: 'السبب', render: (v) => v?.substring(0, 60) || '—' },
   { key: 'status', label: 'الحالة', render: (v) => <StatusBadge status={v} /> },
   { key: 'createdAt', label: 'التاريخ', render: (v) => v ? new Date(v).toLocaleDateString('ar-SA') : '—' },
+  { key: 'actions', label: 'الإجراءات', render: (v, row) => (
+    <button 
+      onClick={(e) => { e.stopPropagation(); }} 
+      className="p-2 text-slate-400 hover:text-primary transition-colors"
+    >
+      <LuPencil size={16} />
+    </button>
+  ), stopRowClick: true },
 ];
 
 const statusOptions = [
@@ -27,6 +35,8 @@ const statusOptions = [
 export default function SalaryAdvancesPage() {
   const navigate = useNavigate();
   const [showCreate, setShowCreate] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedAdvance, setSelectedAdvance] = useState(null);
   const [loading, setLoading] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
   const [form, setForm] = useState({
@@ -37,6 +47,7 @@ export default function SalaryAdvancesPage() {
     numberOfMonths: '1',
     installmentAmount: '',
     deductFromCurrent: false,
+    status: 'PENDING',
   });
 
   const handleChange = (field) => (e) => {
@@ -70,6 +81,25 @@ export default function SalaryAdvancesPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleUpdate = async (data) => {
+    await apiService.patch(`/salary-advances/${selectedAdvance.id}`, data);
+    setReloadToken((t) => t + 1);
+  };
+
+  const openEditModal = (advance) => {
+    setSelectedAdvance(advance);
+    setForm({
+      userId: advance.userId || '',
+      amount: advance.amount || '',
+      reason: advance.reason || '',
+      notes: advance.notes || '',
+      numberOfMonths: advance.numberOfMonths?.toString() || '1',
+      installmentAmount: advance.installmentAmount || '',
+      deductFromCurrent: advance.deductFromCurrent || false,
+    });
+    setEditModalOpen(true);
   };
 
   const createButton = (
@@ -158,6 +188,29 @@ export default function SalaryAdvancesPage() {
               {loading ? 'جارٍ الإنشاء...' : 'إنشاء'}
             </button>
             <button type="button" className="btn bg-slate-100 text-slate-500" onClick={() => setShowCreate(false)}>إلغاء</button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal isOpen={editModalOpen} onClose={() => setEditModalOpen(false)} title="تحديث طلب السلفة">
+        <form onSubmit={async (e) => { e.preventDefault(); setLoading(true); try { await handleUpdate({ status: form.status || 'PENDING', notes: form.notes }); toast.success('تم التحديث'); setEditModalOpen(false); } catch (err) { toast.error(err.response?.data?.message || 'حدث خطأ'); } setLoading(false); }} className="space-y-5">
+          <div>
+            <label className="block text-sm font-bold text-slate-600 mb-2">الحالة</label>
+            <select className="form-input form-select" value={form.status} onChange={handleChange('status')}>
+              {statusOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-slate-600 mb-2">ملاحظات المراجعة</label>
+            <textarea className="form-input" rows="3" value={form.notes} onChange={handleChange('notes')} placeholder="أضف ملاحظاتك..." />
+          </div>
+
+          <div className="flex gap-4 pt-4">
+            <button type="submit" disabled={loading} className="btn btn-primary flex-1 disabled:cursor-not-allowed disabled:opacity-60">
+              {loading ? 'جارٍ...' : 'تحديث'}
+            </button>
+            <button type="button" className="btn bg-slate-100 text-slate-500" onClick={() => setEditModalOpen(false)}>إلغاء</button>
           </div>
         </form>
       </Modal>

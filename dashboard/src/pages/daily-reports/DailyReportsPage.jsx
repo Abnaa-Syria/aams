@@ -1,10 +1,20 @@
 import { useNavigate } from 'react-router-dom';
 import GenericListPage from '../../components/ui/GenericListPage';
 import StatusBadge from '../../components/ui/StatusBadge';
+import Modal from '../../components/ui/Modal';
+import FileUploadField from '../../components/ui/FileUploadField';
 import { useState, useEffect } from 'react';
 import { apiService } from '../../services/api';
 import { LuPlus, LuPencil } from 'react-icons/lu';
 import toast from 'react-hot-toast';
+
+const statusOptions = [
+  { value: 'SUBMITTED', label: 'مقدم' },
+  { value: 'UNDER_REVIEW', label: 'قيد المراجعة' },
+  { value: 'APPROVED', label: 'موافق عليه' },
+  { value: 'REJECTED', label: 'مرفوض' },
+  { value: 'NEEDS_REVISION', label: 'يحتاج مراجعة' },
+];
 
 const columns = [
   { key: 'user', label: 'السائق', render: (v) => v?.fullNameAr || '—' },
@@ -25,9 +35,10 @@ const columns = [
 ];
 
 function DailyReportModal({ isOpen, onClose, report, onSave }) {
-  const [form, setForm] = useState({ userId: '', reportDate: '', totalHours: '', totalOrders: '' });
+  const [form, setForm] = useState({ userId: '', reportDate: '', totalHours: '', totalOrders: '', status: 'SUBMITTED', reviewNotes: '', notes: '' });
   const [drivers, setDrivers] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [screenshots, setScreenshots] = useState([]);
 
   useEffect(() => {
     if (isOpen) {
@@ -38,10 +49,14 @@ function DailyReportModal({ isOpen, onClose, report, onSave }) {
           reportDate: report.reportDate ? new Date(report.reportDate).toISOString().split('T')[0] : '',
           totalHours: report.totalHours || '',
           totalOrders: report.totalOrders || '',
+          status: report.status || 'SUBMITTED',
+          reviewNotes: report.reviewNotes || '',
+          notes: report.notes || '',
         });
       } else {
-        setForm({ userId: '', reportDate: '', totalHours: '', totalOrders: '' });
+        setForm({ userId: '', reportDate: '', totalHours: '', totalOrders: '', status: 'SUBMITTED', reviewNotes: '', notes: '' });
       }
+      setScreenshots([]);
     }
   }, [isOpen, report]);
 
@@ -58,7 +73,24 @@ function DailyReportModal({ isOpen, onClose, report, onSave }) {
     e.preventDefault();
     setLoading(true);
     try {
-      await onSave(form);
+      const formData = new FormData();
+      formData.append('userId', form.userId);
+      formData.append('reportDate', form.reportDate);
+      formData.append('totalHours', form.totalHours);
+      formData.append('totalOrders', form.totalOrders);
+      
+      if (report) {
+        formData.append('status', form.status);
+        formData.append('reviewNotes', form.reviewNotes);
+      }
+      
+      if (screenshots.length > 0) {
+        screenshots.forEach(file => {
+          formData.append('screenshots', file);
+        });
+      }
+      
+      await onSave(formData);
       onClose();
       toast.success(report ? 'تم تحديث التقرير' : 'تم إنشاء التقرير');
     } catch (error) {
@@ -68,56 +100,88 @@ function DailyReportModal({ isOpen, onClose, report, onSave }) {
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-        <h3 className="text-lg font-bold mb-4">{report ? 'تحديث التقرير' : 'إنشاء تقرير يومي جديد'}</h3>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <select 
-            className="form-input form-select" 
-            value={form.userId} 
-            onChange={(e) => setForm(f => ({ ...f, userId: e.target.value }))}
-            required
-            disabled={!!report}
-          >
-            <option value="">اختر السائق</option>
-            {drivers.map(d => <option key={d.id} value={d.id}>{d.fullNameAr}</option>)}
-          </select>
-          <input 
-            type="date" 
-            className="form-input" 
-            value={form.reportDate} 
-            onChange={(e) => setForm(f => ({ ...f, reportDate: e.target.value }))}
-            required
-          />
-          <input 
-            type="number" 
-            step="0.01" 
-            className="form-input" 
-            placeholder="إجمالي الساعات" 
-            value={form.totalHours} 
-            onChange={(e) => setForm(f => ({ ...f, totalHours: e.target.value }))}
-            required
-          />
-          <input 
-            type="number" 
-            className="form-input" 
-            placeholder="إجمالي الطلبات" 
-            value={form.totalOrders} 
-            onChange={(e) => setForm(f => ({ ...f, totalOrders: e.target.value }))}
-            required
-          />
-          <div className="flex gap-2">
-            <button type="submit" className="btn btn-primary flex-1" disabled={loading}>
-              {loading ? 'حفظ...' : 'حفظ'}
-            </button>
-            <button type="button" onClick={onClose} className="btn btn-secondary flex-1">إلغاء</button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal isOpen={isOpen} onClose={onClose} title={report ? 'تحديث التقرير' : 'إنشاء تقرير يومي جديد'}>
+      <form onSubmit={handleSubmit} className="space-y-5 max-h-[calc(100vh-200px)] overflow-y-auto">
+        <select 
+          className="form-input form-select" 
+          value={form.userId} 
+          onChange={(e) => setForm(f => ({ ...f, userId: e.target.value }))}
+          required
+          disabled={!!report}
+        >
+          <option value="">اختر السائق</option>
+          {drivers.map(d => <option key={d.id} value={d.id}>{d.fullNameAr}</option>)}
+        </select>
+        <input 
+          type="date" 
+          className="form-input" 
+          value={form.reportDate} 
+          onChange={(e) => setForm(f => ({ ...f, reportDate: e.target.value }))}
+          required
+          disabled={!!report}
+        />
+        <input 
+          type="number" 
+          step="0.01" 
+          className="form-input" 
+          placeholder="إجمالي الساعات" 
+          value={form.totalHours} 
+          onChange={(e) => setForm(f => ({ ...f, totalHours: e.target.value }))}
+          required
+        />
+        <input 
+          type="number" 
+          className="form-input" 
+          placeholder="إجمالي الطلبات" 
+          value={form.totalOrders} 
+          onChange={(e) => setForm(f => ({ ...f, totalOrders: e.target.value }))}
+          required
+        />
+
+        <FileUploadField
+          label="صور الشاشة (يمكن رفع أكثر من صورة)"
+          value={screenshots}
+          onChange={setScreenshots}
+          multiple={true}
+          accept="image/*"
+          optional={true}
+        />
+
+        {report && (
+          <>
+            <div>
+              <label className="block text-sm font-bold text-slate-600 mb-2">الحالة</label>
+              <select
+                className="form-input form-select"
+                value={form.status}
+                onChange={(e) => setForm(f => ({ ...f, status: e.target.value }))}
+              >
+                {statusOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-slate-600 mb-2">ملاحظات المراجعة</label>
+              <textarea
+                className="form-input"
+                placeholder="أضف ملاحظاتك على التقرير"
+                value={form.reviewNotes}
+                onChange={(e) => setForm(f => ({ ...f, reviewNotes: e.target.value }))}
+                rows={3}
+              />
+            </div>
+          </>
+        )}
+
+        <div className="flex gap-2">
+          <button type="submit" className="btn btn-primary flex-1 disabled:cursor-not-allowed disabled:opacity-60" disabled={loading}>
+            {loading ? 'حفظ...' : 'حفظ'}
+          </button>
+          <button type="button" onClick={onClose} className="btn btn-secondary flex-1">إلغاء</button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -128,13 +192,13 @@ export default function DailyReportsPage() {
   const [selectedReport, setSelectedReport] = useState(null);
   const [reloadToken, setReloadToken] = useState(0);
 
-  const handleCreate = async (form) => {
-    await apiService.post('/daily-reports', form);
+  const handleCreate = async (formData) => {
+    await apiService.upload('/daily-reports', formData);
     setReloadToken(t => t + 1);
   };
 
-  const handleUpdate = async (form) => {
-    await apiService.patch(`/daily-reports/${selectedReport.id}/review`, { status: 'APPROVED' }); // assuming update is for review
+  const handleUpdate = async (formData) => {
+    await apiService.upload(`/daily-reports/${selectedReport.id}`, formData);
     setReloadToken(t => t + 1);
   };
 

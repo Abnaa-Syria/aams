@@ -1,10 +1,20 @@
 import GenericListPage from '../../components/ui/GenericListPage';
 import StatusBadge from '../../components/ui/StatusBadge';
+import Modal from '../../components/ui/Modal';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { apiService } from '../../services/api';
 import { LuPlus, LuPencil } from 'react-icons/lu';
 import toast from 'react-hot-toast';
+
+const statusOptions = [
+  { value: 'REQUESTED', label: 'مطلوب' },
+  { value: 'APPROVED', label: 'مقبول' },
+  { value: 'REJECTED', label: 'مرفوض' },
+  { value: 'ACTIVE', label: 'نشط' },
+  { value: 'ENDED', label: 'منتهي' },
+  { value: 'CANCELLED', label: 'ملغي' },
+];
 
 const columns = [
   { key: 'id', label: '#' },
@@ -26,7 +36,7 @@ const columns = [
 ];
 
 function ShiftModal({ isOpen, onClose, shift, onSave }) {
-  const [form, setForm] = useState({ userId: '', vehicleId: '', platformAccountId: '', notes: '' });
+  const [form, setForm] = useState({ userId: '', vehicleId: '', platformAccountId: '', status: 'REQUESTED', notes: '' });
   const [drivers, setDrivers] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [platforms, setPlatforms] = useState([]);
@@ -40,10 +50,11 @@ function ShiftModal({ isOpen, onClose, shift, onSave }) {
           userId: shift.userId || '',
           vehicleId: shift.vehicleId || '',
           platformAccountId: shift.platformAccountId || '',
+          status: shift.status || 'REQUESTED',
           notes: shift.notes || '',
         });
       } else {
-        setForm({ userId: '', vehicleId: '', platformAccountId: '', notes: '' });
+        setForm({ userId: '', vehicleId: '', platformAccountId: '', status: 'REQUESTED', notes: '' });
       }
     }
   }, [isOpen, shift]);
@@ -63,11 +74,21 @@ function ShiftModal({ isOpen, onClose, shift, onSave }) {
     }
   };
 
-  const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await onSave(form);
+      const formData = new FormData();
+      formData.append('userId', form.userId);
+      formData.append('vehicleId', form.vehicleId);
+      formData.append('platformAccountId', form.platformAccountId);
+      formData.append('notes', form.notes);
+      
+      if (shift) {
+        formData.append('status', form.status);
+      }
+      
+      await onSave(formData);
       onClose();
       toast.success(shift ? 'تم تحديث الشفت' : 'تم إنشاء الشفت');
     } catch (error) {
@@ -75,6 +96,76 @@ function ShiftModal({ isOpen, onClose, shift, onSave }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={shift ? 'تحديث الشفت' : 'إنشاء شفت جديد'}>
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <select 
+          className="form-input form-select" 
+          value={form.userId} 
+          onChange={(e) => setForm(f => ({ ...f, userId: e.target.value }))}
+          required
+          disabled={!!shift}
+        >
+          <option value="">اختر السائق</option>
+          {drivers.map(d => <option key={d.id} value={d.id}>{d.fullNameAr}</option>)}
+        </select>
+        <select 
+          className="form-input form-select" 
+          value={form.vehicleId} 
+          onChange={(e) => setForm(f => ({ ...f, vehicleId: e.target.value }))}
+          required
+          disabled={!!shift}
+        >
+          <option value="">اختر المركبة</option>
+          {vehicles.map(v => <option key={v.id} value={v.id}>{v.plateNumber}</option>)}
+        </select>
+        <select 
+          className="form-input form-select" 
+          value={form.platformAccountId} 
+          onChange={(e) => setForm(f => ({ ...f, platformAccountId: e.target.value }))}
+          required
+          disabled={!!shift}
+        >
+          <option value="">اختر المنصة</option>
+          {platforms.map(p => <option key={p.id} value={p.id}>{p.platform?.nameAr}</option>)}
+        </select>
+
+        {shift && (
+          <div>
+            <label className="block text-sm font-bold text-slate-600 mb-2">الحالة</label>
+            <select
+              className="form-input form-select"
+              value={form.status}
+              onChange={(e) => setForm(f => ({ ...f, status: e.target.value }))}
+            >
+              {statusOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+        )}
+
+        <div>
+          <label className="block text-sm font-bold text-slate-600 mb-2">ملاحظات</label>
+          <textarea 
+            className="form-input" 
+            placeholder="ملاحظات" 
+            value={form.notes} 
+            onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))}
+            rows={3}
+          />
+        </div>
+
+        <div className="flex gap-2">
+          <button type="submit" className="btn btn-primary flex-1" disabled={loading}>
+            {loading ? 'حفظ...' : 'حفظ'}
+          </button>
+          <button type="button" onClick={onClose} className="btn btn-secondary flex-1">إلغاء</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
   };
 
   if (!isOpen) return null;
@@ -137,8 +228,13 @@ export default function ShiftsPage() {
   const [selectedShift, setSelectedShift] = useState(null);
   const [reloadToken, setReloadToken] = useState(0);
 
-  const handleCreate = async (form) => {
-    await apiService.post('/shifts/request-start', form);
+const handleCreate = async (formData) => {
+    await apiService.upload('/shifts/request-start', formData);
+    setReloadToken(t => t + 1);
+  };
+
+  const handleUpdate = async (formData) => {
+    await apiService.upload(`/shifts/${selectedShift.id}`, formData);
     setReloadToken(t => t + 1);
   };
 
