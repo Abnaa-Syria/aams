@@ -78,7 +78,8 @@ class FuelLogService {
     return item;
   }
 
-  static async create(userId, data, file = null) {
+  static async create(currentUser, data, file = null) {
+    const userId = currentUser.id;
     const vehicleId = parseInt(data.vehicleId);
     const vehicle = await prisma.vehicle.findUnique({ where: { id: vehicleId } });
     if (!vehicle) throw new NotFoundError('Vehicle');
@@ -89,6 +90,10 @@ class FuelLogService {
       include: { appUser: true }
     });
     if (!user) throw new NotFoundError('User');
+    
+    // Ensure driver has an active shift if they are reporting
+    const { ensureActiveShift } = require('../../utils/shiftSecurity');
+    const activeShift = await ensureActiveShift(currentUser);
 
     const amount = parseFloat(data.amount);
     const liters = data.liters ? parseFloat(data.liters) : null;
@@ -114,7 +119,7 @@ class FuelLogService {
         userId,
         appUserId: user.appUser?.id || null, // Set appUserId for operational queries
         vehicleId,
-        shiftId: data.shiftId ? parseInt(data.shiftId) : undefined,
+        shiftId: data.shiftId ? parseInt(data.shiftId) : (activeShift ? activeShift.id : undefined),
         amount,
         liters,
         fuelDate: data.fuelDate ? new Date(data.fuelDate) : new Date(),

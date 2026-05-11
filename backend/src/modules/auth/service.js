@@ -8,6 +8,7 @@ const {
   BusinessLogicError,
   NotFoundError,
 } = require('../../utils/errors');
+const { ROLE_PERMISSIONS } = require('../../constants/permissions');
 
 const ADMIN_ROLES = new Set([
   'SUPER_ADMIN',
@@ -56,16 +57,8 @@ async function publicUserWithPermissions(user) {
   if (!user) return null;
   const { passwordHash, otpCode, otpExpiresAt, ...rest } = user;
   
-  const roleData = await prisma.role.findUnique({
-    where: { key: user.role },
-    include: {
-      permissions: {
-        include: { permission: { select: { key: true } } }
-      }
-    }
-  });
-
-  rest.permissions = roleData ? roleData.permissions.map(rp => rp.permission.key) : [];
+  const effectiveRole = user.appUser?.appRole || user.role;
+  rest.permissions = ROLE_PERMISSIONS[effectiveRole] || [];
   return rest;
 }
 

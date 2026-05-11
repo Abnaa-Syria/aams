@@ -42,7 +42,8 @@ async function authenticate(req, res, next) {
       appUserId: decoded.appUserId || null,
       appRole: decoded.appRole || null,
     };
-    req.user.permissions = ROLE_PERMISSIONS[user.role] || [];
+    const effectiveRole = decoded.appRole || user.role;
+    req.user.permissions = ROLE_PERMISSIONS[effectiveRole] || [];
     next();
   } catch (error) {
     next(error);

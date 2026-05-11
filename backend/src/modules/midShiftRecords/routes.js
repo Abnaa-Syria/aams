@@ -8,7 +8,7 @@ const ApiResponse = require('../../utils/response');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { applyMidShiftListScope } = require('../../utils/listScope');
 const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
-const { NotFoundError } = require('../../utils/errors');
+const { NotFoundError, BusinessLogicError } = require('../../utils/errors');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
 
 /**
@@ -97,10 +97,22 @@ router.get('/:id', ...adminPerm(P.SHIFTS_READ), authenticate, async (req, res, n
  */
 router.post('/', ...adminPerm(P.SHIFTS_WRITE), authenticate, upload.single('screenshot'), async (req, res, next) => {
   try {
-    const shiftId = parseInt(req.body.shiftId, 10);
-    const shift = await prisma.shift.findUnique({ where: { id: shiftId } });
-    if (!shift) throw new NotFoundError('Shift');
-    await assertCanAccessDriverRecord(req, shift.userId);
+    const { ensureActiveShift } = require('../../utils/shiftSecurity');
+    let shiftId = req.body.shiftId ? parseInt(req.body.shiftId, 10) : null;
+    let activeShift;
+    
+    if (!shiftId) {
+      activeShift = await ensureActiveShift(req.user);
+      shiftId = activeShift ? activeShift.id : null;
+    } else {
+      // If shiftId is provided, verify it exists and is active/owned by user
+      // Only for non-admins
+      const ADMIN_ROLES = ['SUPER_ADMIN', 'OPERATIONS_ADMIN', 'HR_ADMIN', 'FLEET_ADMIN', 'FINANCE_ADMIN'];
+      if (!ADMIN_ROLES.includes(req.user.role)) {
+        activeShift = await prisma.shift.findFirst({ where: { id: shiftId, userId: req.user.id, status: 'ACTIVE' } });
+        if (!activeShift) throw new BusinessLogicError('Specified shift is not active or not yours');
+      }
+    }
     const data = {
       shiftId,
       notes: req.body.notes,

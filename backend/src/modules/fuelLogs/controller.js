@@ -24,7 +24,7 @@ class FuelLogController {
 
   static async createLog(req, res, next) {
     try {
-      const log = await FuelLogService.create(req.user.id, req.body, req.file);
+      const log = await FuelLogService.create(req.user, req.body, req.file);
       return ApiResponse.created(res, log, 'Fuel log submitted successfully');
     } catch (err) {
       next(err);

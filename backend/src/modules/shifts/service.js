@@ -284,6 +284,14 @@ class ShiftService {
     if (!shift) throw new NotFoundError('Shift');
     if (shift.userId !== userId) throw new BusinessLogicError('Not your shift');
     if (shift.status !== 'ACTIVE') throw new BusinessLogicError('Shift is not active');
+    
+    // Validate that a daily report has been submitted for this shift before ending
+    const reportCount = await prisma.dailyReport.count({
+      where: { shiftId: parseInt(shiftId) }
+    });
+    if (reportCount === 0) {
+      throw new BusinessLogicError('You must submit a daily report before ending your shift');
+    }
 
     // Odometer validation: must not be less than start odometer
     if (data.endOdometer && data.endOdometer < (shift.startOdometer || 0)) {

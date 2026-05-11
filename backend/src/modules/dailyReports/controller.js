@@ -24,7 +24,7 @@ class DailyReportController {
 
   static async createReport(req, res, next) {
     try {
-      const report = await DailyReportService.create(req.user.id, req.body, req.files);
+      const report = await DailyReportService.create(req.user, req.body, req.files);
       return ApiResponse.created(res, report, 'Daily report submitted successfully');
     } catch (err) {
       next(err);

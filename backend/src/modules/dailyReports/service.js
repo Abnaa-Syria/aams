@@ -70,7 +70,8 @@ class DailyReportService {
     return report;
   }
 
-  static async create(userId, data, files = []) {
+  static async create(currentUser, data, files = []) {
+    const userId = currentUser.id;
     const reportDate = new Date(data.reportDate || Date.now());
     reportDate.setHours(0, 0, 0, 0); // Normalize to start of day
 
@@ -80,6 +81,27 @@ class DailyReportService {
       include: { appUser: true }
     });
     if (!user) throw new NotFoundError('User');
+    
+    // 0. Automatically link to active shift if shiftId not provided
+    const { ensureActiveShift } = require('../../utils/shiftSecurity');
+    let resolvedShiftId = data.shiftId ? parseInt(data.shiftId) : null;
+    
+    if (!resolvedShiftId) {
+      const activeShift = await ensureActiveShift(currentUser);
+      resolvedShiftId = activeShift ? activeShift.id : null;
+    } else {
+      // If shiftId is provided, verify it exists and is active/owned by user
+      // Only for non-admins
+      const ADMIN_ROLES = ['SUPER_ADMIN', 'OPERATIONS_ADMIN', 'HR_ADMIN', 'FLEET_ADMIN', 'FINANCE_ADMIN'];
+      if (!ADMIN_ROLES.includes(currentUser.role)) {
+        const shift = await prisma.shift.findFirst({
+          where: { id: resolvedShiftId, userId, status: 'ACTIVE' }
+        });
+        if (!shift) {
+          throw new BusinessLogicError('Specified shift is not active or not owned by you');
+        }
+      }
+    }
 
     // 1. Check if a report already exists for this user on this day
     const existing = await prisma.dailyReport.findFirst({
@@ -103,7 +125,7 @@ class DailyReportService {
       data: {
         userId,
         appUserId: user.appUser?.id || null, // Set appUserId for operational queries
-        shiftId: data.shiftId ? parseInt(data.shiftId) : undefined,
+        shiftId: resolvedShiftId,
         reportDate,
         totalHours: data.totalHours ? parseFloat(data.totalHours) : undefined,
         totalOrders: data.totalOrders ? parseInt(data.totalOrders) : undefined,
