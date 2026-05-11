@@ -61,15 +61,15 @@ function authorize(...roles) {
   };
 }
 
-function authorizeAdmin(req, res, next) {
-  if (!req.user) return next(new AuthenticationError());
+// function authorizeAdmin(req, res, next) {
+//   if (!req.user) return next(new AuthenticationError());
 
-  const adminRoles = ['SUPER_ADMIN', 'OPERATIONS_ADMIN', 'HR_ADMIN', 'FLEET_ADMIN', 'FINANCE_ADMIN'];
-  if (!adminRoles.includes(req.user.role)) {
-    return next(new AuthorizationError('Admin access required'));
-  }
-  next();
-}
+//   const adminRoles = ['SUPER_ADMIN', 'OPERATIONS_ADMIN', 'HR_ADMIN', 'FLEET_ADMIN', 'FINANCE_ADMIN'];
+//   if (!adminRoles.includes(req.user.role)) {
+//     return next(new AuthorizationError('Admin access required'));
+//   }
+//   next();
+// }
 
 function checkAccountStatus(...allowedStatuses) {
   return (req, res, next) => {
@@ -81,4 +81,4 @@ function checkAccountStatus(...allowedStatuses) {
   };
 }
 
-module.exports = { authenticate, authorize, authorizeAdmin, checkAccountStatus };
+module.exports = { authenticate, authorize, checkAccountStatus };

@@ -6,7 +6,7 @@ const { requirePermission } = require('./permissions');
  * Super admin bypasses permission check inside requirePermission.
  */
 function adminPerm(...permissions) {
-  return [authenticate, authorizeAdmin, requirePermission(...permissions)];
+  return [authenticate, requirePermission(...permissions)];
 }
 
 module.exports = { adminPerm };
