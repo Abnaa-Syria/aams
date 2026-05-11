@@ -7,18 +7,25 @@ const { ADMIN_ROLES } = require('./listScope');
  */
 async function assertCanAccessDriverRecord(req, recordUserId) {
   if (!recordUserId) return;
-  const { role, id } = req.user;
+  const { role, id, appRole, appUserId } = req.user;
 
   if (ADMIN_ROLES.has(role)) return;
 
-  if (role === 'DRIVER') {
+  if (appRole === 'DRIVER') {
     if (recordUserId !== id) throw new AuthorizationError('غير مصرح بعرض هذا السجل');
     return;
   }
 
-  if (role === 'SUPERVISOR') {
+  if (appRole === 'SUPERVISOR') {
     const driver = await prisma.user.findFirst({
-      where: { id: recordUserId, supervisorId: id, role: 'DRIVER', deletedAt: null },
+      where: { 
+        id: recordUserId, 
+        appUser: { 
+          supervisorId: appUserId,
+          appRole: 'DRIVER'
+        }, 
+        deletedAt: null 
+      },
       select: { id: true },
     });
     if (!driver) throw new AuthorizationError('غير مصرح بعرض هذا السجل');

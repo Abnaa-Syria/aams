@@ -8,8 +8,13 @@ class SupervisorService {
     const orderBy = buildOrderBy(query, ['createdAt', 'fullNameAr']);
     const searchFilter = buildSearchFilter(query, ['fullNameAr', 'fullNameEn', 'identityNumber', 'mobileNumber']);
 
-    // Find users with SUPERVISOR role and their AppUser
-    const where = { role: 'SUPERVISOR', deletedAt: null, ...searchFilter };
+    // Find users with SUPERVISOR appRole and their AppUser
+    const where = { 
+      userType: 'APP_USER',
+      appUser: { appRole: 'SUPERVISOR' },
+      deletedAt: null, 
+      ...searchFilter 
+    };
 
     const [supervisors, total] = await Promise.all([
       prisma.user.findMany({

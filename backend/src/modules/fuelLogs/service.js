@@ -22,11 +22,11 @@ class FuelLogService {
       if (query.dateTo) where.fuelDate.lte = new Date(query.dateTo);
     }
 
-    // Scoping using appUserId and appRole
-    if (currentUser.appRole === 'DRIVER') {
-      where.appUserId = currentUser.appUserId;
-    } else if (currentUser.appRole === 'SUPERVISOR') {
-      where.appUser = { supervisorId: currentUser.appUserId };
+    const appRole = currentUser?.appUser?.appRole;
+    if (appRole === 'DRIVER') {
+      where.userId = currentUser.id;
+    } else if (appRole === 'SUPERVISOR') {
+      where.appUser = { supervisorId: currentUser.appUser?.id };
     }
 
     const [items, total] = await Promise.all([
@@ -44,14 +44,7 @@ class FuelLogService {
       prisma.fuelLog.count({ where }),
     ]);
 
-    // Transform to keep same response format
-    const transformedItems = items.map(item => ({
-      ...item,
-      userId: item.appUser?.user?.id || item.userId,
-      user: item.appUser?.user || item.user,
-    }));
-
-    return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
+    return { items, meta: buildPaginationMeta(total, page, limit) };
   }
 
   static async getById(id) {
@@ -64,15 +57,6 @@ class FuelLogService {
       },
     });
     
-    // Transform to keep same response format
-    if (item) {
-      return {
-        ...item,
-        userId: item.appUser?.user?.id || item.userId,
-        user: item.appUser?.user || item.user,
-      };
-    }
-
     if (!item) throw new NotFoundError('Fuel Log');
 
     return item;

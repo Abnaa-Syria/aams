@@ -57,8 +57,13 @@ async function publicUserWithPermissions(user) {
   if (!user) return null;
   const { passwordHash, otpCode, otpExpiresAt, ...rest } = user;
   
-  const effectiveRole = user.appUser?.appRole || user.role;
-  rest.permissions = ROLE_PERMISSIONS[effectiveRole] || [];
+  // Only inject permissions for ADMIN type users
+  if (user.userType === 'ADMIN' && user.role) {
+    rest.permissions = ROLE_PERMISSIONS[user.role] || [];
+  } else {
+    rest.permissions = [];
+  }
+  
   return rest;
 }
 
@@ -127,19 +132,13 @@ class AuthService {
 
     assertAccountCanAuthenticate(user);
 
-    const appUserId = user.appUser?.id || null;
-    const appRole = user.appUser?.appRole || null;
-
     const accessToken = jwt.sign({ 
-      userId: user.id, 
-      role: user.role,
-      appUserId,
-      appRole
+      userId: user.id
     }, config.jwt.secret, {
       expiresIn: config.jwt.expiresIn,
     });
     const refreshToken = jwt.sign(
-      { userId: user.id, type: 'refresh', appUserId },
+      { userId: user.id, type: 'refresh' },
       config.jwt.refreshSecret,
       { expiresIn: config.jwt.refreshExpiresIn }
     );
@@ -236,19 +235,13 @@ class AuthService {
 
     assertAccountCanAuthenticate(user);
 
-    const appUserId = user.appUser?.id || null;
-    const appRole = user.appUser?.appRole || null;
-
     const accessToken = jwt.sign({ 
-      userId: user.id, 
-      role: user.role,
-      appUserId,
-      appRole 
+      userId: user.id
     }, config.jwt.secret, {
       expiresIn: config.jwt.expiresIn,
     });
     const refreshToken = jwt.sign(
-      { userId: user.id, type: 'refresh', appUserId },
+      { userId: user.id, type: 'refresh' },
       config.jwt.refreshSecret,
       { expiresIn: config.jwt.refreshExpiresIn }
     );
@@ -295,19 +288,13 @@ class AuthService {
 
     assertAccountCanAuthenticate(storedToken.user);
 
-    const appUserId = storedToken.user.appUser?.id || null;
-    const appRole = storedToken.user.appUser?.appRole || null;
-
     const accessToken = jwt.sign({ 
-      userId: storedToken.userId, 
-      role: storedToken.user.role,
-      appUserId,
-      appRole 
+      userId: storedToken.userId
     }, config.jwt.secret, {
       expiresIn: config.jwt.expiresIn,
     });
     const newRefreshToken = jwt.sign(
-      { userId: storedToken.userId, type: 'refresh', appUserId },
+      { userId: storedToken.userId, type: 'refresh' },
       config.jwt.refreshSecret,
       { expiresIn: config.jwt.refreshExpiresIn }
     );
@@ -416,19 +403,13 @@ class AuthService {
 
     assertAccountCanAuthenticate(user);
 
-    const appUserId = user.appUser?.id || null;
-    const appRole = user.appUser?.appRole || null;
-
     const accessToken = jwt.sign({ 
-      userId: user.id, 
-      role: user.role,
-      appUserId,
-      appRole 
+      userId: user.id
     }, config.jwt.secret, {
       expiresIn: config.jwt.expiresIn,
     });
     const refreshToken = jwt.sign(
-      { userId: user.id, type: 'refresh', appUserId },
+      { userId: user.id, type: 'refresh' },
       config.jwt.refreshSecret,
       { expiresIn: config.jwt.refreshExpiresIn }
     );
@@ -477,6 +458,7 @@ static async getMe(userId) {
       nationality: true,
       profileImageUrl: true,
       role: true,
+      userType: true,
       accountStatus: true,
       lastLoginAt: true,
       createdAt: true,

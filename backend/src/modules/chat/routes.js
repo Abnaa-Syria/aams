@@ -132,15 +132,22 @@ router.get('/messages/:partnerId', ...adminPerm(P.USERS_READ), async (req, res, 
 router.post('/send', ...adminPerm(P.USERS_WRITE), upload.single('attachment'), async (req, res, next) => {
   try {
     const receiverId = parseInt(req.body.receiverId, 10);
-    const { role, id: senderId, supervisorId } = req.user;
+    const { role, appRole, id: senderId, supervisorId, appUserId } = req.user;
     if (!ADMIN_ROLES.has(role)) {
-      if (role === 'DRIVER') {
+      if (appRole === 'DRIVER') {
         if (!supervisorId || receiverId !== supervisorId) {
           throw new AuthorizationError('يمكنك مراسلة مشرفك المباشر فقط');
         }
-      } else if (role === 'SUPERVISOR') {
+      } else if (appRole === 'SUPERVISOR') {
         const allowed = await prisma.user.findFirst({
-          where: { id: receiverId, supervisorId: senderId, role: 'DRIVER', deletedAt: null },
+          where: { 
+            id: receiverId, 
+            appUser: { 
+              supervisorId: appUserId,
+              appRole: 'DRIVER'
+            }, 
+            deletedAt: null 
+          },
           select: { id: true },
         });
         if (!allowed) throw new AuthorizationError('يمكنك مراسلة السائقين التابعين لك فقط');

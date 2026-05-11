@@ -11,7 +11,7 @@ const ADMIN_ROLES = new Set([
  * Models must relate to User via `user` relation for SUPERVISOR team filter.
  */
 function applyUserOwnedListScope(where, req, options = {}) {
-  const { role, id } = req.user;
+  const { role, id, appRole, appUserId } = req.user;
   const userIdQuery = req.query.userId ? parseInt(req.query.userId, 10) : null;
 
   if (ADMIN_ROLES.has(role)) {
@@ -19,14 +19,16 @@ function applyUserOwnedListScope(where, req, options = {}) {
     return where;
   }
 
-  if (role === 'DRIVER') {
+  if (appRole === 'DRIVER') {
     return { ...where, userId: id };
   }
 
-  if (role === 'SUPERVISOR') {
+  if (appRole === 'SUPERVISOR') {
     const userClause = {
-      supervisorId: id,
-      role: 'DRIVER',
+      appUser: { 
+        supervisorId: appUserId,
+        appRole: 'DRIVER'
+      },
       ...(userIdQuery ? { id: userIdQuery } : {}),
     };
     return { ...where, user: userClause };
@@ -39,7 +41,7 @@ function applyUserOwnedListScope(where, req, options = {}) {
  * For models where the FK is not userId but still tied to a driver user (e.g. maintenance: userId on request).
  */
 function applyUserOwnedListScopeUserIdField(where, req, field = 'userId') {
-  const { role, id } = req.user;
+  const { role, id, appRole, appUserId } = req.user;
   const userIdQuery = req.query.userId ? parseInt(req.query.userId, 10) : null;
 
   if (ADMIN_ROLES.has(role)) {
@@ -47,16 +49,18 @@ function applyUserOwnedListScopeUserIdField(where, req, field = 'userId') {
     return where;
   }
 
-  if (role === 'DRIVER') {
+  if (appRole === 'DRIVER') {
     return { ...where, [field]: id };
   }
 
-  if (role === 'SUPERVISOR') {
+  if (appRole === 'SUPERVISOR') {
     return {
       ...where,
       user: {
-        supervisorId: id,
-        role: 'DRIVER',
+        appUser: { 
+          supervisorId: appUserId,
+          appRole: 'DRIVER'
+        },
         ...(userIdQuery ? { id: userIdQuery } : {}),
       },
     };
@@ -66,21 +70,26 @@ function applyUserOwnedListScopeUserIdField(where, req, field = 'userId') {
 }
 
 function applyMidShiftListScope(where, req) {
-  const { role, id } = req.user;
+  const { role, id, appRole, appUserId } = req.user;
   const shiftId = req.query.shiftId ? parseInt(req.query.shiftId, 10) : null;
 
   if (ADMIN_ROLES.has(role)) {
     if (shiftId) return { ...where, shiftId };
     return where;
   }
-  if (role === 'DRIVER') {
+  if (appRole === 'DRIVER') {
     return { ...where, shift: { userId: id, ...(shiftId ? { id: shiftId } : {}) } };
   }
-  if (role === 'SUPERVISOR') {
+  if (appRole === 'SUPERVISOR') {
     return {
       ...where,
       shift: {
-        user: { supervisorId: id, role: 'DRIVER' },
+        user: { 
+          appUser: { 
+            supervisorId: appUserId,
+            appRole: 'DRIVER'
+          }
+        },
         ...(shiftId ? { id: shiftId } : {}),
       },
     };

@@ -15,11 +15,11 @@ class ViolationService {
       ...(query.userId && { appUser: { user: { id: parseInt(query.userId) } } }),
     };
 
-    // Scoping using appUserId and appRole
-    if (currentUser.appRole === 'DRIVER') {
-      where.appUserId = currentUser.appUserId;
-    } else if (currentUser.appRole === 'SUPERVISOR') {
-      where.appUser = { supervisorId: currentUser.appUserId };
+    const appRole = currentUser?.appUser?.appRole;
+    if (appRole === 'DRIVER') {
+      where.userId = currentUser.id;
+    } else if (appRole === 'SUPERVISOR') {
+      where.appUser = { supervisorId: currentUser.appUser?.id };
     }
 
     const [items, total] = await Promise.all([
@@ -35,13 +35,6 @@ class ViolationService {
       }),
       prisma.violation.count({ where }),
     ]);
-
-    // Transform to keep same response format
-    const transformedItems = items.map(item => ({
-      ...item,
-      userId: item.appUser?.user?.id || item.userId,
-      user: item.appUser?.user || item.user,
-    }));
 
     return { items, meta: buildPaginationMeta(total, page, limit) };
   }

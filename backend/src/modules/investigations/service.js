@@ -16,10 +16,15 @@ class InvestigationService {
 
     // Scoping
     if (!ADMIN_ROLES.has(currentUser.role)) {
-      if (currentUser.role === 'DRIVER') {
+      if (currentUser.appRole === 'DRIVER') {
         where.userId = currentUser.id;
-      } else if (currentUser.role === 'SUPERVISOR') {
-        where.user = { supervisorId: currentUser.id, role: 'DRIVER' };
+      } else if (currentUser.appRole === 'SUPERVISOR') {
+        where.user = { 
+          appUser: { 
+            supervisorId: currentUser.appUserId,
+            appRole: 'DRIVER'
+          }
+        };
       } else {
         where.userId = -1;
       }
@@ -57,8 +62,14 @@ class InvestigationService {
 
     // Access check
     if (!ADMIN_ROLES.has(currentUser.role)) {
-      if (currentUser.role === 'DRIVER' && item.userId !== currentUser.id) {
+      if (currentUser.appRole === 'DRIVER' && item.userId !== currentUser.id) {
         throw new NotFoundError('Investigation');
+      }
+      if (currentUser.appRole === 'SUPERVISOR') {
+        const isAssigned = await prisma.appUser.findFirst({
+          where: { id: item.user?.appUser?.id, supervisorId: currentUser.appUserId }
+        });
+        if (!isAssigned) throw new NotFoundError('Investigation');
       }
     }
 

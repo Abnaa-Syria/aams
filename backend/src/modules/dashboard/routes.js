@@ -31,8 +31,8 @@ router.get('/', ...adminPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, ne
       openInvestigations, expiringDocuments, expiringLicenses,
       totalPenalties, totalRewards,
     ] = await Promise.all([
-      prisma.user.count({ where: { role: 'DRIVER', deletedAt: null } }),
-      prisma.user.count({ where: { role: 'DRIVER', accountStatus: 'ACTIVE', deletedAt: null } }),
+      prisma.user.count({ where: { userType: 'APP_USER', appUser: { appRole: 'DRIVER' }, deletedAt: null } }),
+      prisma.user.count({ where: { userType: 'APP_USER', appUser: { appRole: 'DRIVER' }, accountStatus: 'ACTIVE', deletedAt: null } }),
       prisma.vehicle.count({ where: { status: 'ACTIVE', deletedAt: null } }),
       prisma.shift.count({ where: { status: 'ACTIVE' } }),
       prisma.shift.count({ where: { status: 'REQUESTED' } }),

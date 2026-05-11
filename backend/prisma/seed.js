@@ -94,6 +94,7 @@ async function resetDemoData(demoUserIds) {
   await prisma.license.deleteMany({ where: { userId: { in: demoUserIds } } });
   await prisma.document.deleteMany({ where: { userId: { in: demoUserIds } } });
 
+  await prisma.appUser.deleteMany({ where: { userId: { in: demoUserIds } } });
   await prisma.pushDeviceToken?.deleteMany?.({ where: { userId: { in: demoUserIds } } });
 }
 
@@ -313,23 +314,38 @@ async function main() {
   }
   console.log('Platforms created');
 
-  // Create Supervisor
   const supervisor = await prisma.user.upsert({
     where: { identityNumber: '2000000001' },
-    update: {},
+    update: {
+      userType: 'APP_USER',
+      role: null,
+      appUser: {
+        upsert: {
+          create: { appRole: 'SUPERVISOR' },
+          update: { appRole: 'SUPERVISOR' },
+        },
+      },
+    },
     create: {
       identityNumber: '2000000001',
       mobileNumber: '0500000010',
       passwordHash: adminPassword,
       fullNameAr: 'أحمد المشرف',
       fullNameEn: 'Ahmed Supervisor',
-      role: 'SUPERVISOR',
+      userType: 'APP_USER',
+      role: null,
       accountStatus: 'ACTIVE',
       employeeNumber: 'SUP001',
       cityId: 1,
+      appUser: {
+        create: {
+          appRole: 'SUPERVISOR',
+        },
+      },
     },
+    include: { appUser: true },
   });
-  console.log('Supervisor created:', supervisor.id);
+  console.log('Supervisor created:', supervisor.id, '(AppUser ID:', supervisor.appUser.id, ')');
 
   // Create sample drivers
   const driverPassword = await bcrypt.hash('driver123', 12);
@@ -344,15 +360,38 @@ async function main() {
   for (const driver of drivers) {
     await prisma.user.upsert({
       where: { identityNumber: driver.identityNumber },
-      update: {},
+      update: {
+        userType: 'APP_USER',
+        role: null,
+        supervisorId: supervisor.id,
+        appUser: {
+          upsert: {
+            create: {
+              appRole: 'DRIVER',
+              supervisorId: supervisor.appUser.id,
+            },
+            update: {
+              appRole: 'DRIVER',
+              supervisorId: supervisor.appUser.id,
+            },
+          },
+        },
+      },
       create: {
         ...driver,
         passwordHash: driverPassword,
-        role: 'DRIVER',
+        userType: 'APP_USER',
+        role: null,
         accountStatus: 'ACTIVE',
         supervisorId: supervisor.id,
         cityId: 1,
         gender: 'MALE',
+        appUser: {
+          create: {
+            appRole: 'DRIVER',
+            supervisorId: supervisor.appUser.id,
+          },
+        },
       },
     });
   }

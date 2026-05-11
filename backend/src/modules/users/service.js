@@ -88,15 +88,35 @@ class UserService {
     const where = {
       deletedAt: null,
       ...searchFilter,
-      ...(query.role && { role: query.role }),
       ...(query.accountStatus && { accountStatus: query.accountStatus }),
-      // Operational fields are now on appUser
-      ...(query.employmentStatus && { appUser: { employmentStatus: query.employmentStatus } }),
-      ...(query.transportType && { appUser: { transportType: query.transportType } }),
-      ...(query.supervisorId && { appUser: { supervisorId: parseInt(query.supervisorId) } }),
-      ...(query.sevenHundredNumber && { appUser: { sevenHundredNumber: query.sevenHundredNumber } }),
-      ...(query.roomNumber && { appUser: { roomNumber: query.roomNumber } }),
     };
+
+    // Correctly handle role filtering based on new architecture
+    if (query.role) {
+      if (['DRIVER', 'SUPERVISOR'].includes(query.role)) {
+        where.userType = 'APP_USER';
+        where.appUser = { appRole: query.role };
+      } else {
+        where.userType = 'ADMIN';
+        where.role = query.role;
+      }
+    }
+
+    if (query.userType) {
+      where.userType = query.userType;
+    }
+
+    // Operational fields are now on appUser
+    if (query.employmentStatus || query.transportType || query.supervisorId || query.sevenHundredNumber || query.roomNumber) {
+      where.appUser = {
+        ...(where.appUser || {}),
+        ...(query.employmentStatus && { employmentStatus: query.employmentStatus }),
+        ...(query.transportType && { transportType: query.transportType }),
+        ...(query.supervisorId && { supervisorId: parseInt(query.supervisorId) }),
+        ...(query.sevenHundredNumber && { sevenHundredNumber: query.sevenHundredNumber }),
+        ...(query.roomNumber && { roomNumber: query.roomNumber }),
+      };
+    }
 
     // Filter by bank account existence or payment method
     if (query.hasBankAccount === 'true') {
@@ -187,22 +207,35 @@ class UserService {
     }
 
     const passwordHash = await bcrypt.hash(data.password, 12);
-    const { password, ...rest } = data;
+    const { password, role: inputRole, ...rest } = data;
 
     // Determine if this is an operational user (DRIVER or SUPERVISOR)
-    const isOperationalUser = rest.role === 'DRIVER' || rest.role === 'SUPERVISOR';
+    const isOperationalUser = inputRole === 'DRIVER' || inputRole === 'SUPERVISOR';
+    const userType = isOperationalUser ? 'APP_USER' : 'ADMIN';
+    const role = isOperationalUser ? null : inputRole;
+
+    let supervisorAppUserId = null;
+    if (rest.supervisorId) {
+      const supervisor = await prisma.appUser.findFirst({
+        where: { userId: parseInt(rest.supervisorId), appRole: 'SUPERVISOR' }
+      });
+      if (supervisor) supervisorAppUserId = supervisor.id;
+    }
 
     // Create user and optionally AppUser in a transaction
     const user = await prisma.user.create({
       data: {
         ...rest,
+        userType,
+        role,
+        supervisorId: rest.supervisorId ? parseInt(rest.supervisorId) : null,
         passwordHash,
         dateOfBirth: rest.dateOfBirth ? new Date(rest.dateOfBirth) : undefined,
         // If operational user, also create AppUser
         ...(isOperationalUser && {
           appUser: {
             create: {
-              appRole: rest.role, // DRIVER or SUPERVISOR
+              appRole: inputRole, // DRIVER or SUPERVISOR
               availabilityStatus: rest.availabilityStatus || 'OFF_DUTY',
               employmentStatus: rest.employmentStatus || 'ON_DUTY',
               transportType: rest.transportType || null,
@@ -210,6 +243,7 @@ class UserService {
               roomNumber: rest.roomNumber || null,
               tags: rest.tags || null,
               notes: rest.notes || null,
+              supervisorId: supervisorAppUserId,
             }
           }
         }),
@@ -260,19 +294,36 @@ class UserService {
       if (existingEmp) throw new ConflictError('رقم الموظف مسجل مسبقاً لمستخدم آخر');
     }
 
-    const newRole = data.role;
-    const wasOperational = user.role === 'DRIVER' || user.role === 'SUPERVISOR';
-    const isOperational = newRole === 'DRIVER' || newRole === 'SUPERVISOR';
+    const inputRole = data.role;
+    const wasOperational = user.userType === 'APP_USER';
+    const isOperational = inputRole === 'DRIVER' || inputRole === 'SUPERVISOR';
 
     const updateData = { ...data };
     if (updateData.dateOfBirth) updateData.dateOfBirth = new Date(updateData.dateOfBirth);
+
+    if (inputRole !== undefined) {
+      updateData.userType = isOperational ? 'APP_USER' : 'ADMIN';
+      updateData.role = isOperational ? null : inputRole;
+    }
+
+    let supervisorAppUserId = undefined;
+    if (data.supervisorId !== undefined) {
+      if (data.supervisorId) {
+        const supervisor = await prisma.appUser.findFirst({
+          where: { userId: parseInt(data.supervisorId), appRole: 'SUPERVISOR' }
+        });
+        supervisorAppUserId = supervisor ? supervisor.id : null;
+      } else {
+        supervisorAppUserId = null;
+      }
+    }
 
     // Handle AppUser creation/deletion based on role change
     if (!wasOperational && isOperational) {
       // Creating AppUser for the first time
       updateData.appUser = {
         create: {
-          appRole: newRole,
+          appRole: inputRole,
           availabilityStatus: data.availabilityStatus || 'OFF_DUTY',
           employmentStatus: data.employmentStatus || 'ON_DUTY',
           transportType: data.transportType || null,
@@ -280,6 +331,7 @@ class UserService {
           roomNumber: data.roomNumber || null,
           tags: data.tags || null,
           notes: data.notes || null,
+          supervisorId: supervisorAppUserId !== undefined ? supervisorAppUserId : null,
         }
       };
     } else if (wasOperational && !isOperational) {
@@ -289,7 +341,7 @@ class UserService {
       // Updating existing AppUser
       updateData.appUser = {
         update: {
-          appRole: newRole,
+          ...(inputRole && { appRole: inputRole }),
           availabilityStatus: data.availabilityStatus || user.appUser?.availabilityStatus,
           employmentStatus: data.employmentStatus || user.appUser?.employmentStatus,
           transportType: data.transportType !== undefined ? data.transportType : user.appUser?.transportType,
@@ -297,6 +349,7 @@ class UserService {
           roomNumber: data.roomNumber !== undefined ? data.roomNumber : user.appUser?.roomNumber,
           tags: data.tags !== undefined ? data.tags : user.appUser?.tags,
           notes: data.notes !== undefined ? data.notes : user.appUser?.notes,
+          supervisorId: supervisorAppUserId !== undefined ? supervisorAppUserId : user.appUser?.supervisorId,
         }
       };
     }
@@ -357,7 +410,12 @@ class UserService {
     let supervisorAppUserId = null;
     if (supervisorId) {
       const supervisor = await prisma.user.findFirst({
-        where: { id: supervisorId, role: 'SUPERVISOR', deletedAt: null },
+        where: { 
+          id: supervisorId, 
+          userType: 'APP_USER',
+          appUser: { appRole: 'SUPERVISOR' },
+          deletedAt: null 
+        },
         include: { appUser: true }
       });
       if (!supervisor) throw new NotFoundError('Supervisor');

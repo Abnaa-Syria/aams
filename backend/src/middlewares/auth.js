@@ -3,8 +3,6 @@ const config = require('../config');
 const prisma = require('../config/database');
 const { AuthenticationError, AuthorizationError } = require('../utils/errors');
 
-const { ROLE_PERMISSIONS } = require('../constants/permissions');
-
 async function authenticate(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
@@ -15,17 +13,11 @@ async function authenticate(req, res, next) {
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, config.jwt.secret);
 
+    // Identity is ONLY User
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      select: {
-        id: true,
-        identityNumber: true,
-        fullNameAr: true,
-        fullNameEn: true,
-        role: true,
-        accountStatus: true,
-        email: true,
-        mobileNumber: true,
+      include: {
+        appUser: true, // Operational profile extension
       },
     });
 
@@ -37,40 +29,59 @@ async function authenticate(req, res, next) {
       throw new AuthenticationError('Account is deactivated');
     }
 
+    // Attach full identity to request with helper fields for operational context
     req.user = {
       ...user,
-      appUserId: decoded.appUserId || null,
-      appRole: decoded.appRole || null,
+      appUserId: user.appUser?.id || null,
+      appRole: user.appUser?.appRole || null,
+      supervisorId: user.appUser?.supervisorId || null,
     };
-    const effectiveRole = decoded.appRole || user.role;
-    req.user.permissions = ROLE_PERMISSIONS[effectiveRole] || [];
+    
     next();
   } catch (error) {
     next(error);
   }
 }
 
-function authorize(...roles) {
+/**
+ * Admin RBAC Guard
+ * Checks: req.user.role
+ */
+function requireAdminRole(...roles) {
   return (req, res, next) => {
     if (!req.user) {
       return next(new AuthenticationError());
     }
+    
+    // Super admin bypass
+    if (req.user.role === 'SUPER_ADMIN') {
+      return next();
+    }
+
     if (!roles.includes(req.user.role)) {
-      return next(new AuthorizationError());
+      return next(new AuthorizationError('Admin role required'));
     }
     next();
   };
 }
 
-// function authorizeAdmin(req, res, next) {
-//   if (!req.user) return next(new AuthenticationError());
+/**
+ * Operational/Mobile Authorization Guard
+ * Checks: req.user.appUser?.appRole
+ */
+function requireAppRole(...appRoles) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return next(new AuthenticationError());
+    }
 
-//   const adminRoles = ['SUPER_ADMIN', 'OPERATIONS_ADMIN', 'HR_ADMIN', 'FLEET_ADMIN', 'FINANCE_ADMIN'];
-//   if (!adminRoles.includes(req.user.role)) {
-//     return next(new AuthorizationError('Admin access required'));
-//   }
-//   next();
-// }
+    const userAppRole = req.user.appUser?.appRole;
+    if (!userAppRole || !appRoles.includes(userAppRole)) {
+      return next(new AuthorizationError('Operational role required'));
+    }
+    next();
+  };
+}
 
 function checkAccountStatus(...allowedStatuses) {
   return (req, res, next) => {
@@ -82,4 +93,10 @@ function checkAccountStatus(...allowedStatuses) {
   };
 }
 
-module.exports = { authenticate, authorize, checkAccountStatus };
+module.exports = { 
+  authenticate, 
+  requireAdminRole, 
+  requireAppRole,
+  checkAccountStatus,
+  authorize: requireAdminRole // Backward compatibility for some routes if needed
+};

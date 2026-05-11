@@ -1,4 +1,4 @@
-const { authenticate, authorizeAdmin } = require('./auth');
+const { authenticate, requireAdminRole } = require('./auth');
 const { requirePermission } = require('./permissions');
 
 /**

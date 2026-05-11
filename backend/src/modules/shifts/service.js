@@ -13,14 +13,15 @@ class ShiftService {
     const { page, limit, skip } = getPaginationParams(query);
     const orderBy = buildOrderBy(query, ['createdAt', 'requestedAt', 'startedAt']);
     const isAdmin = currentUser && ADMIN_ROLES.includes(currentUser.role);
-    const isSupervisor = currentUser?.appRole === 'SUPERVISOR';
+    const appRole = currentUser?.appUser?.appRole;
+    const isSupervisor = appRole === 'SUPERVISOR';
 
-    // Use appUserId for operational users (DRIVER, SUPERVISOR)
+    // Use userId for all operational identity checks
     const scope =
-      currentUser?.appRole === 'DRIVER'
-        ? { appUserId: currentUser.appUserId }
+      appRole === 'DRIVER'
+        ? { userId: currentUser.id }
         : isSupervisor
-          ? { appUser: { supervisorId: currentUser.appUserId } }
+          ? { appUser: { supervisorId: currentUser.appUser?.id } }
           : {};
 
     const nameFilter = buildDriverNameUserFilter(query);
@@ -51,14 +52,7 @@ class ShiftService {
       prisma.shift.count({ where }),
     ]);
     
-    // Transform to keep same response format
-    const transformedItems = items.map(item => ({
-      ...item,
-      userId: item.appUser?.user?.id || item.userId,
-      user: item.appUser?.user || item.user,
-    }));
-    
-    return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
+    return { items, meta: buildPaginationMeta(total, page, limit) };
   }
 
   static async getById(id, currentUser = null) {
@@ -81,37 +75,34 @@ class ShiftService {
     });
     if (!shift) throw new NotFoundError('Shift');
 
-    const isAdmin = currentUser && ADMIN_ROLES.includes(currentUser.role);
-    const isSupervisor = currentUser?.appRole === 'SUPERVISOR';
-
-    // Transform to keep same response format
-    const transformedShift = {
-      ...shift,
-      userId: shift.appUser?.user?.id || shift.userId,
-      user: shift.appUser?.user || shift.user,
-    };
-
-    if (currentUser?.appRole === 'DRIVER' && transformedShift.userId !== currentUser.appUserId) {
+    const appRole = currentUser?.appUser?.appRole;
+    
+    if (appRole === 'DRIVER' && shift.userId !== currentUser.id) {
       throw new NotFoundError('Shift');
     }
-    if (isSupervisor) {
-      const driver = await prisma.appUser.findFirst({
-        where: { id: shift.appUserId, supervisorId: currentUser.appUserId },
+    
+    if (appRole === 'SUPERVISOR') {
+      // Check if driver of this shift is assigned to this supervisor
+      const isAssigned = await prisma.appUser.findFirst({
+        where: { 
+          id: shift.appUserId, 
+          supervisorId: currentUser.appUser?.id 
+        },
         select: { id: true },
       });
-      if (!driver) throw new NotFoundError('Shift');
+      if (!isAssigned) throw new NotFoundError('Shift');
     }
 
     const kilometersDriven =
-      typeof transformedShift.startOdometer === 'number' && typeof transformedShift.endOdometer === 'number'
-        ? transformedShift.endOdometer - transformedShift.startOdometer
+      typeof shift.startOdometer === 'number' && typeof shift.endOdometer === 'number'
+        ? shift.endOdometer - shift.startOdometer
         : null;
 
     const breakdownMap = new Map();
     let totalOrders = null;
     let totalHours = null;
 
-    if (Array.isArray(transformedShift.dailyReports) && transformedShift.dailyReports.length > 0) {
+    if (Array.isArray(shift.dailyReports) && shift.dailyReports.length > 0) {
       let ordersSum = 0;
       let hoursSum = 0;
       let hasAnyOrders = false;

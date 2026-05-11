@@ -133,7 +133,7 @@ class ReportService {
       prisma.user.groupBy({
         by: ['employmentStatus'],
         _count: { id: true },
-        where: { role: 'DRIVER', deletedAt: null }
+        where: { userType: 'APP_USER', appUser: { appRole: 'DRIVER' }, deletedAt: null }
       }),
       // 4. Financial Sums
       Promise.all([
