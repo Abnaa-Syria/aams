@@ -121,11 +121,15 @@ class VehicleService {
       throw new BusinessLogicError('المركبة ليست في حالة نشطة حالياً (Active). يرجى التأكد من حالتها أولاً.');
     }
 
-    const user = await prisma.user.findFirst({ where: { id: uid, deletedAt: null } });
+    const user = await prisma.user.findFirst({ 
+      where: { id: uid, deletedAt: null },
+      include: { appUser: true }
+    });
     if (!user) throw new NotFoundError('Driver');
 
     // 2. Check if driver is eligible
-    if (user.role !== 'DRIVER') throw new BusinessLogicError('المستخدم المحدد ليس سائقاً');
+    const isDriver = user.userType === 'APP_USER' && user.appUser?.appRole === 'DRIVER';
+    if (!isDriver) throw new BusinessLogicError('المستخدم المحدد ليس سائقاً');
     if (user.accountStatus !== 'ACTIVE') throw new BusinessLogicError('حساب السائق غير نشط حالياً');
 
     // 3. Check if driver already has an active vehicle

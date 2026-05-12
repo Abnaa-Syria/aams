@@ -26,7 +26,7 @@ const authSlice = createSlice({
   initialState: {
     user: null,
     isAuthenticated: !!localStorage.getItem('accessToken'),
-    loading: false,
+    loading: !!localStorage.getItem('accessToken'),
     error: null,
   },
   reducers: {
@@ -60,10 +60,15 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      .addCase(getMe.fulfilled, (state, action) => { state.user = action.payload; })
+      .addCase(getMe.pending, (state) => { state.loading = true; })
+      .addCase(getMe.fulfilled, (state, action) => { 
+        state.user = action.payload; 
+        state.loading = false;
+      })
       .addCase(getMe.rejected, (state) => {
         state.user = null;
         state.isAuthenticated = false;
+        state.loading = false;
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
       });

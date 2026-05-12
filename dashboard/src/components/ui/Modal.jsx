@@ -41,12 +41,12 @@ export default function Modal({ isOpen, onClose, title, children }) {
       
       {/* Content */}
       <div 
-        className="relative bg-white rounded-[2rem] w-full max-w-xl min-w-[320px] shadow-2xl border border-white/20 animate-in zoom-in-95 slide-in-from-bottom-4 duration-300"
+        className="relative bg-white rounded-[2rem] w-full max-w-xl min-w-[320px] shadow-2xl border border-white/20 animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 flex flex-col"
         style={{
-          maxHeight: 'calc(100vh - 2rem)',
+          maxHeight: 'calc(100vh - 4rem)',
         }}
       >
-        <div className="sticky top-0 bg-white/80 backdrop-blur-md px-8 py-6 border-b border-slate-100 flex items-center justify-between z-10">
+        <div className="sticky top-0 bg-white/90 backdrop-blur-md px-8 py-6 border-b border-slate-100 flex items-center justify-between z-10 rounded-t-[2rem]">
           <h3 className="text-xl font-black text-slate-800 tracking-tight">{title}</h3>
           <button 
             onClick={onClose}
@@ -56,7 +56,7 @@ export default function Modal({ isOpen, onClose, title, children }) {
           </button>
         </div>
         
-        <div className="p-8">
+        <div className="p-8 overflow-y-auto custom-scrollbar flex-1">
           {children}
         </div>
       </div>
