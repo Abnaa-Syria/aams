@@ -44,6 +44,12 @@ class BusinessLogicError extends AppError {
   }
 }
 
+class BadRequestError extends AppError {
+  constructor(message = 'Bad request') {
+    super(message, 400);
+  }
+}
+
 module.exports = {
   AppError,
   ValidationError,
@@ -52,4 +58,5 @@ module.exports = {
   NotFoundError,
   ConflictError,
   BusinessLogicError,
+  BadRequestError,
 };

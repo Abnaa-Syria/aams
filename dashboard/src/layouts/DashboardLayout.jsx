@@ -1,7 +1,7 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { logout, getMe } from '../store/authSlice';
+import { logout } from '../store/authSlice';
 import { NAV_GROUPS } from '../config/navConfig';
 import { canSeeNavItem } from '../utils/rolePermissions';
 import {
@@ -46,13 +46,7 @@ export default function DashboardLayout() {
   const [collapsedGroups, setCollapsedGroups] = useState({});
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useSelector((state) => state.auth);
-
-  useEffect(() => {
-    if (isAuthenticated && !user) {
-      dispatch(getMe());
-    }
-  }, [dispatch, isAuthenticated, user]);
+  const { user } = useSelector((state) => state.auth);
 
   const menuGroups = useMemo(() => {
     const role = user?.role;

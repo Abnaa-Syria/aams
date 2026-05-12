@@ -19,10 +19,9 @@ export default function Modal({ isOpen, onClose, title, children }) {
       />
       
       {/* Content */}
-      <div 
-        className="relative bg-white rounded-[2rem] w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border border-white/20 animate-in zoom-in-95 slide-in-from-bottom-4 duration-300"
-      >
-        <div className="sticky top-0 bg-white/80 backdrop-blur-md px-8 py-6 border-b border-slate-100 flex items-center justify-between z-10">
+      <div className="relative bg-white rounded-[2rem] w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl border border-white/20 animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+        {/* Header */}
+        <div className="shrink-0 bg-white/80 backdrop-blur-md px-8 py-6 border-b border-slate-100 flex items-center justify-between rounded-t-[2rem]">
           <h3 className="text-xl font-black text-slate-800 tracking-tight">{title}</h3>
           <button 
             onClick={onClose}
@@ -32,7 +31,8 @@ export default function Modal({ isOpen, onClose, title, children }) {
           </button>
         </div>
         
-        <div className="p-8">
+        {/* Scrollable Body */}
+        <div className="flex-1 overflow-y-auto p-8">
           {children}
         </div>
       </div>

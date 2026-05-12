@@ -1,5 +1,5 @@
 const prisma = require('../../config/database');
-const { NotFoundError, BusinessLogicError } = require('../../utils/errors');
+const { NotFoundError, BusinessLogicError, BadRequestError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta, buildOrderBy, buildSearchFilter } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
 const { buildDriverNameUserFilter } = require('../../utils/listScope');
