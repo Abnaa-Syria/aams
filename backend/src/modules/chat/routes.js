@@ -33,7 +33,7 @@ router.get('/conversations', ...adminPerm(P.USERS_READ), async (req, res, next) 
       WHERE senderId = ${userId} OR receiverId = ${userId}
     `;
 
-    const partnerIds = messages.map(m => m.partnerId);
+    const partnerIds = messages.map(m => Number(m.partnerId));
     const partners = await prisma.user.findMany({
       where: { id: { in: partnerIds } },
       select: { id: true, fullNameAr: true, fullNameEn: true, profileImageUrl: true, role: true },

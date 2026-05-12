@@ -475,7 +475,7 @@ static async getMe(userId) {
           supervisorId: true,
           shifts: {
             where: { status: "ACTIVE" },
-            select: { id: true, status: true, startTime: true },
+            select: { id: true, status: true, startedAt: true },
             take: 1,
           },
           _count: {
