@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { apiService } from '../../services/api';
@@ -10,7 +10,7 @@ import {
   LuArrowRight, LuUser, LuFileText, LuShield, LuClock, LuSmartphone, 
   LuFuel, LuTriangleAlert, LuCircleAlert, LuClipboardList, LuGift, 
   LuSearch, LuCalendarOff, LuDollarSign, LuWrench, LuMapPin, LuMail, LuPhone, LuIdCard, LuChevronLeft,
-  LuMap, LuEye, LuPen, LuActivity, LuUserPlus, LuMessageSquare
+  LuMap, LuEye, LuPen, LuActivity, LuUserPlus, LuMessageSquare, LuCheck
 } from 'react-icons/lu';
 import { resolveUploadUrl } from '../../utils/apiOrigin';
 import { hasAnyPermission, PERMISSIONS as P } from '../../utils/rolePermissions';
@@ -51,7 +51,20 @@ const FIELD_TRANSLATIONS = {
   profileImageUrl: 'الصورة الشخصية',
   fileUrl: 'رابط الملف',
   receiptUrl: 'رابط الإيصال',
-  attachmentUrl: 'المرفق'
+  attachmentUrl: 'المرفق',
+  photoUrl: 'الصورة المرفقة',
+  appUserId: 'معرف المستخدم',
+  userId: 'المستخدم',
+  vehicleId: 'المركبة',
+  shiftId: 'الشفت',
+  adminNotes: 'ملاحظات الإدارة',
+  technicianNotes: 'ملاحظات الفني',
+  completedAt: 'تاريخ الإكمال',
+  issueDate: 'تاريخ الإصدار',
+  licenseNumber: 'رقم الرخصة',
+  discountAmount: 'مبلغ الخصم',
+  orderRef: 'رقم الطلب',
+  platformName: 'اسم المنصة',
 };
 
 const STATUS_TRANSLATIONS = {
@@ -141,7 +154,66 @@ export default function DriverDetailPage() {
   const [fileAttachment, setFileAttachment] = useState(null);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
 
+
+  const handleStatusUpdate = async (recId, newStatus, currentTab) => {
+    try {
+      let endpoint = '';
+      let payload = { status: newStatus };
+
+      switch (currentTab) {
+        case 'documents': endpoint = `/documents/${recId}/review`; break;
+        case 'licenses': endpoint = `/licenses/${recId}/review`; break;
+        case 'shifts': endpoint = `/shifts/${recId}/status`; break;
+        case 'platformAccounts': endpoint = `/platform-accounts/${recId}/status`; break;
+        case 'fuel': endpoint = `/fuel-logs/${recId}/review`; break;
+        case 'violations': endpoint = `/violations/${recId}/review`; break;
+        case 'penalties': endpoint = `/penalties/${recId}/status`; break;
+        case 'rewards': endpoint = `/rewards/${recId}/status`; break;
+        case 'investigations': endpoint = `/investigations/${recId}/status`; break;
+        case 'dailyReports': endpoint = `/daily-reports/${recId}/review`; break;
+        case 'leaves': endpoint = `/leave-requests/${recId}/review`; break;
+        case 'salary': endpoint = `/salary-advances/${recId}/review`; break;
+        case 'maintenance': endpoint = `/maintenance-requests/${recId}/status`; break;
+        default: return;
+      }
+
+      await apiService.patch(endpoint, payload);
+      toast.success('تم تحديث الحالة بنجاح');
+      loadTab();
+      loadSummary();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'فشل تحديث الحالة');
+    }
+  };
+
+
+
   const handleView = (record) => {
+    // Smart Navigation Logic: If a dedicated detail page exists for this tab, navigate to it.
+    const TAB_TO_ROUTE = {
+      shifts: '/shifts',
+      maintenance: '/maintenance-requests',
+      violations: '/violations',
+      fuel: '/fuel',
+      incidents: '/incidents',
+      dailyReports: '/daily-reports',
+      leaves: '/leaves',
+      penalties: '/penalties',
+      rewards: '/rewards',
+      investigations: '/investigations',
+      ratings: '/ratings',
+      salary: '/salary-advances',
+      documents: '/documents',
+      licenses: '/licenses',
+      platformAccounts: '/platform-accounts',
+      bankAccounts: '/bank-accounts',
+    };
+
+    if (TAB_TO_ROUTE[tab]) {
+      navigate(`${TAB_TO_ROUTE[tab]}/${record.id}`);
+      return;
+    }
+
     setSelectedRecord(record);
     setViewModalOpen(true);
   };
@@ -370,6 +442,88 @@ export default function DriverDetailPage() {
     }
   };
 
+  const tabColumns = useMemo(() => ({
+    documents: [
+      { key: 'title', label: 'العنوان' },
+      { key: 'type', label: 'النوع' },
+      { key: 'status', label: 'الحالة', render: (_, r) => <StatusDropdown record={r} currentTab="documents" onUpdate={handleStatusUpdate} /> },
+      { key: 'expiryDate', label: 'انتهاء', render: (v) => (v ? new Date(v).toLocaleDateString('ar-SA') : '—') },
+    ],
+    licenses: [
+      { key: 'title', label: 'العنوان' },
+      { key: 'type', label: 'النوع' },
+      { key: 'status', label: 'الحالة', render: (_, r) => <StatusDropdown record={r} currentTab="licenses" onUpdate={handleStatusUpdate} /> },
+      { key: 'expiryDate', label: 'انتهاء', render: (v) => (v ? new Date(v).toLocaleDateString('ar-SA') : '—') },
+    ],
+    shifts: [
+      { key: 'id', label: '#' },
+      { key: 'status', label: 'الحالة', render: (_, r) => <StatusDropdown record={r} currentTab="shifts" onUpdate={handleStatusUpdate} /> },
+      { key: 'vehicle', label: 'المركبة', render: (v) => v?.plateNumber || '—' },
+      { key: 'requestedAt', label: 'الطلب', render: (v) => (v ? new Date(v).toLocaleString('ar-SA') : '—') },
+    ],
+    platformAccounts: [
+      { key: 'platform', label: 'المنصة', render: (p) => p?.nameAr || '—' },
+      { key: 'username', label: 'المعرّف' },
+      { key: 'status', label: 'الحالة', render: (_, r) => <StatusDropdown record={r} currentTab="platformAccounts" onUpdate={handleStatusUpdate} /> },
+    ],
+    fuel: [
+      { key: 'amount', label: 'المبلغ' },
+      { key: 'fuelDate', label: 'التاريخ', render: (v) => (v ? new Date(v).toLocaleString('ar-SA') : '—') },
+      { key: 'status', label: 'الحالة', render: (_, r) => <StatusDropdown record={r} currentTab="fuel" onUpdate={handleStatusUpdate} /> },
+      { key: 'vehicle', label: 'المركبة', render: (v) => v?.plateNumber || '—' },
+    ],
+    violations: [
+      { key: 'reason', label: 'السبب' },
+      { key: 'status', label: 'الحالة', render: (_, r) => <StatusDropdown record={r} currentTab="violations" onUpdate={handleStatusUpdate} /> },
+      { key: 'violationDate', label: 'التاريخ', render: (v) => (v ? new Date(v).toLocaleDateString('ar-SA') : '—') },
+    ],
+    penalties: [
+      { key: 'type', label: 'النوع' },
+      { key: 'amount', label: 'المبلغ' },
+      { key: 'status', label: 'الحالة', render: (_, r) => <StatusDropdown record={r} currentTab="penalties" onUpdate={handleStatusUpdate} /> },
+      { key: 'penaltyDate', label: 'التاريخ', render: (v) => (v ? new Date(v).toLocaleDateString('ar-SA') : '—') },
+    ],
+    rewards: [
+      { key: 'category', label: 'التصنيف' },
+      { key: 'amount', label: 'المبلغ' },
+      { key: 'status', label: 'الحالة', render: (_, r) => <StatusDropdown record={r} currentTab="rewards" onUpdate={handleStatusUpdate} /> },
+    ],
+    investigations: [
+      { key: 'title', label: 'العنوان' },
+      { key: 'category', label: 'التصنيف' },
+      { key: 'status', label: 'الحالة', render: (_, r) => <StatusDropdown record={r} currentTab="investigations" onUpdate={handleStatusUpdate} /> },
+    ],
+    dailyReports: [
+      { key: 'reportDate', label: 'اليوم', render: (v) => (v ? new Date(v).toLocaleDateString('ar-SA') : '—') },
+      { key: 'totalOrders', label: 'الطلبات' },
+      { key: 'totalHours', label: 'الساعات' },
+      { key: 'status', label: 'الحالة', render: (_, r) => <StatusDropdown record={r} currentTab="dailyReports" onUpdate={handleStatusUpdate} /> },
+    ],
+    leaves: [
+      { key: 'leaveType', label: 'النوع' },
+      { key: 'startDate', label: 'من', render: (v) => (v ? new Date(v).toLocaleDateString('ar-SA') : '—') },
+      { key: 'endDate', label: 'إلى', render: (v) => (v ? new Date(v).toLocaleDateString('ar-SA') : '—') },
+      { key: 'status', label: 'الحالة', render: (_, r) => <StatusDropdown record={r} currentTab="leaves" onUpdate={handleStatusUpdate} /> },
+    ],
+    salary: [
+      { key: 'amount', label: 'المبلغ' },
+      { key: 'status', label: 'الحالة', render: (_, r) => <StatusDropdown record={r} currentTab="salary" onUpdate={handleStatusUpdate} /> },
+      { key: 'createdAt', label: 'التاريخ', render: (v) => (v ? new Date(v).toLocaleDateString('ar-SA') : '—') },
+    ],
+    maintenance: [
+      { key: 'issueType', label: 'النوع' },
+      { key: 'priority', label: 'الأولوية' },
+      { key: 'status', label: 'الحالة', render: (_, r) => <StatusDropdown record={r} currentTab="maintenance" onUpdate={handleStatusUpdate} /> },
+      { key: 'vehicle', label: 'المركبة', render: (v) => v?.plateNumber || '—' },
+    ],
+    assignments: [
+      { key: 'vehicle', label: 'المركبة', render: (v) => v?.plateNumber || '—' },
+      { key: 'assignedAt', label: 'تاريخ البدء', render: (v) => new Date(v).toLocaleDateString('ar-SA') },
+      { key: 'releasedAt', label: 'تاريخ الانتهاء', render: (v) => v ? new Date(v).toLocaleDateString('ar-SA') : 'نشط' },
+      { key: 'isActive', label: 'الحالة', render: (v) => <StatusBadge status={v ? 'ACTIVE' : 'ENDED'} /> },
+    ],
+  }), [id, handleStatusUpdate]);
+
   if (loading || !driver) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -380,87 +534,6 @@ export default function DriverDetailPage() {
 
   const counts = driver._count || {};
 
-  const tabColumns = {
-    documents: [
-      { key: 'title', label: 'العنوان' },
-      { key: 'type', label: 'النوع' },
-      { key: 'status', label: 'الحالة', render: (v) => <StatusBadge status={v} /> },
-      { key: 'expiryDate', label: 'انتهاء', render: (v) => (v ? new Date(v).toLocaleDateString('ar-SA') : '—') },
-    ],
-    licenses: [
-      { key: 'title', label: 'العنوان' },
-      { key: 'type', label: 'النوع' },
-      { key: 'status', label: 'الحالة', render: (v) => <StatusBadge status={v} /> },
-      { key: 'expiryDate', label: 'انتهاء', render: (v) => (v ? new Date(v).toLocaleDateString('ar-SA') : '—') },
-    ],
-    shifts: [
-      { key: 'id', label: '#' },
-      { key: 'status', label: 'الحالة', render: (v) => <StatusBadge status={v} /> },
-      { key: 'vehicle', label: 'المركبة', render: (v) => v?.plateNumber || '—' },
-      { key: 'requestedAt', label: 'الطلب', render: (v) => (v ? new Date(v).toLocaleString('ar-SA') : '—') },
-    ],
-    platformAccounts: [
-      { key: 'platform', label: 'المنصة', render: (p) => p?.nameAr || '—' },
-      { key: 'username', label: 'المعرّف' },
-      { key: 'status', label: 'الحالة', render: (v) => <StatusBadge status={v} /> },
-    ],
-    fuel: [
-      { key: 'amount', label: 'المبلغ' },
-      { key: 'fuelDate', label: 'التاريخ', render: (v) => (v ? new Date(v).toLocaleString('ar-SA') : '—') },
-      { key: 'status', label: 'الحالة', render: (v) => <StatusBadge status={v} /> },
-      { key: 'vehicle', label: 'المركبة', render: (v) => v?.plateNumber || '—' },
-    ],
-    violations: [
-      { key: 'reason', label: 'السبب' },
-      { key: 'status', label: 'الحالة', render: (v) => <StatusBadge status={v} /> },
-      { key: 'violationDate', label: 'التاريخ', render: (v) => (v ? new Date(v).toLocaleDateString('ar-SA') : '—') },
-    ],
-    penalties: [
-      { key: 'type', label: 'النوع' },
-      { key: 'amount', label: 'المبلغ' },
-      { key: 'status', label: 'الحالة', render: (v) => <StatusBadge status={v} /> },
-      { key: 'penaltyDate', label: 'التاريخ', render: (v) => (v ? new Date(v).toLocaleDateString('ar-SA') : '—') },
-    ],
-    rewards: [
-      { key: 'category', label: 'التصنيف' },
-      { key: 'amount', label: 'المبلغ' },
-      { key: 'status', label: 'الحالة', render: (v) => <StatusBadge status={v} /> },
-    ],
-    investigations: [
-      { key: 'title', label: 'العنوان' },
-      { key: 'category', label: 'التصنيف' },
-      { key: 'status', label: 'الحالة', render: (v) => <StatusBadge status={v} /> },
-    ],
-    dailyReports: [
-      { key: 'reportDate', label: 'اليوم', render: (v) => (v ? new Date(v).toLocaleDateString('ar-SA') : '—') },
-      { key: 'totalOrders', label: 'الطلبات' },
-      { key: 'totalHours', label: 'الساعات' },
-      { key: 'status', label: 'الحالة', render: (v) => <StatusBadge status={v} /> },
-    ],
-    leaves: [
-      { key: 'leaveType', label: 'النوع' },
-      { key: 'startDate', label: 'من', render: (v) => (v ? new Date(v).toLocaleDateString('ar-SA') : '—') },
-      { key: 'endDate', label: 'إلى', render: (v) => (v ? new Date(v).toLocaleDateString('ar-SA') : '—') },
-      { key: 'status', label: 'الحالة', render: (v) => <StatusBadge status={v} /> },
-    ],
-    salary: [
-      { key: 'amount', label: 'المبلغ' },
-      { key: 'status', label: 'الحالة', render: (v) => <StatusBadge status={v} /> },
-      { key: 'createdAt', label: 'التاريخ', render: (v) => (v ? new Date(v).toLocaleDateString('ar-SA') : '—') },
-    ],
-    maintenance: [
-      { key: 'issueType', label: 'النوع' },
-      { key: 'priority', label: 'الأولوية' },
-      { key: 'status', label: 'الحالة', render: (v) => <StatusBadge status={v} /> },
-      { key: 'vehicle', label: 'المركبة', render: (v) => v?.plateNumber || '—' },
-    ],
-    assignments: [
-      { key: 'vehicle', label: 'المركبة', render: (v) => v?.plateNumber || '—' },
-      { key: 'assignedAt', label: 'تاريخ البدء', render: (v) => new Date(v).toLocaleDateString('ar-SA') },
-      { key: 'releasedAt', label: 'تاريخ الانتهاء', render: (v) => v ? new Date(v).toLocaleDateString('ar-SA') : 'نشط' },
-      { key: 'isActive', label: 'الحالة', render: (v) => <StatusBadge status={v ? 'ACTIVE' : 'ENDED'} /> },
-    ],
-  };
 
   return (
     <div className="page-container animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -767,11 +840,23 @@ export default function DriverDetailPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {Object.entries(selectedRecord).map(([key, value]) => {
                   // 1. Hide Technical Keys
-                  const IGNORED_KEYS = ['id', 'userId', 'vehicleId', 'shiftId', 'createdAt', 'updatedAt', 'deletedAt', 'platformAccountId', 'supervisorId', 'cityId'];
-                  if (IGNORED_KEYS.includes(key) || (typeof value === 'object' && value !== null)) return null;
+                  const IGNORED_KEYS = ['id', 'userId', 'vehicleId', 'shiftId', 'createdAt', 'updatedAt', 'deletedAt', 'platformAccountId', 'supervisorId', 'cityId', 'appUserId'];
                   
-                  let displayValue = String(value);
+                  // Handle Objects (like user, vehicle, platform)
+                  let displayValue = value;
                   let isPreview = false;
+
+                  if (typeof value === 'object' && value !== null) {
+                    // Try to find a displayable field in the object
+                    displayValue = value.fullNameAr || value.plateNumber || value.nameAr || value.username || value.title || null;
+                    if (!displayValue) return null; // Still hide complex objects if no display field found
+                  } else if (IGNORED_KEYS.includes(key)) {
+                    return null;
+                  } else if (value === null || value === undefined) {
+                    displayValue = '—';
+                  } else {
+                    displayValue = String(value);
+                  }
                   
                   // 2. Smart Formatting: Dates
                   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
@@ -781,15 +866,15 @@ export default function DriverDetailPage() {
                   // 3. Smart Formatting: Images & Status
                   if (key === 'status') {
                     displayValue = <StatusBadge status={value} />;
-                  } else if (typeof value === 'string' && (value.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp|pdf)$/i) || value.includes('uploads/'))) {
+                  } else if (typeof value === 'string' && (value.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp|pdf)$/i) || value.includes('uploads/') || value.startsWith('http'))) {
                     isPreview = true;
                     const isPdf = value.toLowerCase().endsWith('.pdf') || value.toLowerCase().includes('.pdf?');
                     displayValue = (
                       <a href={resolveUploadUrl(value)} target="_blank" rel="noopener noreferrer" className="block mt-2">
                         {isPdf ? (
-                          <div className="inline-flex items-center gap-2 bg-slate-100 text-brand-primary px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-200 transition-colors">
+                          <div className="inline-flex items-center gap-2 bg-slate-100 text-brand-primary px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-200 transition-colors max-w-full">
                             <LuFileText size={18} />
-                            عرض الملف المرفق (PDF)
+                            <span className="truncate">عرض الملف المرفق (PDF)</span>
                           </div>
                         ) : (
                           <img src={resolveUploadUrl(value)} alt="Attachment" className="max-w-[200px] rounded-xl border-4 border-white shadow-sm hover:scale-105 transition-transform" />
@@ -801,7 +886,7 @@ export default function DriverDetailPage() {
                   return (
                     <div key={key} className={`flex flex-col border-b border-slate-100 pb-3 last:border-0 md:last:border-b-0 ${isPreview ? 'md:col-span-2' : ''}`}>
                       <span className="text-[0.65rem] font-black text-slate-400 uppercase tracking-widest mb-1">{FIELD_TRANSLATIONS[key] || key}</span>
-                      <span className="text-sm font-bold text-slate-800">{displayValue || '—'}</span>
+                      <div className="text-sm font-bold text-slate-800 break-all">{displayValue}</div>
                     </div>
                   );
                 })}
@@ -1159,6 +1244,81 @@ export default function DriverDetailPage() {
     </div>
   );
 }
+
+function StatusDropdown({ record, currentTab, onUpdate }) {
+  const statuses = TAB_STATUS_MAPPINGS[currentTab] || [];
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  if (statuses.length === 0 || currentTab === 'assignments') {
+    return <StatusBadge status={record.status || (record.isActive ? 'ACTIVE' : 'ENDED')} />;
+  }
+
+  return (
+    <>
+      <div 
+        onClick={(e) => { e.stopPropagation(); setIsModalOpen(true); }}
+        className="cursor-pointer hover:opacity-80 transition-opacity active:scale-95 inline-block"
+      >
+        <StatusBadge status={record.status} />
+      </div>
+
+      <div onClick={(e) => e.stopPropagation()}>
+        <Modal 
+          isOpen={isModalOpen} 
+          onClose={() => setIsModalOpen(false)} 
+          title={`تحديث حالة السجل #${record.id}`}
+        >
+          <div className="space-y-6">
+            <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex items-center justify-between">
+              <div>
+                <div className="text-[0.65rem] font-black text-slate-400 uppercase tracking-widest mb-1">الحالة الحالية</div>
+                <StatusBadge status={record.status} />
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-brand-primary shadow-sm ring-1 ring-slate-100">
+                <LuActivity size={24} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3">
+              <div className="text-[0.65rem] font-black text-slate-400 uppercase tracking-widest px-2">اختر الحالة الجديدة</div>
+              {statuses.map((s) => (
+                <button
+                  key={s}
+                  disabled={s === record.status}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUpdate(record.id, s, currentTab);
+                    setIsModalOpen(false);
+                  }}
+                  className={`flex items-center justify-between p-5 rounded-2xl border-2 transition-all font-black text-sm ${
+                    s === record.status 
+                    ? 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed' 
+                    : 'bg-white border-slate-100 text-slate-700 hover:border-brand-primary hover:bg-brand-light/20 hover:text-brand-primary active:scale-95'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                     <div className={`w-3 h-3 rounded-full ${s === record.status ? 'bg-slate-300' : 'bg-brand-primary'}`} />
+                     <span>{STATUS_TRANSLATIONS[s] || s}</span>
+                  </div>
+                  {s === record.status && <LuCheck size={18} className="text-emerald-500" />}
+                </button>
+              ))}
+            </div>
+            
+            <button 
+              onClick={(e) => { e.stopPropagation(); setIsModalOpen(false); }}
+              className="w-full py-4 rounded-2xl bg-slate-100 text-slate-500 font-black text-sm hover:bg-slate-200 transition-all active:scale-95"
+            >
+              إلغاء
+            </button>
+          </div>
+        </Modal>
+      </div>
+    </>
+  );
+}
+
+
 
 function InfoCard({ icon: Icon, label, value, sub }) {
   return (

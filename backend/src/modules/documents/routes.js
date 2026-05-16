@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const DocumentController = require('./controller');
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const upload = require('../../utils/upload');
 const prisma = require('../../config/database');
@@ -38,7 +38,7 @@ const { resolveStoredPathToAbsolute } = require('../../utils/uploadPath');
  *       200:
  *         description: Paginated documents
  */
-router.get('/', ...adminPerm(P.DOCUMENTS_READ), DocumentController.list);
+router.get('/', ...sharedPerm(P.DOCUMENTS_READ), DocumentController.list);
 
 /**
  * @openapi
@@ -58,7 +58,7 @@ router.get('/', ...adminPerm(P.DOCUMENTS_READ), DocumentController.list);
  */
 router.get('/expiring', ...adminPerm(P.DOCUMENTS_READ), DocumentController.getExpiring);
 
-router.get('/:id/download', ...adminPerm(P.DOCUMENTS_READ), async (req, res, next) => {
+router.get('/:id/download', ...sharedPerm(P.DOCUMENTS_READ), async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
     const item = await prisma.document.findFirst({
@@ -145,7 +145,7 @@ router.get('/:id/download', ...adminPerm(P.DOCUMENTS_READ), async (req, res, nex
  *       200:
  *         description: Deleted
  */
-router.get('/:id', ...adminPerm(P.DOCUMENTS_READ), DocumentController.getById);
+router.get('/:id', ...sharedPerm(P.DOCUMENTS_READ), DocumentController.getById);
 
 /**
  * @openapi
@@ -172,7 +172,7 @@ router.get('/:id', ...adminPerm(P.DOCUMENTS_READ), DocumentController.getById);
  *       201:
  *         description: Created
  */
-router.post('/', ...adminPerm(P.DOCUMENTS_WRITE), authenticate, upload.single('file'), DocumentController.create);
+router.post('/', ...sharedPerm(P.DOCUMENTS_WRITE), upload.single('file'), DocumentController.create);
 router.put('/:id', ...adminPerm(P.DOCUMENTS_WRITE), authenticate, upload.single('file'), DocumentController.update);
 
 /**

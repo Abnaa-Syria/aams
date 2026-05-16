@@ -13,15 +13,18 @@ class IncidentService {
       ...(query.type && { type: query.type }),
       ...(query.severity && { severity: query.severity }),
       ...(query.status && { status: query.status }),
-      ...(query.userId && { appUser: { user: { id: parseInt(query.userId) } } }),
+      ...(query.userId && { userId: parseInt(query.userId) }),
     };
 
     const appRole = currentUser?.appUser?.appRole;
     if (appRole === 'DRIVER') {
       where.userId = currentUser.id;
     } else if (appRole === 'SUPERVISOR') {
-      where.appUser = { supervisorId: currentUser.appUser?.id };
+      where.user = { appUser: { supervisorId: currentUser.appUserId } };
     }
+    
+    where = mergeDriverNameIntoUserWhere(where, query);
+
 
     const [items, total] = await Promise.all([
       prisma.incident.findMany({
@@ -30,7 +33,7 @@ class IncidentService {
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          appUser: { select: { id: true, user: { select: { id: true, fullNameAr: true, identityNumber: true } } } },
+          user: { select: { id: true, fullNameAr: true, identityNumber: true } },
           shift: { select: { id: true, vehicleId: true } },
           attachments: true,
         },
@@ -38,7 +41,14 @@ class IncidentService {
       prisma.incident.count({ where }),
     ]);
 
-    return { items, meta: buildPaginationMeta(total, page, limit) };
+    const transformedItems = items.map(item => ({
+      ...item,
+      user: item.user,
+      appUser: item.user ? { user: item.user } : null,
+    }));
+
+
+    return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
 
   static async getById(id) {
@@ -53,7 +63,10 @@ class IncidentService {
 
     if (!item) throw new NotFoundError('Incident');
 
-    return item;
+    return {
+      ...item,
+      appUser: item.user ? { user: item.user } : null,
+    };
   }
 
   static async create(userId, data, files = []) {

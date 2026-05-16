@@ -13,7 +13,7 @@ class FuelLogService {
       ...(query.vehicleId && { vehicleId: parseInt(query.vehicleId) }),
       ...(query.status && { status: query.status }),
       ...(query.shiftId && { shiftId: parseInt(query.shiftId) }),
-      ...(query.userId && { appUser: { user: { id: parseInt(query.userId) } } }),
+      ...(query.userId && { userId: parseInt(query.userId) }),
     };
 
     if (query.dateFrom || query.dateTo) {
@@ -26,7 +26,7 @@ class FuelLogService {
     if (appRole === 'DRIVER') {
       where.userId = currentUser.id;
     } else if (appRole === 'SUPERVISOR') {
-      where.appUser = { supervisorId: currentUser.appUser?.id };
+      where.user = { appUser: { supervisorId: currentUser.appUserId } };
     }
 
     const [items, total] = await Promise.all([
@@ -36,7 +36,7 @@ class FuelLogService {
         take: limit,
         orderBy: { fuelDate: 'desc' },
         include: {
-          appUser: { select: { id: true, user: { select: { id: true, fullNameAr: true, identityNumber: true } } } },
+          user: { select: { id: true, fullNameAr: true, identityNumber: true } },
           vehicle: { select: { id: true, plateNumber: true, manufacturer: true, model: true, tankCapacity: true } },
           shift: { select: { id: true, startedAt: true } },
         },
@@ -44,14 +44,19 @@ class FuelLogService {
       prisma.fuelLog.count({ where }),
     ]);
 
-    return { items, meta: buildPaginationMeta(total, page, limit) };
+    const transformedItems = items.map(item => ({
+      ...item,
+      appUser: item.user ? { user: item.user } : null,
+    }));
+
+    return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
 
   static async getById(id) {
     const item = await prisma.fuelLog.findUnique({
       where: { id: parseInt(id) },
       include: {
-        appUser: { select: { id: true, user: { select: { id: true, fullNameAr: true, fullNameEn: true } } } },
+        user: { select: { id: true, fullNameAr: true, fullNameEn: true } },
         vehicle: true,
         shift: true,
       },
@@ -59,7 +64,10 @@ class FuelLogService {
     
     if (!item) throw new NotFoundError('Fuel Log');
 
-    return item;
+    return {
+      ...item,
+      appUser: item.user ? { user: item.user } : null,
+    };
   }
 
   static async create(currentUser, data, file = null) {

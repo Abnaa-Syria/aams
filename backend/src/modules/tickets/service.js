@@ -13,21 +13,18 @@ class TicketService {
       ...(query.category && { category: query.category }),
     };
 
-    // Scoping using appUserId and appRole
+    // Scoping using userId and appRole
     if (currentUser.appRole === 'DRIVER') {
-      where.appUserId = currentUser.appUserId;
+      where.userId = currentUser.id;
     } else if (currentUser.appRole === 'SUPERVISOR') {
-      where.OR = [
-        { appUserId: currentUser.appUserId },
-        { appUser: { supervisorId: currentUser.appUserId } }
-      ];
+      where.user = { appUser: { supervisorId: currentUser.appUserId } };
     }
 
     const [items, total] = await Promise.all([
       prisma.ticket.findMany({
         where, skip, take: limit, orderBy: { updatedAt: 'desc' },
         include: { 
-          appUser: { select: { id: true, user: { select: { id: true, fullNameAr: true, identityNumber: true } } } },
+          user: { select: { id: true, fullNameAr: true, identityNumber: true } },
           assignedTo: { select: { id: true, fullNameAr: true } },
           _count: { select: { messages: true } }
         },
@@ -35,11 +32,9 @@ class TicketService {
       prisma.ticket.count({ where }),
     ]);
 
-    // Transform to keep same response format
     const transformedItems = items.map(item => ({
       ...item,
-      userId: item.appUser?.user?.id || item.userId,
-      user: item.appUser?.user || item.user,
+      appUser: item.user ? { user: item.user } : null,
     }));
 
     return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
@@ -49,7 +44,7 @@ class TicketService {
     const ticket = await prisma.ticket.findUnique({
       where: { id: parseInt(id) },
       include: {
-        appUser: { select: { id: true, user: { select: { id: true, fullNameAr: true, identityNumber: true, mobileNumber: true, profileImageUrl: true } } } },
+        user: { select: { id: true, fullNameAr: true, identityNumber: true, mobileNumber: true, profileImageUrl: true } },
         assignedTo: { select: { id: true, fullNameAr: true } },
         messages: {
           include: {
@@ -62,19 +57,15 @@ class TicketService {
 
     if (!ticket) throw new NotFoundError('Ticket');
     
-    // Transform to keep same response format
-    const transformedTicket = {
-      ...ticket,
-      userId: ticket.appUser?.user?.id || ticket.userId,
-      user: ticket.appUser?.user || ticket.user,
-    };
-    
-    // Authorization check using appUserId
-    if (currentUser.appRole === 'DRIVER' && transformedTicket.userId !== currentUser.appUserId) {
+    // Authorization check
+    if (currentUser.appRole === 'DRIVER' && ticket.userId !== currentUser.id) {
       throw new BusinessLogicError('Unauthorized to view this ticket');
     }
 
-    return transformedTicket;
+    return {
+      ...ticket,
+      appUser: ticket.user ? { user: ticket.user } : null,
+    };
   }
 
   static async create(userId, data) {
@@ -126,8 +117,8 @@ class TicketService {
     // Update ticket last reply timestamp and status if admin replied
     const updateData = { updatedAt: new Date(), lastReplyAt: new Date() };
     
-    const sender = await prisma.user.findUnique({ where: { id: senderId }, select: { role: true } });
-    if (sender.role !== 'DRIVER' && ticket.status === 'OPEN') {
+    const sender = await prisma.user.findUnique({ where: { id: senderId }, select: { userType: true } });
+    if (sender.userType !== 'APP_USER' && ticket.status === 'OPEN') {
       updateData.status = 'IN_PROGRESS';
     }
 

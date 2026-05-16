@@ -4,7 +4,7 @@ const ApiResponse = require('../../utils/response');
 class SubstituteVehicleController {
   static async list(req, res, next) {
     try {
-      const result = await SubstituteVehicleService.list(req.query);
+      const result = await SubstituteVehicleService.list(req.query, req.user);
       return ApiResponse.paginated(res, result.items, result.meta);
     } catch (err) { next(err); }
   }

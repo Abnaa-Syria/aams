@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const upload = require('../../utils/upload');
 const prisma = require('../../config/database');
@@ -24,7 +24,7 @@ const PlatformAccountController = require('./controller');
  *     security:
  *       - bearerAuth: []
  */
-router.get('/', ...adminPerm(P.FLEET_READ), PlatformAccountController.list);
+router.get('/', ...sharedPerm(P.FLEET_READ), PlatformAccountController.list);
 
 /**
  * @openapi
@@ -35,9 +35,9 @@ router.get('/', ...adminPerm(P.FLEET_READ), PlatformAccountController.list);
  *     security:
  *       - bearerAuth: []
  */
-router.get('/:id', ...adminPerm(P.FLEET_READ), PlatformAccountController.getById);
+router.get('/:id', ...sharedPerm(P.FLEET_READ), PlatformAccountController.getById);
 
-router.get('/:id/files/file/download', ...adminPerm(P.FLEET_READ), async (req, res, next) => {
+router.get('/:id/files/file/download', ...sharedPerm(P.FLEET_READ), async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
     const platformAccount = await prisma.platformAccount.findFirst({
@@ -62,7 +62,7 @@ router.get('/:id/files/file/download', ...adminPerm(P.FLEET_READ), async (req, r
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', ...adminPerm(P.FLEET_WRITE), upload.single('file'), PlatformAccountController.create);
+router.post('/', ...sharedPerm(P.FLEET_WRITE), upload.single('file'), PlatformAccountController.create);
 
 /**
  * @openapi
@@ -73,7 +73,7 @@ router.post('/', ...adminPerm(P.FLEET_WRITE), upload.single('file'), PlatformAcc
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id', ...adminPerm(P.FLEET_WRITE), upload.single('file'), PlatformAccountController.update);
+router.patch('/:id', ...sharedPerm(P.FLEET_WRITE), upload.single('file'), PlatformAccountController.update);
 
 /**
  * @openapi

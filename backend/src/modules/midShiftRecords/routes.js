@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const upload = require('../../utils/upload');
 const prisma = require('../../config/database');
@@ -33,16 +33,32 @@ const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
  *       200:
  *         description: Paginated records
  */
-router.get('/', ...adminPerm(P.SHIFTS_READ), authenticate, async (req, res, next) => {
+router.get('/', ...sharedPerm(P.SHIFTS_READ), authenticate, async (req, res, next) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query);
     let where = {};
     where = applyMidShiftListScope(where, req);
     const [items, total] = await Promise.all([
-      prisma.midShiftRecord.findMany({ where, skip, take: limit, orderBy: { createdAt: 'desc' }, include: { shift: { select: { id: true, userId: true, status: true } } } }),
+      prisma.midShiftRecord.findMany({ 
+        where, skip, take: limit, orderBy: { createdAt: 'desc' }, 
+        include: { 
+          shift: { 
+            select: { 
+              id: true, userId: true, status: true, 
+              user: { select: { id: true, fullNameAr: true, identityNumber: true } } 
+            } 
+          } 
+        } 
+      }),
       prisma.midShiftRecord.count({ where }),
     ]);
-    return ApiResponse.paginated(res, items, buildPaginationMeta(total, page, limit));
+
+    const transformedItems = items.map(item => ({
+      ...item,
+      appUser: item.shift?.user ? { user: item.shift.user } : null,
+    }));
+
+    return ApiResponse.paginated(res, transformedItems, buildPaginationMeta(total, page, limit));
   } catch (err) { next(err); }
 });
 
@@ -63,11 +79,26 @@ router.get('/', ...adminPerm(P.SHIFTS_READ), authenticate, async (req, res, next
  *       200:
  *         description: Record
  */
-router.get('/:id', ...adminPerm(P.SHIFTS_READ), authenticate, async (req, res, next) => {
+router.get('/:id', ...sharedPerm(P.SHIFTS_READ), authenticate, async (req, res, next) => {
   try {
-    const item = await prisma.midShiftRecord.findUnique({ where: { id: parseInt(req.params.id) }, include: { shift: true } });
+    const item = await prisma.midShiftRecord.findUnique({ 
+      where: { id: parseInt(req.params.id) }, 
+      include: { 
+        shift: { 
+          include: { 
+            user: { select: { id: true, fullNameAr: true, identityNumber: true } } 
+          } 
+        } 
+      } 
+    });
     if (item?.shift) await assertCanAccessDriverRecord(req, item.shift.userId);
-    return ApiResponse.success(res, item);
+    
+    const transformedItem = item ? {
+      ...item,
+      appUser: item.shift?.user ? { user: item.shift.user } : null,
+    } : null;
+
+    return ApiResponse.success(res, transformedItem);
   } catch (err) { next(err); }
 });
 
@@ -95,7 +126,7 @@ router.get('/:id', ...adminPerm(P.SHIFTS_READ), authenticate, async (req, res, n
  *       201:
  *         description: Created
  */
-router.post('/', ...adminPerm(P.SHIFTS_WRITE), authenticate, upload.single('screenshot'), async (req, res, next) => {
+router.post('/', ...sharedPerm(P.SHIFTS_WRITE), authenticate, upload.single('screenshot'), async (req, res, next) => {
   try {
     const { ensureActiveShift } = require('../../utils/shiftSecurity');
     let shiftId = req.body.shiftId ? parseInt(req.body.shiftId, 10) : null;

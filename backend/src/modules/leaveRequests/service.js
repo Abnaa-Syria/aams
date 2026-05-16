@@ -11,33 +11,35 @@ class LeaveRequestService {
     let where = {
       ...(query.status && { status: query.status }),
       ...(query.leaveType && { leaveType: query.leaveType }),
-      ...(query.userId && { appUser: { user: { id: parseInt(query.userId) } } }),
+      ...(query.userId && { userId: parseInt(query.userId) }),
     };
 
-    // Scoping using appUserId and appRole
+    // Scoping using userId and appRole
     if (currentUser.appRole === 'DRIVER') {
-      where.appUserId = currentUser.appUserId;
+      where.userId = currentUser.id;
     } else if (currentUser.appRole === 'SUPERVISOR') {
-      where.appUser = { supervisorId: currentUser.appUserId };
+      where.user = { appUser: { supervisorId: currentUser.appUserId } };
     } else if (!ADMIN_ROLES.has(currentUser.role)) {
-      // Non-admin, non-driver/supervisor - no access
-      where.appUserId = -1;
+      where.userId = -1;
     }
+    
+    where = mergeDriverNameIntoUserWhere(where, query);
+
 
     const [items, total] = await Promise.all([
       prisma.leaveRequest.findMany({
         where, skip, take: limit, orderBy: { createdAt: 'desc' },
-        include: { appUser: { select: { id: true, user: { select: { id: true, fullNameAr: true, identityNumber: true } } } } },
+        include: { user: { select: { id: true, fullNameAr: true, identityNumber: true } } },
       }),
       prisma.leaveRequest.count({ where }),
     ]);
 
-    // Transform to keep same response format
     const transformedItems = items.map(item => ({
       ...item,
-      userId: item.appUser?.user?.id || item.userId,
-      user: item.appUser?.user || item.user,
+      user: item.user,
+      appUser: item.user ? { user: item.user } : null,
     }));
+
 
     return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
@@ -45,25 +47,16 @@ class LeaveRequestService {
   static async getById(id, currentUser) {
     const item = await prisma.leaveRequest.findUnique({
       where: { id: parseInt(id) },
-      include: { appUser: { select: { id: true, user: { select: { id: true, fullNameAr: true, fullNameEn: true } } } } },
+      include: { user: { select: { id: true, fullNameAr: true, fullNameEn: true } } },
     });
 
     if (!item) throw new NotFoundError('Leave Request');
     
-    // Access check using appUserId
-    if (currentUser.appRole === 'DRIVER') {
-      const itemAppUserId = item.appUser?.user?.id || item.userId;
-      if (itemAppUserId !== currentUser.appUserId) {
-        throw new NotFoundError('Leave Request');
-      }
+    if (currentUser.appRole === 'DRIVER' && item.userId !== currentUser.id) {
+      throw new NotFoundError('Leave Request');
     }
 
-    // Transform to keep same response format
-    return {
-      ...item,
-      userId: item.appUser?.user?.id || item.userId,
-      user: item.appUser?.user || item.user,
-    };
+    return item;
   }
 
   static async getBalances(userId) {

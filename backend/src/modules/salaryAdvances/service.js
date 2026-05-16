@@ -9,32 +9,34 @@ class SalaryAdvanceService {
     const { page, limit, skip } = getPaginationParams(query);
     let where = {
       ...(query.status && { status: query.status }),
-      ...(query.userId && { appUser: { user: { id: parseInt(query.userId) } } }),
+      ...(query.userId && { userId: parseInt(query.userId) }),
     };
 
-    // Scoping using appUserId and appRole
+    // Scoping using userId and appRole
     if (currentUser.appRole === 'DRIVER') {
-      where.appUserId = currentUser.appUserId;
+      where.userId = currentUser.id;
     } else if (currentUser.appRole === 'SUPERVISOR') {
-      where.appUser = { supervisorId: currentUser.appUserId };
+      where.user = { appUser: { supervisorId: currentUser.appUserId } };
     } else if (!ADMIN_ROLES.has(currentUser.role)) {
-      where.appUserId = -1;
+      where.userId = -1;
     }
+
+    where = mergeDriverNameIntoUserWhere(where, query);
 
     const [items, total] = await Promise.all([
       prisma.salaryAdvance.findMany({
         where, skip, take: limit, orderBy: { createdAt: 'desc' },
-        include: { appUser: { select: { id: true, user: { select: { id: true, fullNameAr: true, identityNumber: true } } } } },
+        include: { user: { select: { id: true, fullNameAr: true, identityNumber: true, accountStatus: true } } },
       }),
       prisma.salaryAdvance.count({ where }),
     ]);
 
-    // Transform to keep same response format
     const transformedItems = items.map(item => ({
       ...item,
-      userId: item.appUser?.user?.id || item.userId,
-      user: item.appUser?.user || item.user,
+      user: item.user,
+      appUser: item.user ? { user: item.user } : null,
     }));
+
 
     return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
@@ -42,24 +44,18 @@ class SalaryAdvanceService {
   static async getById(id, currentUser) {
     const item = await prisma.salaryAdvance.findUnique({
       where: { id: parseInt(id) },
-      include: { appUser: { select: { id: true, user: { select: { id: true, fullNameAr: true, fullNameEn: true } } } } },
+      include: { user: { select: { id: true, fullNameAr: true, fullNameEn: true } } },
     });
 
     if (!item) throw new NotFoundError('Salary Advance');
     
-    // Access check using appUserId
     if (currentUser.appRole === 'DRIVER') {
-      const itemAppUserId = item.appUser?.user?.id || item.userId;
-      if (itemAppUserId !== currentUser.appUserId) {
+      if (item.userId !== currentUser.id) {
         throw new NotFoundError('Salary Advance');
       }
     }
 
-    return {
-      ...item,
-      userId: item.appUser?.user?.id || item.userId,
-      user: item.appUser?.user || item.user,
-    };
+    return item;
   }
 
   static async create(userId, data, adminId) {

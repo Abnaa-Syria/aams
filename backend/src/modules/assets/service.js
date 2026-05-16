@@ -66,8 +66,10 @@ class AssetService {
       ...(query.status && { status: query.status }),
     };
 
-    if (currentUser.role === 'DRIVER') {
+    if (currentUser.appRole === 'DRIVER') {
       where.userId = currentUser.id;
+    } else if (currentUser.appRole === 'SUPERVISOR') {
+      where.user = { appUser: { supervisorId: currentUser.appUserId } };
     }
 
     const [items, total] = await Promise.all([
@@ -81,7 +83,12 @@ class AssetService {
       prisma.assetAssignment.count({ where }),
     ]);
 
-    return { items, meta: buildPaginationMeta(total, page, limit) };
+    const transformedItems = items.map(item => ({
+      ...item,
+      appUser: item.user ? { user: item.user } : null,
+    }));
+
+    return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
 
   static async assignAsset(data, file, adminId) {

@@ -50,7 +50,13 @@ router.get('/', ...adminPerm(P.FLEET_READ), async (req, res, next) => {
       }),
       prisma.rating.count({ where }),
     ]);
-    return ApiResponse.paginated(res, items, buildPaginationMeta(total, page, limit));
+
+    const transformedItems = items.map(item => ({
+      ...item,
+      appUser: item.user ? { user: item.user } : null,
+    }));
+
+    return ApiResponse.paginated(res, transformedItems, buildPaginationMeta(total, page, limit));
   } catch (err) { next(err); }
 });
 
@@ -108,7 +114,13 @@ router.get('/:id', ...adminPerm(P.FLEET_READ), async (req, res, next) => {
       include: { user: { select: { id: true, fullNameAr: true } }, ratedBy: { select: { id: true, fullNameAr: true } } },
     });
     if (item) await assertCanAccessDriverRecord(req, item.userId);
-    return ApiResponse.success(res, item);
+    
+    const transformedItem = item ? {
+      ...item,
+      appUser: item.user ? { user: item.user } : null,
+    } : null;
+
+    return ApiResponse.success(res, transformedItem);
   } catch (err) { next(err); }
 });
 

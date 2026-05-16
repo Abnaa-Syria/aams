@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const upload = require('../../utils/upload');
 const FuelLogController = require('./controller');
@@ -18,9 +18,9 @@ const { streamAttachmentDownload } = require('../../utils/streamAttachment');
  *     security:
  *       - bearerAuth: []
  */
-router.get('/', ...adminPerm(P.COMPLIANCE_READ), FuelLogController.listLogs);
+router.get('/', ...sharedPerm(P.COMPLIANCE_READ), FuelLogController.listLogs);
 
-router.get('/:id/receipt/download', ...adminPerm(P.COMPLIANCE_READ), async (req, res, next) => {
+router.get('/:id/receipt/download', ...sharedPerm(P.COMPLIANCE_READ), async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
     const log = await prisma.fuelLog.findUnique({
@@ -45,7 +45,7 @@ router.get('/:id/receipt/download', ...adminPerm(P.COMPLIANCE_READ), async (req,
  *     security:
  *       - bearerAuth: []
  */
-router.get('/:id', ...adminPerm(P.COMPLIANCE_READ), FuelLogController.getLog);
+router.get('/:id', ...sharedPerm(P.COMPLIANCE_READ), FuelLogController.getLog);
 
 /**
  * @openapi
@@ -56,7 +56,7 @@ router.get('/:id', ...adminPerm(P.COMPLIANCE_READ), FuelLogController.getLog);
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', ...adminPerm(P.COMPLIANCE_WRITE), upload.single('receipt'), FuelLogController.createLog);
+router.post('/', ...sharedPerm(P.COMPLIANCE_WRITE), upload.single('receipt'), FuelLogController.createLog);
 
 /**
  * @openapi

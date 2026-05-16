@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const upload = require('../../utils/upload');
 const IncidentController = require('./controller');
@@ -18,9 +18,9 @@ const { streamAttachmentDownload } = require('../../utils/streamAttachment');
  *     security:
  *       - bearerAuth: []
  */
-router.get('/', ...adminPerm(P.COMPLIANCE_READ), IncidentController.listIncidents);
+router.get('/', ...sharedPerm(P.COMPLIANCE_READ), IncidentController.listIncidents);
 
-router.get('/:id/attachments/:attachmentId/download', ...adminPerm(P.COMPLIANCE_READ), async (req, res, next) => {
+router.get('/:id/attachments/:attachmentId/download', ...sharedPerm(P.COMPLIANCE_READ), async (req, res, next) => {
   try {
     const incidentId = parseInt(req.params.id, 10);
     const attachmentId = parseInt(req.params.attachmentId, 10);
@@ -46,7 +46,7 @@ router.get('/:id/attachments/:attachmentId/download', ...adminPerm(P.COMPLIANCE_
  *     security:
  *       - bearerAuth: []
  */
-router.get('/:id', ...adminPerm(P.COMPLIANCE_READ), IncidentController.getIncident);
+router.get('/:id', ...sharedPerm(P.COMPLIANCE_READ), IncidentController.getIncident);
 
 /**
  * @openapi
@@ -57,7 +57,7 @@ router.get('/:id', ...adminPerm(P.COMPLIANCE_READ), IncidentController.getIncide
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', ...adminPerm(P.COMPLIANCE_WRITE), upload.array('attachments', 5), IncidentController.createIncident);
+router.post('/', ...sharedPerm(P.COMPLIANCE_WRITE), upload.array('attachments', 5), IncidentController.createIncident);
 
 /**
  * @openapi

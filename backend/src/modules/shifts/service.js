@@ -21,7 +21,7 @@ class ShiftService {
       appRole === 'DRIVER'
         ? { userId: currentUser.id }
         : isSupervisor
-          ? { appUser: { supervisorId: currentUser.appUser?.id } }
+          ? { user: { appUser: { supervisorId: currentUser.appUserId } } }
           : {};
 
     const nameFilter = buildDriverNameUserFilter(query);
@@ -31,20 +31,20 @@ class ShiftService {
     const where = {
       ...scope,
       ...((isAdmin || isSupervisor) && query.userId && { 
-        appUser: { user: { id: parseInt(query.userId) } } 
+        userId: parseInt(query.userId)
       }),
       ...(query.status && { status: query.status }),
       ...(query.vehicleId && { vehicleId: parseInt(query.vehicleId) }),
       ...(query.dateFrom && { requestedAt: { gte: new Date(query.dateFrom) } }),
       ...(query.dateTo && { requestedAt: { ...((query.dateFrom && { gte: new Date(query.dateFrom) }) || {}), lte: new Date(query.dateTo) } }),
-      ...(nameFilter && { appUser: { user: { ...(scopedAppUserWhere || {}), ...nameFilter } } }),
+      ...(nameFilter && { user: { ...(scopedAppUserWhere || {}), ...nameFilter } }),
     };
 
     const [items, total] = await Promise.all([
       prisma.shift.findMany({
         where, skip, take: limit, orderBy,
         include: {
-          appUser: { select: { id: true, user: { select: { id: true, fullNameAr: true, identityNumber: true } } } },
+          user: { select: { id: true, fullNameAr: true, identityNumber: true } },
           vehicle: { select: { id: true, plateNumber: true, model: true } },
           platformAccount: { include: { platform: { select: { id: true, nameAr: true } } } },
         },
@@ -52,14 +52,22 @@ class ShiftService {
       prisma.shift.count({ where }),
     ]);
     
-    return { items, meta: buildPaginationMeta(total, page, limit) };
+    const transformedItems = items.map(item => ({
+      ...item,
+      user: item.user,
+      vehicle: item.vehicle,
+      appUser: item.user ? { user: item.user } : null,
+    }));
+
+
+    return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
 
   static async getById(id, currentUser = null) {
     const shift = await prisma.shift.findUnique({
       where: { id: parseInt(id) },
       include: {
-        appUser: { select: { id: true, user: { select: { id: true, fullNameAr: true, fullNameEn: true, identityNumber: true, mobileNumber: true } } } },
+        user: { select: { id: true, fullNameAr: true, fullNameEn: true, identityNumber: true, mobileNumber: true } },
         vehicle: true,
         platformAccount: { include: { platform: true } },
         midShiftRecords: { orderBy: { createdAt: 'desc' } },
@@ -82,11 +90,10 @@ class ShiftService {
     }
     
     if (appRole === 'SUPERVISOR') {
-      // Check if driver of this shift is assigned to this supervisor
       const isAssigned = await prisma.appUser.findFirst({
         where: { 
-          id: shift.appUserId, 
-          supervisorId: currentUser.appUser?.id 
+          user: { id: shift.userId }, 
+          supervisorId: currentUser.appUserId
         },
         select: { id: true },
       });
@@ -159,6 +166,7 @@ class ShiftService {
 
     return {
       ...shift,
+      appUser: shift.user ? { user: shift.user } : null,
       kilometersDriven,
       platformBreakdown,
       totals: {

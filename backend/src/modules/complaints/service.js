@@ -13,55 +13,66 @@ class ComplaintService {
     };
 
     // Scoping logic (Drivers see only theirs, Supervisors see their team)
-    if (currentUser.role === 'DRIVER') {
-      where.userId = currentUser.id;
-    } else if (currentUser.role === 'SUPERVISOR') {
-      // If supervisor specifies a userId, it must be one of their drivers
+    if (currentUser.appRole === 'DRIVER') {
+      where.filedById = currentUser.id;
+    } else if (currentUser.appRole === 'SUPERVISOR') {
+      // If supervisor specifies a filedById, it must be one of their drivers
       if (query.userId) {
-        where.userId = parseInt(query.userId);
-        where.user = { supervisorId: currentUser.id };
+        where.filedById = parseInt(query.userId);
+        where.filedBy = { appUser: { supervisorId: currentUser.appUserId } };
       } else {
-        where.user = { supervisorId: currentUser.id };
+        where.filedBy = { appUser: { supervisorId: currentUser.appUserId } };
       }
     } else if (query.userId) {
-      // Admins and other roles can filter by userId freely
-      where.userId = parseInt(query.userId);
+      where.filedById = parseInt(query.userId);
     }
 
     const [items, total] = await Promise.all([
       prisma.complaint.findMany({
         where, skip, take: limit, orderBy: { createdAt: 'desc' },
-        include: { user: { select: { id: true, fullNameAr: true, identityNumber: true } } },
+        include: { 
+          filedBy: { select: { id: true, fullNameAr: true, identityNumber: true } },
+          subject: { select: { id: true, fullNameAr: true } }
+        },
       }),
       prisma.complaint.count({ where }),
     ]);
 
-    return { items, meta: buildPaginationMeta(total, page, limit) };
+    const transformedItems = items.map(item => ({
+      ...item,
+      appUser: item.filedBy ? { user: item.filedBy } : null,
+    }));
+
+    return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
 
   static async getById(id, currentUser) {
     const complaint = await prisma.complaint.findUnique({
       where: { id: parseInt(id) },
       include: {
-        user: { select: { id: true, fullNameAr: true, identityNumber: true, mobileNumber: true } },
-        resolvedByAdmin: { select: { id: true, fullNameAr: true } },
+        filedBy: { select: { id: true, fullNameAr: true, identityNumber: true, mobileNumber: true } },
+        subject: { select: { id: true, fullNameAr: true } },
       },
     });
 
     if (!complaint) throw new NotFoundError('Complaint');
-    if (currentUser.role === 'DRIVER' && complaint.userId !== currentUser.id) throw new NotFoundError('Complaint');
+    if (currentUser.appRole === 'DRIVER' && complaint.filedById !== currentUser.id) throw new NotFoundError('Complaint');
     
-    return complaint;
+    return {
+      ...complaint,
+      appUser: complaint.filedBy ? { user: complaint.filedBy } : null,
+    };
   }
 
   static async create(userId, data, file) {
     const complaint = await prisma.complaint.create({
       data: {
-        userId,
+        filedById: userId,
+        subjectId: data.subjectId || userId, // Fallback if not provided
         type: data.type,
         title: data.title,
-        description: data.description,
-        photoUrl: file ? normalizeStoredUploadPath(file.path) : undefined,
+        details: data.description,
+        attachmentUrl: file ? normalizeStoredUploadPath(file.path) : undefined,
       },
     });
     return complaint;
@@ -75,9 +86,9 @@ class ComplaintService {
       where: { id: parseInt(id) },
       data: {
         status: data.status,
-        resolutionNotes: data.resolutionNotes,
-        resolvedBy: adminId,
-        resolvedAt: data.status === 'RESOLVED' || data.status === 'REJECTED' ? new Date() : null,
+        reviewNotes: data.resolutionNotes,
+        reviewedBy: adminId,
+        reviewedAt: data.status === 'RESOLVED' || data.status === 'REJECTED' ? new Date() : null,
       },
     });
 

@@ -10,32 +10,34 @@ class RewardService {
     let where = {
       ...(query.status && { status: query.status }),
       ...(query.category && { category: query.category }),
-      ...(query.userId && { appUser: { user: { id: parseInt(query.userId) } } }),
+      ...(query.userId && { userId: parseInt(query.userId) }),
     };
 
-    // Scoping using appUserId and appRole
+    // Scoping using userId and appRole
     if (currentUser.appRole === 'DRIVER') {
-      where.appUserId = currentUser.appUserId;
+      where.userId = currentUser.id;
     } else if (currentUser.appRole === 'SUPERVISOR') {
-      where.appUser = { supervisorId: currentUser.appUserId };
+      where.user = { appUser: { supervisorId: currentUser.appUserId } };
     } else if (!ADMIN_ROLES.has(currentUser.role)) {
-      where.appUserId = -1;
+      where.userId = -1;
     }
+
+    where = mergeDriverNameIntoUserWhere(where, query);
 
     const [items, total] = await Promise.all([
       prisma.reward.findMany({
         where, skip, take: limit, orderBy: { createdAt: 'desc' },
-        include: { appUser: { select: { id: true, user: { select: { id: true, fullNameAr: true, identityNumber: true } } } } },
+        include: { user: { select: { id: true, fullNameAr: true, identityNumber: true, accountStatus: true } } },
       }),
       prisma.reward.count({ where }),
     ]);
 
-    // Transform to keep same response format
     const transformedItems = items.map(item => ({
       ...item,
-      userId: item.appUser?.user?.id || item.userId,
-      user: item.appUser?.user || item.user,
+      user: item.user,
+      appUser: item.user ? { user: item.user } : null,
     }));
+
 
     return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
@@ -47,24 +49,16 @@ class RewardService {
   static async getById(id, currentUser) {
     const item = await prisma.reward.findUnique({
       where: { id: parseInt(id) },
-      include: { appUser: { select: { id: true, user: { select: { id: true, fullNameAr: true } } } } }
+      include: { user: { select: { id: true, fullNameAr: true } } }
     });
 
     if (!item) throw new NotFoundError('Reward');
 
-    // Transform to keep same response format
-    const transformedItem = {
-      ...item,
-      userId: item.appUser?.user?.id || item.userId,
-      user: item.appUser?.user || item.user,
-    };
-
-    // Access check using appUserId
-    if (currentUser.appRole === 'DRIVER' && transformedItem.userId !== currentUser.appUserId) {
+    if (currentUser.appRole === 'DRIVER' && item.userId !== currentUser.id) {
       throw new NotFoundError('Reward');
     }
 
-    return transformedItem;
+    return item;
   }
 
   static async create(adminId, data) {

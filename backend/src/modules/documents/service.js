@@ -26,7 +26,12 @@ class DocumentService {
       prisma.document.count({ where }),
     ]);
 
-    return { items, meta: buildPaginationMeta(total, page, limit) };
+    const transformedItems = items.map(item => ({
+      ...item,
+      appUser: item.user ? { user: item.user } : null,
+    }));
+
+    return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
 
   static async getById(id) {
@@ -35,7 +40,11 @@ class DocumentService {
       include: { user: { select: { id: true, fullNameAr: true, fullNameEn: true, identityNumber: true } } },
     });
     if (!doc) throw new NotFoundError('Document');
-    return doc;
+    
+    return {
+      ...doc,
+      appUser: doc.user ? { user: doc.user } : null,
+    };
   }
 
   static async create(data) {

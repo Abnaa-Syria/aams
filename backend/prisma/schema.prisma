@@ -441,9 +441,14 @@ model User {
   canceledOrders    CanceledOrderLog[]
   traineeRecords    Trainee[]         @relation("TraineeUser")
   trainerRecords    Trainee[]         @relation("TrainerUser")
-  vehicleSwapReqs   VehicleSwapRequest[]
+  vehicleSwapReqs   VehicleSwapRequest[] @relation("VehicleSwapRequester")
+  reviewedSwaps     VehicleSwapRequest[] @relation("VehicleSwapReviewer")
   scheduledReminders ScheduledReminder[] @relation("ReminderTarget")
   locationHistory   LocationHistory[]
+  
+  oilChangeLogsPerformed OilChangeLog[] @relation("OilChangePerformer")
+  substituteAssignments SubstituteVehicleAssignment[] @relation("SubstituteUser")
+  assignedSubstitutes SubstituteVehicleAssignment[] @relation("SubstituteAssigner")
 
   @@index([accountStatus])
   @@index([role])
@@ -691,6 +696,8 @@ model PlatformAccount {
   @@index([platformId])
   @@index([username])
   @@map("platform_accounts")
+  
+  canceledOrderLogs CanceledOrderLog[]
 }
 
 // ============================================================
@@ -735,11 +742,13 @@ model Vehicle {
   odometerLogs        VehicleOdometerLog[]
   substituteAssigns   SubstituteVehicleAssignment[]
   oilChangeLogs       OilChangeLog[]
-  vehicleSwapReqs     VehicleSwapRequest[]
-
+  
   @@index([status])
   @@index([plateNumber])
   @@map("vehicles")
+
+  vehicleSwapReqs   VehicleSwapRequest[] @relation("CurrentVehicleSwap")
+  newVehicleSwapReqs VehicleSwapRequest[] @relation("NewVehicleSwap")
 }
 
 model VehicleAssignment {
@@ -798,6 +807,8 @@ model Shift {
   status            ShiftStatus   @default(REQUESTED)
 
   requestedAt       DateTime      @default(now())
+  
+  canceledOrderLogs CanceledOrderLog[]
   approvedAt        DateTime?
   approvedBy        Int?
   rejectedAt        DateTime?
@@ -1808,6 +1819,10 @@ model CanceledOrderLog {
   id            Int       @id @default(autoincrement())
   userId        Int
   user          User      @relation(fields: [userId], references: [id])
+  shiftId       Int?
+  shift         Shift?    @relation(fields: [shiftId], references: [id])
+  platformAccountId Int?
+  platformAccount PlatformAccount? @relation(fields: [platformAccountId], references: [id])
   orderRef      String?   @db.VarChar(100)
   reason        String    @db.Text
   invoiceUrl    String?   @db.VarChar(500)
@@ -1860,15 +1875,18 @@ model SubstituteVehicleAssignment {
   vehicle         Vehicle   @relation(fields: [vehicleId], references: [id])
   originalVehicleId Int?
   userId          Int?
+  user            User?     @relation("SubstituteUser", fields: [userId], references: [id])
   startDate       DateTime
   endDate         DateTime?
   reason          String?   @db.Text
   isActive        Boolean   @default(true)
   assignedBy      Int?
+  assigner        User?     @relation("SubstituteAssigner", fields: [assignedBy], references: [id])
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
   @@index([vehicleId])
+  @@index([userId])
   @@index([isActive])
   @@map("substitute_vehicle_assignments")
 }
@@ -1887,9 +1905,11 @@ model OilChangeLog {
   maintenanceReqId Int?
   notes           String?   @db.Text
   performedBy     Int?
+  performer       User?     @relation("OilChangePerformer", fields: [performedBy], references: [id])
   createdAt       DateTime  @default(now())
 
   @@index([vehicleId])
+  @@index([performedBy])
   @@map("oil_change_logs")
 }
 
@@ -1902,13 +1922,15 @@ model VehicleSwapRequest {
   shiftId         Int
   shift           Shift             @relation(fields: [shiftId], references: [id])
   userId          Int
-  user            User              @relation(fields: [userId], references: [id])
+  user            User              @relation("VehicleSwapRequester", fields: [userId], references: [id])
   currentVehicleId Int
-  currentVehicle  Vehicle           @relation(fields: [currentVehicleId], references: [id])
+  currentVehicle  Vehicle           @relation("CurrentVehicleSwap", fields: [currentVehicleId], references: [id])
   reason          String            @db.Text
   status          VehicleSwapStatus @default(REQUESTED)
   newVehicleId    Int?
+  newVehicle      Vehicle?          @relation("NewVehicleSwap", fields: [newVehicleId], references: [id])
   reviewedBy      Int?
+  reviewer        User?             @relation("VehicleSwapReviewer", fields: [reviewedBy], references: [id])
   reviewedAt      DateTime?
   reviewNotes     String?           @db.Text
   createdAt       DateTime          @default(now())

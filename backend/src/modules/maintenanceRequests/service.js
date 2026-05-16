@@ -15,19 +15,20 @@ class MaintenanceRequestService {
       ...(query.priority && { priority: query.priority }),
     };
 
-    // Scoping using appUserId and appRole
+    // Scoping using userId and appRole
     if (currentUser.appRole === 'DRIVER') {
-      where.appUserId = currentUser.appUserId;
+      where.userId = currentUser.id;
     } else if (currentUser.appRole === 'SUPERVISOR') {
       // If supervisor specifies a userId, it must be one of their drivers
       if (query.userId) {
-        where.appUser = { user: { id: parseInt(query.userId) }, supervisorId: currentUser.appUserId };
+        where.userId = parseInt(query.userId);
+        where.user = { appUser: { supervisorId: currentUser.appUserId } };
       } else {
-        where.appUser = { supervisorId: currentUser.appUserId };
+        where.user = { appUser: { supervisorId: currentUser.appUserId } };
       }
     } else if (query.userId) {
       // Admins and other roles can filter by userId freely
-      where.appUser = { user: { id: parseInt(query.userId) } };
+      where.userId = parseInt(query.userId);
     }
 
     const [items, total] = await Promise.all([
@@ -37,7 +38,7 @@ class MaintenanceRequestService {
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          user: { select: { id: true, fullNameAr: true } },
+          user: { select: { id: true, fullNameAr: true, identityNumber: true } },
           vehicle: { select: { id: true, plateNumber: true, model: true, status: true } },
           attachments: true,
         },
@@ -45,7 +46,12 @@ class MaintenanceRequestService {
       prisma.maintenanceRequest.count({ where }),
     ]);
 
-    return { items, meta: buildPaginationMeta(total, page, limit) };
+    const transformedItems = items.map(item => ({
+      ...item,
+      appUser: item.user ? { user: item.user } : null,
+    }));
+
+    return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
 
   static async getById(id) {
@@ -60,7 +66,10 @@ class MaintenanceRequestService {
 
     if (!item) throw new NotFoundError('Maintenance Request');
 
-    return item;
+    return {
+      ...item,
+      appUser: item.user ? { user: item.user } : null,
+    };
   }
 
   static async create(userId, data, files = []) {

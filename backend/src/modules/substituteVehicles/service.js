@@ -3,29 +3,39 @@ const { NotFoundError, BusinessLogicError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 
 class SubstituteVehicleService {
-  static async list(query) {
+  static async list(query, currentUser) {
     const { page, limit, skip } = getPaginationParams(query);
     const where = {
       ...(query.userId && { userId: parseInt(query.userId) }),
       ...(query.vehicleId && { vehicleId: parseInt(query.vehicleId) }),
-      ...(query.status === 'ACTIVE' && { returnedAt: null }),
-      ...(query.status === 'RETURNED' && { returnedAt: { not: null } }),
+      ...(query.status === 'ACTIVE' && { isActive: true }),
+      ...(query.status === 'RETURNED' && { isActive: false }),
     };
+    
+    if (currentUser?.appRole === 'DRIVER') {
+      where.userId = currentUser.id;
+    } else if (currentUser?.appRole === 'SUPERVISOR') {
+      where.user = { appUser: { supervisorId: currentUser.appUserId } };
+    }
 
     const [items, total] = await Promise.all([
       prisma.substituteVehicleAssignment.findMany({
-        where, skip, take: limit, orderBy: { assignedAt: 'desc' },
+        where, skip, take: limit, orderBy: { createdAt: 'desc' },
         include: {
-          user: { select: { id: true, fullNameAr: true } },
           vehicle: { select: { id: true, plateNumber: true } },
-          assignedByAdmin: { select: { id: true, fullNameAr: true } },
-          returnedByAdmin: { select: { id: true, fullNameAr: true } },
+          user: { select: { id: true, fullNameAr: true, identityNumber: true } },
+          assigner: { select: { id: true, fullNameAr: true } },
         },
       }),
       prisma.substituteVehicleAssignment.count({ where }),
     ]);
 
-    return { items, meta: buildPaginationMeta(total, page, limit) };
+    const transformedItems = items.map(item => ({
+      ...item,
+      appUser: item.user ? { user: item.user } : null,
+    }));
+
+    return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
 
   static async assign(data, adminId) {
@@ -34,7 +44,7 @@ class SubstituteVehicleService {
 
     // Check if user already has an active substitute vehicle
     const activeAssign = await prisma.substituteVehicleAssignment.findFirst({
-      where: { userId: data.userId, returnedAt: null },
+      where: { userId: data.userId, isActive: true },
     });
     if (activeAssign) throw new BusinessLogicError('User already has an active substitute vehicle');
 
@@ -44,7 +54,8 @@ class SubstituteVehicleService {
         vehicleId: data.vehicleId,
         assignedBy: adminId,
         reason: data.reason,
-        notes: data.notes,
+        startDate: new Date(),
+        isActive: true,
       },
     });
   }
@@ -52,14 +63,13 @@ class SubstituteVehicleService {
   static async returnVehicle(id, adminId, data) {
     const assign = await prisma.substituteVehicleAssignment.findUnique({ where: { id: parseInt(id) } });
     if (!assign) throw new NotFoundError('SubstituteVehicleAssignment');
-    if (assign.returnedAt) throw new BusinessLogicError('Already returned');
+    if (!assign.isActive) throw new BusinessLogicError('Already returned');
 
     return prisma.substituteVehicleAssignment.update({
       where: { id: parseInt(id) },
       data: {
-        returnedAt: new Date(),
-        returnedBy: adminId,
-        notes: data.notes ? `${assign.notes || ''}\nReturn notes: ${data.notes}` : assign.notes,
+        endDate: new Date(),
+        isActive: false,
       },
     });
   }

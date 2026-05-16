@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const upload = require('../../utils/upload');
 const DailyReportController = require('./controller');
@@ -18,9 +18,9 @@ const { streamAttachmentDownload } = require('../../utils/streamAttachment');
  *     security:
  *       - bearerAuth: []
  */
-router.get('/', ...adminPerm(P.SHIFTS_READ), DailyReportController.listReports);
+router.get('/', ...sharedPerm(P.SHIFTS_READ), DailyReportController.listReports);
 
-router.get('/:id/screenshots/:screenshotId/download', ...adminPerm(P.SHIFTS_READ), async (req, res, next) => {
+router.get('/:id/screenshots/:screenshotId/download', ...sharedPerm(P.SHIFTS_READ), async (req, res, next) => {
   try {
     const reportId = parseInt(req.params.id, 10);
     const screenshotId = parseInt(req.params.screenshotId, 10);
@@ -46,7 +46,7 @@ router.get('/:id/screenshots/:screenshotId/download', ...adminPerm(P.SHIFTS_READ
  *     security:
  *       - bearerAuth: []
  */
-router.get('/:id', ...adminPerm(P.SHIFTS_READ), DailyReportController.getReport);
+router.get('/:id', ...sharedPerm(P.SHIFTS_READ), DailyReportController.getReport);
 
 /**
  * @openapi
@@ -57,7 +57,7 @@ router.get('/:id', ...adminPerm(P.SHIFTS_READ), DailyReportController.getReport)
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', ...adminPerm(P.SHIFTS_WRITE), upload.array('screenshots', 10), DailyReportController.createReport);
+router.post('/', ...sharedPerm(P.SHIFTS_WRITE), upload.array('screenshots', 10), DailyReportController.createReport);
 
 /**
  * @openapi

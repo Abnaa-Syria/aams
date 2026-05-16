@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const upload = require('../../utils/upload');
 const MaintenanceRequestController = require('./controller');
@@ -18,9 +18,9 @@ const { streamAttachmentDownload } = require('../../utils/streamAttachment');
  *     security:
  *       - bearerAuth: []
  */
-router.get('/', ...adminPerm(P.INVENTORY_READ), MaintenanceRequestController.listRequests);
+router.get('/', ...sharedPerm(P.INVENTORY_READ), MaintenanceRequestController.listRequests);
 
-router.get('/:id/attachment/download', ...adminPerm(P.INVENTORY_READ), async (req, res, next) => {
+router.get('/:id/attachment/download', ...sharedPerm(P.INVENTORY_READ), async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
     const row = await prisma.maintenanceRequest.findUnique({
@@ -37,7 +37,7 @@ router.get('/:id/attachment/download', ...adminPerm(P.INVENTORY_READ), async (re
   }
 });
 
-router.get('/:id/attachments/:attachmentId/download', ...adminPerm(P.INVENTORY_READ), async (req, res, next) => {
+router.get('/:id/attachments/:attachmentId/download', ...sharedPerm(P.INVENTORY_READ), async (req, res, next) => {
   try {
     const requestId = parseInt(req.params.id, 10);
     const attachmentId = parseInt(req.params.attachmentId, 10);
@@ -64,7 +64,7 @@ router.get('/:id/attachments/:attachmentId/download', ...adminPerm(P.INVENTORY_R
  *     security:
  *       - bearerAuth: []
  */
-router.get('/:id', ...adminPerm(P.INVENTORY_READ), MaintenanceRequestController.getRequest);
+router.get('/:id', ...sharedPerm(P.INVENTORY_READ), MaintenanceRequestController.getRequest);
 
 /**
  * @openapi
@@ -77,7 +77,7 @@ router.get('/:id', ...adminPerm(P.INVENTORY_READ), MaintenanceRequestController.
  */
 router.post(
   '/',
-  ...adminPerm(P.INVENTORY_WRITE),
+  ...sharedPerm(P.INVENTORY_WRITE),
   upload.fields([
     { name: 'attachments', maxCount: 10 },
     { name: 'attachment', maxCount: 1 },

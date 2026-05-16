@@ -10,32 +10,34 @@ class PenaltyService {
     let where = {
       ...(query.type && { type: query.type }),
       ...(query.status && { status: query.status }),
-      ...(query.userId && { appUser: { user: { id: parseInt(query.userId) } } }),
+      ...(query.userId && { userId: parseInt(query.userId) }),
     };
 
-    // Scoping using appUserId and appRole
+    // Scoping using userId and appRole
     if (currentUser.appRole === 'DRIVER') {
-      where.appUserId = currentUser.appUserId;
+      where.userId = currentUser.id;
     } else if (currentUser.appRole === 'SUPERVISOR') {
-      where.appUser = { supervisorId: currentUser.appUserId };
+      where.user = { appUser: { supervisorId: currentUser.appUserId } };
     } else if (!ADMIN_ROLES.has(currentUser.role)) {
-      where.appUserId = -1;
+      where.userId = -1;
     }
+
+    where = mergeDriverNameIntoUserWhere(where, query);
 
     const [items, total] = await Promise.all([
       prisma.penalty.findMany({
         where, skip, take: limit, orderBy: { createdAt: 'desc' },
-        include: { appUser: { select: { id: true, user: { select: { id: true, fullNameAr: true, identityNumber: true } } } } },
+        include: { user: { select: { id: true, fullNameAr: true, identityNumber: true, accountStatus: true } } },
       }),
       prisma.penalty.count({ where }),
     ]);
 
-    // Transform to keep same response format
     const transformedItems = items.map(item => ({
       ...item,
-      userId: item.appUser?.user?.id || item.userId,
-      user: item.appUser?.user || item.user,
+      user: item.user,
+      appUser: item.user ? { user: item.user } : null,
     }));
+
 
     return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
@@ -51,24 +53,16 @@ class PenaltyService {
   static async getById(id, currentUser) {
     const item = await prisma.penalty.findUnique({
       where: { id: parseInt(id) },
-      include: { appUser: { select: { id: true, user: { select: { id: true, fullNameAr: true, fullNameEn: true } } } } },
+      include: { user: { select: { id: true, fullNameAr: true, fullNameEn: true } } },
     });
 
     if (!item) throw new NotFoundError('Penalty');
 
-    // Transform to keep same response format
-    const transformedItem = {
-      ...item,
-      userId: item.appUser?.user?.id || item.userId,
-      user: item.appUser?.user || item.user,
-    };
-
-    // Access check using appUserId
-    if (currentUser.appRole === 'DRIVER' && transformedItem.userId !== currentUser.appUserId) {
+    if (currentUser.appRole === 'DRIVER' && item.userId !== currentUser.id) {
       throw new NotFoundError('Penalty');
     }
 
-    return transformedItem;
+    return item;
   }
 
   static async create(adminId, data) {

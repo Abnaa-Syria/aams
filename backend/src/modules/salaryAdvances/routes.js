@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const SalaryAdvanceController = require('./controller');
 
@@ -13,7 +13,7 @@ const SalaryAdvanceController = require('./controller');
  *     security:
  *       - bearerAuth: []
  */
-router.get('/', ...adminPerm(P.FINANCE_READ), SalaryAdvanceController.list);
+router.get('/', ...sharedPerm(P.HR_READ), SalaryAdvanceController.list);
 
 /**
  * @openapi
@@ -24,7 +24,7 @@ router.get('/', ...adminPerm(P.FINANCE_READ), SalaryAdvanceController.list);
  *     security:
  *       - bearerAuth: []
  */
-router.get('/:id', ...adminPerm(P.FINANCE_READ), SalaryAdvanceController.getById);
+router.get('/:id', ...sharedPerm(P.HR_READ), SalaryAdvanceController.getById);
 
 /**
  * @openapi
@@ -35,7 +35,7 @@ router.get('/:id', ...adminPerm(P.FINANCE_READ), SalaryAdvanceController.getById
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', ...adminPerm(P.FINANCE_WRITE), SalaryAdvanceController.create);
+router.post('/', ...sharedPerm(P.HR_WRITE), SalaryAdvanceController.create);
 
 /**
  * @openapi

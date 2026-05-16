@@ -10,21 +10,26 @@ class BreakRequestService {
       ...(query.shiftId && { shiftId: parseInt(query.shiftId) }),
     };
 
-    if (currentUser.role === 'DRIVER') {
+    if (currentUser.appRole === 'DRIVER') {
       where.shift = { userId: currentUser.id };
-    } else if (currentUser.role === 'SUPERVISOR') {
-      where.shift = { user: { supervisorId: currentUser.id } };
+    } else if (currentUser.appRole === 'SUPERVISOR') {
+      where.shift = { user: { appUser: { supervisorId: currentUser.appUserId } } };
     }
 
     const [items, total] = await Promise.all([
       prisma.breakRequest.findMany({
         where, skip, take: limit, orderBy: { createdAt: 'desc' },
-        include: { shift: { select: { id: true, userId: true, user: { select: { fullNameAr: true } } } } },
+        include: { shift: { select: { id: true, userId: true, user: { select: { id: true, fullNameAr: true, identityNumber: true } } } } },
       }),
       prisma.breakRequest.count({ where }),
     ]);
 
-    return { items, meta: buildPaginationMeta(total, page, limit) };
+    const transformedItems = items.map(item => ({
+      ...item,
+      appUser: item.shift?.user ? { user: item.shift.user } : null,
+    }));
+
+    return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
 
   static async create(userId, data) {

@@ -9,12 +9,13 @@ class AdminRequestService {
     const where = {
       ...(query.status && { status: query.status }),
       ...(query.type && { type: query.type }),
+      ...(query.userId && { userId: parseInt(query.userId) }),
     };
 
-    if (currentUser.role === 'DRIVER') {
+    if (currentUser.appRole === 'DRIVER') {
       where.userId = currentUser.id;
-    } else if (currentUser.role === 'SUPERVISOR') {
-      where.user = { supervisorId: currentUser.id };
+    } else if (currentUser.appRole === 'SUPERVISOR') {
+      where.user = { appUser: { supervisorId: currentUser.appUserId } };
     }
 
     const [items, total] = await Promise.all([
@@ -25,7 +26,12 @@ class AdminRequestService {
       prisma.adminRequest.count({ where }),
     ]);
 
-    return { items, meta: buildPaginationMeta(total, page, limit) };
+    const transformedItems = items.map(item => ({
+      ...item,
+      appUser: item.user ? { user: item.user } : null,
+    }));
+
+    return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
 
   static async getById(id, currentUser) {
@@ -38,9 +44,12 @@ class AdminRequestService {
     });
 
     if (!adminReq) throw new NotFoundError('AdminRequest');
-    if (currentUser.role === 'DRIVER' && adminReq.userId !== currentUser.id) throw new NotFoundError('AdminRequest');
+    if (currentUser.appRole === 'DRIVER' && adminReq.userId !== currentUser.id) throw new NotFoundError('AdminRequest');
     
-    return adminReq;
+    return {
+      ...adminReq,
+      appUser: adminReq.user ? { user: adminReq.user } : null,
+    };
   }
 
   static async create(userId, data) {

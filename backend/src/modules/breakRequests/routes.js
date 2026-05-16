@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const BreakRequestController = require('./controller');
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const validate = require('../../middlewares/validate');
 const {
@@ -9,11 +9,11 @@ const {
   reviewBreakRequestSchema,
 } = require('./validator');
 
-router.get('/', ...adminPerm(P.SHIFTS_READ), authenticate, BreakRequestController.list);
+router.get('/', ...sharedPerm(P.SHIFTS_READ), authenticate, BreakRequestController.list);
 
 router.post(
   '/',
-  ...adminPerm(P.SHIFTS_WRITE),
+  ...sharedPerm(P.SHIFTS_WRITE),
   authenticate,
   validate(createBreakRequestSchema),
   BreakRequestController.create
@@ -26,7 +26,7 @@ router.patch(
   BreakRequestController.review
 );
 
-router.post('/:id/start', ...adminPerm(P.SHIFTS_WRITE), authenticate, BreakRequestController.startBreak);
-router.post('/:id/end', ...adminPerm(P.SHIFTS_WRITE), authenticate, BreakRequestController.endBreak);
+router.post('/:id/start', ...sharedPerm(P.SHIFTS_WRITE), authenticate, BreakRequestController.startBreak);
+router.post('/:id/end', ...sharedPerm(P.SHIFTS_WRITE), authenticate, BreakRequestController.endBreak);
 
 module.exports = router;

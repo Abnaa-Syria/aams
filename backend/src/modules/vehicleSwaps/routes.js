@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const VehicleSwapController = require('./controller');
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const validate = require('../../middlewares/validate');
 const {
@@ -9,11 +9,11 @@ const {
   reviewVehicleSwapSchema,
 } = require('./validator');
 
-router.get('/', ...adminPerm(P.FLEET_READ), authenticate, VehicleSwapController.list);
+router.get('/', ...sharedPerm(P.FLEET_READ), authenticate, VehicleSwapController.list);
 
 router.post(
   '/',
-  ...adminPerm(P.FLEET_WRITE),
+  ...sharedPerm(P.FLEET_WRITE),
   authenticate,
   validate(createVehicleSwapSchema),
   VehicleSwapController.create

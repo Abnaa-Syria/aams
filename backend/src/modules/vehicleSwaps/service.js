@@ -10,10 +10,10 @@ class VehicleSwapService {
       ...(query.shiftId && { shiftId: parseInt(query.shiftId) }),
     };
 
-    if (currentUser.role === 'DRIVER') {
-      where.shift = { userId: currentUser.id };
-    } else if (currentUser.role === 'SUPERVISOR') {
-      where.shift = { user: { supervisorId: currentUser.id } };
+    if (currentUser.appRole === 'DRIVER') {
+      where.userId = currentUser.id;
+    } else if (currentUser.appRole === 'SUPERVISOR') {
+      where.user = { appUser: { supervisorId: currentUser.appUserId } };
     }
 
     const [items, total] = await Promise.all([
@@ -22,13 +22,19 @@ class VehicleSwapService {
         include: {
           shift: { select: { id: true, userId: true, user: { select: { fullNameAr: true } } } },
           currentVehicle: { select: { id: true, plateNumber: true } },
-          requestedVehicle: { select: { id: true, plateNumber: true } },
+          newVehicle: { select: { id: true, plateNumber: true } },
+          user: { select: { id: true, fullNameAr: true, identityNumber: true } },
         },
       }),
       prisma.vehicleSwapRequest.count({ where }),
     ]);
 
-    return { items, meta: buildPaginationMeta(total, page, limit) };
+    const transformedItems = items.map(item => ({
+      ...item,
+      appUser: item.user ? { user: item.user } : null,
+    }));
+
+    return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
 
   static async create(userId, data) {
@@ -37,16 +43,18 @@ class VehicleSwapService {
     if (shift.status !== 'ACTIVE') throw new BusinessLogicError('Shift must be active to request a swap');
 
     const activeSwap = await prisma.vehicleSwapRequest.findFirst({
-      where: { shiftId: data.shiftId, status: 'PENDING' },
+      where: { shiftId: data.shiftId, status: 'REQUESTED' },
     });
     if (activeSwap) throw new BusinessLogicError('You already have a pending swap request');
 
     return prisma.vehicleSwapRequest.create({
       data: {
+        userId,
         shiftId: data.shiftId,
         currentVehicleId: data.currentVehicleId,
-        requestedVehicleId: data.requestedVehicleId,
+        newVehicleId: data.requestedVehicleId ? parseInt(data.requestedVehicleId) : null,
         reason: data.reason,
+        status: 'REQUESTED',
       },
     });
   }
@@ -57,9 +65,9 @@ class VehicleSwapService {
       include: { shift: true },
     });
     if (!swapReq) throw new NotFoundError('VehicleSwapRequest');
-    if (swapReq.status !== 'PENDING') throw new BusinessLogicError('Can only review PENDING requests');
+    if (swapReq.status !== 'REQUESTED') throw new BusinessLogicError('Can only review REQUESTED requests');
 
-    const assignedVehicleId = data.assignedVehicleId || swapReq.requestedVehicleId;
+    const assignedVehicleId = data.assignedVehicleId || swapReq.newVehicleId;
 
     if (data.status === 'APPROVED' && !assignedVehicleId) {
       throw new BusinessLogicError('Must specify an assignedVehicleId to approve the swap');
@@ -70,9 +78,10 @@ class VehicleSwapService {
         where: { id: parseInt(id) },
         data: {
           status: data.status,
-          assignedVehicleId: data.status === 'APPROVED' ? assignedVehicleId : null,
-          approvedBy: data.status === 'APPROVED' ? adminId : null,
-          notes: data.notes,
+          newVehicleId: data.status === 'APPROVED' ? assignedVehicleId : swapReq.newVehicleId,
+          reviewedBy: adminId,
+          reviewedAt: new Date(),
+          reviewNotes: data.notes,
         },
       });
 

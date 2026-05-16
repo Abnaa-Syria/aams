@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 import { 
   LuArrowRight, LuUser, LuFileText, LuShield, LuClock, 
   LuFuel, LuTriangleAlert, LuCircleAlert, LuWrench, LuMapPin, LuChevronLeft,
-  LuMap, LuEye, LuPen, LuActivity, LuInfo, LuUserPlus, LuUserMinus
+  LuMap, LuEye, LuPen, LuActivity, LuInfo, LuUserPlus, LuUserMinus, LuCheck
 } from 'react-icons/lu';
 import { hasAnyPermission, PERMISSIONS as P } from '../../utils/rolePermissions';
 import PermissionGate from '../../components/auth/PermissionGate';
@@ -46,6 +46,20 @@ const FIELD_TRANSLATIONS = {
   tankCapacity: 'سعة الخزان',
   fuelType: 'نوع الوقود',
   ownershipStatus: 'حالة الملكية',
+  adminNotes: 'ملاحظات الإدارة',
+  technicianNotes: 'ملاحظات الفني',
+  completedAt: 'تاريخ الإكمال',
+  issueDate: 'تاريخ الإصدار',
+  licenseNumber: 'رقم الرخصة',
+  discountAmount: 'مبلغ الخصم',
+  orderRef: 'رقم الطلب',
+  platformName: 'اسم المنصة',
+  user: 'السائق',
+  vehicle: 'المركبة',
+  shift: 'الشفت',
+  photoUrl: 'الصورة المرفقة',
+  appUserId: 'معرف المستخدم',
+  userId: 'المستخدم',
 };
 
 const STATUS_TRANSLATIONS = {
@@ -111,7 +125,43 @@ export default function VehicleDetailPage() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
 
+  const handleStatusUpdate = async (recId, newStatus, currentTab) => {
+    try {
+      let endpoint = '';
+      let payload = { status: newStatus };
+
+      switch (currentTab) {
+        case 'fuel': endpoint = `/fuel-logs/${recId}/review`; break;
+        case 'violations': endpoint = `/violations/${recId}/review`; break;
+        case 'maintenance': endpoint = `/maintenance-requests/${recId}/status`; break;
+        case 'overview': endpoint = `/vehicles/${recId}`; break;
+        default: return;
+      }
+
+      await apiService.patch(endpoint, payload);
+      toast.success('تم تحديث الحالة بنجاح');
+      loadTab();
+      loadSummary();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'فشل تحديث الحالة');
+    }
+  };
+
+
   const handleView = (record) => {
+    // Smart Navigation Logic
+    const TAB_TO_ROUTE = {
+      fuel: '/fuel',
+      maintenance: '/maintenance-requests',
+      violations: '/violations',
+      assignments: '/vehicles/assignments', // Note: Check if this exists, but usually we just want to see it here
+    };
+
+    if (TAB_TO_ROUTE[tab] && tab !== 'assignments') {
+      navigate(`${TAB_TO_ROUTE[tab]}/${record.id}`);
+      return;
+    }
+
     setSelectedRecord(record);
     setViewModalOpen(true);
   };
@@ -251,19 +301,19 @@ export default function VehicleDetailPage() {
       { key: 'fuelDate', label: 'التاريخ', render: (v) => new Date(v).toLocaleDateString('ar-SA') },
       { key: 'amount', label: 'المبلغ' },
       { key: 'liters', label: 'اللترات' },
-      { key: 'status', label: 'الحالة', render: (v) => <StatusBadge status={v} /> },
+      { key: 'status', label: 'الحالة', render: (_, r) => <StatusDropdown record={r} currentTab="fuel" onUpdate={handleStatusUpdate} /> },
     ],
     maintenance: [
       { key: 'issueType', label: 'النوع' },
       { key: 'priority', label: 'الأولوية' },
-      { key: 'status', label: 'الحالة', render: (v) => <StatusBadge status={v} /> },
+      { key: 'status', label: 'الحالة', render: (_, r) => <StatusDropdown record={r} currentTab="maintenance" onUpdate={handleStatusUpdate} /> },
       { key: 'cost', label: 'التكلفة' },
     ],
     violations: [
       { key: 'violationDate', label: 'التاريخ', render: (v) => new Date(v).toLocaleDateString('ar-SA') },
       { key: 'reason', label: 'السبب' },
       { key: 'amount', label: 'الغرامة' },
-      { key: 'status', label: 'الحالة', render: (v) => <StatusBadge status={v} /> },
+      { key: 'status', label: 'الحالة', render: (_, r) => <StatusDropdown record={r} currentTab="violations" onUpdate={handleStatusUpdate} /> },
     ],
     assignments: [
       { key: 'user', label: 'السائق', render: (v) => v?.fullNameAr || '—' },
@@ -428,13 +478,54 @@ export default function VehicleDetailPage() {
            <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 {Object.entries(selectedRecord).map(([key, value]) => {
-                  const IGNORED = ['id', 'userId', 'vehicleId', 'shiftId', 'createdAt', 'updatedAt', 'deletedAt', 'user', 'vehicle', 'platform'];
-                  if (IGNORED.includes(key) || typeof value === 'object') return null;
+                  const IGNORED = ['id', 'userId', 'vehicleId', 'shiftId', 'createdAt', 'updatedAt', 'deletedAt', 'platformAccountId', 'supervisorId', 'cityId', 'appUserId'];
+                  
+                  // Handle Objects (like user, vehicle, platform)
+                  let displayValue = value;
+                  let isPreview = false;
+
+                  if (typeof value === 'object' && value !== null) {
+                    // Try to find a displayable field in the object
+                    displayValue = value.fullNameAr || value.plateNumber || value.nameAr || value.username || value.title || null;
+                    if (!displayValue) return null; // Still hide complex objects if no display field found
+                  } else if (IGNORED.includes(key)) {
+                    return null;
+                  } else if (value === null || value === undefined) {
+                    displayValue = '—';
+                  } else {
+                    displayValue = String(value);
+                  }
+
+                  // Smart Formatting: Dates
+                  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+                    displayValue = new Date(value).toLocaleString('ar-SA');
+                  }
+
+                  // Smart Formatting: Images & Status
+                  if (key === 'status') {
+                    displayValue = <StatusBadge status={value} />;
+                  } else if (typeof value === 'string' && (value.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp|pdf)$/i) || value.includes('uploads/') || value.startsWith('http'))) {
+                    isPreview = true;
+                    const isPdf = value.toLowerCase().endsWith('.pdf') || value.toLowerCase().includes('.pdf?');
+                    displayValue = (
+                      <a href={resolveUploadUrl(value)} target="_blank" rel="noopener noreferrer" className="block mt-2">
+                        {isPdf ? (
+                          <div className="inline-flex items-center gap-2 bg-slate-100 text-brand-primary px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-200 transition-colors max-w-full">
+                            <LuFileText size={18} />
+                            <span className="truncate">عرض الملف المرفق (PDF)</span>
+                          </div>
+                        ) : (
+                          <img src={resolveUploadUrl(value)} alt="Attachment" className="max-w-[200px] rounded-xl border-4 border-white shadow-sm hover:scale-105 transition-transform" />
+                        )}
+                      </a>
+                    );
+                  }
+
                   return (
-                    <div key={key} className="p-4 bg-slate-50 rounded-2xl ring-1 ring-slate-100">
+                    <div key={key} className={`p-4 bg-slate-50 rounded-2xl ring-1 ring-slate-100 ${isPreview ? 'col-span-2' : ''}`}>
                        <label className="text-[0.6rem] font-black text-slate-400 uppercase tracking-widest block mb-1">{FIELD_TRANSLATIONS[key] || key}</label>
-                       <div className="text-sm font-black text-slate-800">
-                          {key === 'status' ? <StatusBadge status={value} /> : String(value || '—')}
+                       <div className="text-sm font-black text-slate-800 break-all">
+                          {displayValue}
                        </div>
                     </div>
                   );
@@ -496,6 +587,48 @@ export default function VehicleDetailPage() {
         vehicleId={id}
         onStatusUpdate={loadSummary}
       />
+    </div>
+  );
+}
+
+function StatusDropdown({ record, currentTab, onUpdate }) {
+  const statuses = TAB_STATUS_MAPPINGS[currentTab] || [];
+  const [open, setOpen] = useState(false);
+
+  if (statuses.length === 0 || currentTab === 'assignments') {
+    return <StatusBadge status={record.status || (record.isActive ? 'ACTIVE' : 'ENDED')} />;
+  }
+
+  return (
+    <div className="relative inline-block" onMouseLeave={() => setOpen(false)}>
+      <div 
+        onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
+        className="cursor-pointer hover:opacity-80 transition-opacity active:scale-95"
+      >
+        <StatusBadge status={record.status} />
+      </div>
+
+      {open && (
+        <div className="absolute right-0 mt-2 w-40 bg-white rounded-xl shadow-premium border border-slate-100 z-[100] py-1 animate-in fade-in slide-in-from-top-2 duration-200">
+          {statuses.map((s) => (
+            <button
+              key={s}
+              disabled={s === record.status}
+              onClick={(e) => {
+                e.stopPropagation();
+                onUpdate(record.id, s, currentTab);
+                setOpen(false);
+              }}
+              className={`w-full text-right px-4 py-2 text-sm font-bold transition-colors flex items-center justify-between ${
+                s === record.status ? 'text-slate-300 cursor-default' : 'text-slate-600 hover:bg-slate-50 hover:text-brand-primary'
+              }`}
+            >
+              {STATUS_TRANSLATIONS[s] || s}
+              {s === record.status && <LuCheck size={14} className="text-emerald-500" />}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const upload = require('../../utils/upload');
 const prisma = require('../../config/database');
@@ -8,7 +8,7 @@ const ApiResponse = require('../../utils/response');
 const { NotFoundError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
-const { ADMIN_ROLES, mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
+const { ADMIN_ROLES, mergeDriverNameIntoUserWhere, applyUserOwnedListScope } = require('../../utils/listScope');
 const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
 const { AuthorizationError } = require('../../utils/errors');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
@@ -39,7 +39,7 @@ const { streamAttachmentDownload } = require('../../utils/streamAttachment');
  *       200:
  *         description: Bank accounts list
  */
-router.get('/', ...adminPerm(P.FINANCE_READ), async (req, res, next) => {
+router.get('/', ...sharedPerm(P.FINANCE_READ), async (req, res, next) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query);
     let where = {
@@ -48,12 +48,19 @@ router.get('/', ...adminPerm(P.FINANCE_READ), async (req, res, next) => {
       ...(req.query.verificationStatus && { verificationStatus: req.query.verificationStatus }),
       ...(req.query.paymentMethod && { paymentMethod: req.query.paymentMethod }),
     };
+    where = applyUserOwnedListScope(where, req);
     where = mergeDriverNameIntoUserWhere(where, req.query);
     const [items, total] = await Promise.all([
       prisma.bankAccount.findMany({ where, skip, take: limit, orderBy: { createdAt: 'desc' }, include: { user: { select: { id: true, fullNameAr: true, identityNumber: true } } } }),
       prisma.bankAccount.count({ where }),
     ]);
-    return ApiResponse.paginated(res, items, buildPaginationMeta(total, page, limit));
+
+    const transformedItems = items.map(item => ({
+      ...item,
+      appUser: item.user ? { user: item.user } : null,
+    }));
+
+    return ApiResponse.paginated(res, transformedItems, buildPaginationMeta(total, page, limit));
   } catch (err) { next(err); }
 });
 
@@ -108,16 +115,20 @@ router.get('/', ...adminPerm(P.FINANCE_READ), async (req, res, next) => {
  *       200:
  *         description: Deleted
  */
-router.get('/:id', ...adminPerm(P.FINANCE_READ), async (req, res, next) => {
+router.get('/:id', ...sharedPerm(P.FINANCE_READ), async (req, res, next) => {
   try {
     const item = await prisma.bankAccount.findFirst({ where: { id: parseInt(req.params.id), deletedAt: null }, include: { user: { select: { id: true, fullNameAr: true } } } });
     if (!item) throw new NotFoundError('Bank Account');
     await assertCanAccessDriverRecord(req, item.userId);
-    return ApiResponse.success(res, item);
+    const transformedItem = {
+      ...item,
+      appUser: item.user ? { user: item.user } : null,
+    };
+    return ApiResponse.success(res, transformedItem);
   } catch (err) { next(err); }
 });
 
-router.get('/:id/files/proof/download', ...adminPerm(P.FINANCE_READ), async (req, res, next) => {
+router.get('/:id/files/proof/download', ...sharedPerm(P.FINANCE_READ), async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
     const bankAccount = await prisma.bankAccount.findFirst({
@@ -133,7 +144,7 @@ router.get('/:id/files/proof/download', ...adminPerm(P.FINANCE_READ), async (req
   }
 });
 
-router.get('/:id/files/cash-receipt/download', ...adminPerm(P.FINANCE_READ), async (req, res, next) => {
+router.get('/:id/files/cash-receipt/download', ...sharedPerm(P.FINANCE_READ), async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
     const bankAccount = await prisma.bankAccount.findFirst({
@@ -172,7 +183,7 @@ router.get('/:id/files/cash-receipt/download', ...adminPerm(P.FINANCE_READ), asy
  *       201:
  *         description: Created
  */
-router.post('/', ...adminPerm(P.FINANCE_WRITE), upload.fields([{ name: 'proofFile', maxCount: 1 }, { name: 'cashReceiptFile', maxCount: 1 }]), async (req, res, next) => {
+router.post('/', ...sharedPerm(P.FINANCE_WRITE), upload.fields([{ name: 'proofFile', maxCount: 1 }, { name: 'cashReceiptFile', maxCount: 1 }]), async (req, res, next) => {
   try {
     // Resolve userId based on appRole
     // DRIVER: use own appUserId from token
@@ -205,7 +216,7 @@ router.post('/', ...adminPerm(P.FINANCE_WRITE), upload.fields([{ name: 'proofFil
   } catch (err) { next(err); }
 });
 
-router.put('/:id', ...adminPerm(P.FINANCE_WRITE), upload.fields([{ name: 'proofFile', maxCount: 1 }, { name: 'cashReceiptFile', maxCount: 1 }]), async (req, res, next) => {
+router.put('/:id', ...sharedPerm(P.FINANCE_WRITE), upload.fields([{ name: 'proofFile', maxCount: 1 }, { name: 'cashReceiptFile', maxCount: 1 }]), async (req, res, next) => {
   try {
     const existing = await prisma.bankAccount.findFirst({
       where: { id: parseInt(req.params.id, 10), deletedAt: null },

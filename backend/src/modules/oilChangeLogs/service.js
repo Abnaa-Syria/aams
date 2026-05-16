@@ -8,12 +8,12 @@ class OilChangeLogService {
     const { page, limit, skip } = getPaginationParams(query);
     const where = {
       ...(query.vehicleId && { vehicleId: parseInt(query.vehicleId) }),
-      ...(query.reportedById && { reportedById: parseInt(query.reportedById) }),
+      ...((query.reportedById || query.userId) && { performedBy: parseInt(query.reportedById || query.userId) }),
     };
 
-    if (currentUser.role === 'DRIVER') {
-      where.reportedById = currentUser.id;
-    } else if (currentUser.role === 'SUPERVISOR') {
+    if (currentUser.appRole === 'DRIVER') {
+      where.performedBy = currentUser.id;
+    } else if (currentUser.appRole === 'SUPERVISOR') {
       // Typically Supervisors can see oil logs for any vehicle driven by their drivers,
       // but a simpler scope is to just not restrict them, or restrict to vehicles they manage.
       // For now, no strict scope for supervisors as fleet manages vehicles.
@@ -24,13 +24,18 @@ class OilChangeLogService {
         where, skip, take: limit, orderBy: { changeDate: 'desc' },
         include: {
           vehicle: { select: { id: true, plateNumber: true } },
-          reportedBy: { select: { id: true, fullNameAr: true } },
+          performer: { select: { id: true, fullNameAr: true, identityNumber: true } },
         },
       }),
       prisma.oilChangeLog.count({ where }),
     ]);
 
-    return { items, meta: buildPaginationMeta(total, page, limit) };
+    const transformedItems = items.map(item => ({
+      ...item,
+      appUser: item.performer ? { user: item.performer } : null,
+    }));
+
+    return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
 
   static async report(userId, data, file) {
@@ -47,11 +52,9 @@ class OilChangeLogService {
           vehicleId: data.vehicleId,
           changeDate: data.changeDate ? new Date(data.changeDate) : new Date(),
           odometerAtChange: data.odometerAtChange,
-          nextChangeOdometer: data.nextChangeOdometer,
-          cost: data.cost,
+          nextDueOdometer: data.nextChangeOdometer,
           notes: data.notes,
-          photoUrl: file ? normalizeStoredUploadPath(file.path) : undefined,
-          reportedById: userId,
+          performedBy: userId,
         },
       });
 

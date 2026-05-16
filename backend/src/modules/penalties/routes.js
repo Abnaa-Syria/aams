@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const PenaltyController = require('./controller');
 
@@ -13,7 +13,7 @@ const PenaltyController = require('./controller');
  *     security:
  *       - bearerAuth: []
  */
-router.get('/', ...adminPerm(P.COMPLIANCE_READ), PenaltyController.list);
+router.get('/', ...sharedPerm(P.COMPLIANCE_READ), PenaltyController.list);
 
 /**
  * @openapi
@@ -35,7 +35,7 @@ router.get('/totals', ...adminPerm(P.COMPLIANCE_READ), PenaltyController.getTota
  *     security:
  *       - bearerAuth: []
  */
-router.get('/:id', ...adminPerm(P.COMPLIANCE_READ), PenaltyController.getById);
+router.get('/:id', ...sharedPerm(P.COMPLIANCE_READ), PenaltyController.getById);
 
 /**
  * @openapi

@@ -1002,6 +1002,7 @@ async function main() {
         shiftId: active.id,
         userId: driver.id,
         currentVehicleId: vehicle.id,
+        newVehicleId: vehicleRows[(i + 1) % vehicleRows.length].id,
         reason: 'صوت غريب في المحرك',
         status: 'REQUESTED'
       }
@@ -1011,6 +1012,8 @@ async function main() {
     await prisma.canceledOrderLog.create({
       data: {
         userId: driver.id,
+        shiftId: ended.id,
+        platformAccountId: pAcc.id,
         orderRef: 'ORD-999',
         reason: 'العميل لم يستجب',
         platformName: 'Keeta',

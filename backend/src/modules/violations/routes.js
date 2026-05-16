@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const upload = require('../../utils/upload');
 const ViolationController = require('./controller');
@@ -24,9 +24,9 @@ const VIOLATION_KIND_TO_FIELD = {
  *     security:
  *       - bearerAuth: []
  */
-router.get('/', ...adminPerm(P.COMPLIANCE_READ), ViolationController.listViolations);
+router.get('/', ...sharedPerm(P.COMPLIANCE_READ), ViolationController.listViolations);
 
-router.get('/:id/files/:kind/download', ...adminPerm(P.COMPLIANCE_READ), async (req, res, next) => {
+router.get('/:id/files/:kind/download', ...sharedPerm(P.COMPLIANCE_READ), async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
     const field = VIOLATION_KIND_TO_FIELD[req.params.kind];
@@ -56,7 +56,7 @@ router.get('/:id/files/:kind/download', ...adminPerm(P.COMPLIANCE_READ), async (
  *     security:
  *       - bearerAuth: []
  */
-router.get('/:id', ...adminPerm(P.COMPLIANCE_READ), ViolationController.getViolation);
+router.get('/:id', ...sharedPerm(P.COMPLIANCE_READ), ViolationController.getViolation);
 
 /**
  * @openapi

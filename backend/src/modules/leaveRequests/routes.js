@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const upload = require('../../utils/upload');
 const prisma = require('../../config/database');
@@ -23,7 +23,7 @@ const LeaveRequestController = require('./controller');
  *     security:
  *       - bearerAuth: []
  */
-router.get('/', ...adminPerm(P.HR_READ), LeaveRequestController.list);
+router.get('/', ...sharedPerm(P.HR_READ), LeaveRequestController.list);
 
 /**
  * @openapi
@@ -45,7 +45,7 @@ router.get('/balances/:userId', ...adminPerm(P.HR_READ), LeaveRequestController.
  *     security:
  *       - bearerAuth: []
  */
-router.get('/:id', ...adminPerm(P.HR_READ), LeaveRequestController.getById);
+router.get('/:id', ...sharedPerm(P.HR_READ), LeaveRequestController.getById);
 
 router.get('/:id/files/attachment/download', ...adminPerm(P.HR_READ), async (req, res, next) => {
   try {
@@ -72,7 +72,7 @@ router.get('/:id/files/attachment/download', ...adminPerm(P.HR_READ), async (req
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', ...adminPerm(P.HR_WRITE), upload.single('attachment'), LeaveRequestController.create);
+router.post('/', ...sharedPerm(P.HR_WRITE), upload.single('attachment'), LeaveRequestController.create);
 
 /**
  * @openapi

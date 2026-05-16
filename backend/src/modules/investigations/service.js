@@ -36,15 +36,23 @@ class InvestigationService {
       prisma.investigation.findMany({
         where, skip, take: limit, orderBy: { createdAt: 'desc' },
         include: {
-          user: { select: { id: true, fullNameAr: true, identityNumber: true } },
+          user: { select: { id: true, fullNameAr: true, identityNumber: true, accountStatus: true } },
           createdBy: { select: { id: true, fullNameAr: true } },
           _count: { select: { attachments: true, eventLogs: true } },
         },
       }),
+
       prisma.investigation.count({ where }),
     ]);
 
-    return { items, meta: buildPaginationMeta(total, page, limit) };
+    const transformedItems = items.map(item => ({
+      ...item,
+      user: item.user,
+      appUser: item.user ? { user: item.user } : null,
+    }));
+
+
+    return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
 
   static async getById(id, currentUser) {

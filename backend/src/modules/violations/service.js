@@ -12,15 +12,18 @@ class ViolationService {
     let where = {
       ...(query.vehicleId && { vehicleId: parseInt(query.vehicleId) }),
       ...(query.status && { status: query.status }),
-      ...(query.userId && { appUser: { user: { id: parseInt(query.userId) } } }),
+      ...(query.userId && { userId: parseInt(query.userId) }),
     };
 
     const appRole = currentUser?.appUser?.appRole;
     if (appRole === 'DRIVER') {
       where.userId = currentUser.id;
     } else if (appRole === 'SUPERVISOR') {
-      where.appUser = { supervisorId: currentUser.appUser?.id };
+      where.user = { appUser: { supervisorId: currentUser.appUserId } };
     }
+    
+    where = mergeDriverNameIntoUserWhere(where, query);
+
 
     const [items, total] = await Promise.all([
       prisma.violation.findMany({
@@ -29,14 +32,22 @@ class ViolationService {
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          appUser: { select: { id: true, user: { select: { id: true, fullNameAr: true, identityNumber: true, accountStatus: true } } } },
+          user: { select: { id: true, fullNameAr: true, identityNumber: true, accountStatus: true } },
           vehicle: { select: { id: true, plateNumber: true, model: true } },
         },
       }),
       prisma.violation.count({ where }),
     ]);
 
-    return { items, meta: buildPaginationMeta(total, page, limit) };
+    const transformedItems = items.map(item => ({
+      ...item,
+      user: item.user,
+      vehicle: item.vehicle,
+      appUser: item.user ? { user: item.user } : null,
+    }));
+
+
+    return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
 
   static async getById(id) {
@@ -51,7 +62,10 @@ class ViolationService {
 
     if (!item) throw new NotFoundError('Violation');
 
-    return item;
+    return {
+      ...item,
+      appUser: item.user ? { user: item.user } : null,
+    };
   }
 
   static async create(adminId, data, files = {}) {

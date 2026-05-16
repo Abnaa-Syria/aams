@@ -2,7 +2,7 @@ const prisma = require('../../config/database');
 const { NotFoundError, AuthorizationError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
-const { ADMIN_ROLES, mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
+const { ADMIN_ROLES, mergeDriverNameIntoUserWhere, applyUserOwnedListScope } = require('../../utils/listScope');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
 
 class PlatformAccountService {
@@ -14,6 +14,7 @@ class PlatformAccountService {
       ...(query.platformId && { platformId: parseInt(query.platformId) }),
       ...(query.status && { status: query.status }),
     };
+    where = applyUserOwnedListScope(where, { user: currentUser, query });
     where = mergeDriverNameIntoUserWhere(where, query);
 
     const [items, total] = await Promise.all([
@@ -27,7 +28,12 @@ class PlatformAccountService {
       prisma.platformAccount.count({ where }),
     ]);
 
-    return { items, meta: buildPaginationMeta(total, page, limit) };
+    const transformedItems = items.map(item => ({
+      ...item,
+      appUser: item.user ? { user: item.user } : null,
+    }));
+
+    return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
 
   static async getById(id, currentUser) {

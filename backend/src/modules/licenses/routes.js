@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const upload = require('../../utils/upload');
 const prisma = require('../../config/database');
@@ -8,7 +8,7 @@ const ApiResponse = require('../../utils/response');
 const { NotFoundError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta, buildOrderBy } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
-const { ADMIN_ROLES, mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
+const { ADMIN_ROLES, mergeDriverNameIntoUserWhere, applyUserOwnedListScope } = require('../../utils/listScope');
 const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
 const { AuthorizationError } = require('../../utils/errors');
 const fs = require('fs');
@@ -42,7 +42,7 @@ const { normalizeStoredUploadPath, resolveStoredPathToAbsolute } = require('../.
  *       200:
  *         description: Licenses list
  */
-router.get('/', ...adminPerm(P.DOCUMENTS_READ), async (req, res, next) => {
+router.get('/', ...sharedPerm(P.DOCUMENTS_READ), async (req, res, next) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query);
     let where = {
@@ -51,12 +51,19 @@ router.get('/', ...adminPerm(P.DOCUMENTS_READ), async (req, res, next) => {
       ...(req.query.type && { type: req.query.type }),
       ...(req.query.status && { status: req.query.status }),
     };
+    where = applyUserOwnedListScope(where, req);
     where = mergeDriverNameIntoUserWhere(where, req.query);
     const [items, total] = await Promise.all([
       prisma.license.findMany({ where, skip, take: limit, orderBy: { createdAt: 'desc' }, include: { user: { select: { id: true, fullNameAr: true, identityNumber: true } } } }),
       prisma.license.count({ where }),
     ]);
-    return ApiResponse.paginated(res, items, buildPaginationMeta(total, page, limit));
+
+    const transformedItems = items.map(item => ({
+      ...item,
+      appUser: item.user ? { user: item.user } : null,
+    }));
+
+    return ApiResponse.paginated(res, transformedItems, buildPaginationMeta(total, page, limit));
   } catch (err) { next(err); }
 });
 
@@ -130,16 +137,20 @@ router.get('/expiring', ...adminPerm(P.DOCUMENTS_READ), async (req, res, next) =
  *       200:
  *         description: Updated
  */
-router.get('/:id', ...adminPerm(P.DOCUMENTS_READ), async (req, res, next) => {
+router.get('/:id', ...sharedPerm(P.DOCUMENTS_READ), async (req, res, next) => {
   try {
     const item = await prisma.license.findFirst({ where: { id: parseInt(req.params.id), deletedAt: null }, include: { user: { select: { id: true, fullNameAr: true, fullNameEn: true } } } });
     if (!item) throw new NotFoundError('License');
     await assertCanAccessDriverRecord(req, item.userId);
-    return ApiResponse.success(res, item);
+    const transformedItem = {
+      ...item,
+      appUser: item.user ? { user: item.user } : null,
+    };
+    return ApiResponse.success(res, transformedItem);
   } catch (err) { next(err); }
 });
 
-router.get('/:id/download', ...adminPerm(P.DOCUMENTS_READ), async (req, res, next) => {
+router.get('/:id/download', ...sharedPerm(P.DOCUMENTS_READ), async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
     const item = await prisma.license.findFirst({
@@ -197,7 +208,7 @@ router.get('/:id/download', ...adminPerm(P.DOCUMENTS_READ), async (req, res, nex
  *       201:
  *         description: Created
  */
-router.post('/', ...adminPerm(P.DOCUMENTS_WRITE), upload.single('file'), async (req, res, next) => {
+router.post('/', ...sharedPerm(P.DOCUMENTS_WRITE), upload.single('file'), async (req, res, next) => {
   try {
     // Resolve userId based on appRole
     // DRIVER: use own appUserId from token
@@ -217,7 +228,7 @@ router.post('/', ...adminPerm(P.DOCUMENTS_WRITE), upload.single('file'), async (
   } catch (err) { next(err); }
 });
 
-router.put('/:id', ...adminPerm(P.DOCUMENTS_WRITE), upload.single('file'), async (req, res, next) => {
+router.put('/:id', ...sharedPerm(P.DOCUMENTS_WRITE), upload.single('file'), async (req, res, next) => {
   try {
     const existing = await prisma.license.findFirst({
       where: { id: parseInt(req.params.id, 10), deletedAt: null },
@@ -253,7 +264,7 @@ router.put('/:id', ...adminPerm(P.DOCUMENTS_WRITE), upload.single('file'), async
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id', ...adminPerm(P.DOCUMENTS_WRITE), upload.single('file'), async (req, res, next) => {
+router.patch('/:id', ...sharedPerm(P.DOCUMENTS_WRITE), upload.single('file'), async (req, res, next) => {
   try {
     const existing = await prisma.license.findFirst({
       where: { id: parseInt(req.params.id, 10), deletedAt: null },

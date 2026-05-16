@@ -13,19 +13,20 @@ class DailyReportService {
       ...(query.status && { status: query.status }),
     };
 
-    // Scoping logic using appUserId and appRole (Drivers see only theirs, Supervisors see their team)
+    // Scoping logic using userId and appRole (Drivers see only theirs, Supervisors see their team)
     if (currentUser.appRole === 'DRIVER') {
-      where.appUserId = currentUser.appUserId;
+      where.userId = currentUser.id;
     } else if (currentUser.appRole === 'SUPERVISOR') {
       // If supervisor specifies a userId, it must be one of their drivers
       if (query.userId) {
-        where.appUser = { user: { id: parseInt(query.userId) }, supervisorId: currentUser.appUserId };
+        where.userId = parseInt(query.userId);
+        where.user = { appUser: { supervisorId: currentUser.appUserId } };
       } else {
-        where.appUser = { supervisorId: currentUser.appUserId };
+        where.user = { appUser: { supervisorId: currentUser.appUserId } };
       }
     } else if (query.userId) {
       // Admins and other roles can filter by userId freely
-      where.appUser = { user: { id: parseInt(query.userId) } };
+      where.userId = parseInt(query.userId);
     }
 
     if (query.dateFrom || query.dateTo) {
@@ -51,7 +52,14 @@ class DailyReportService {
       prisma.dailyReport.count({ where }),
     ]);
 
-    return { items, meta: buildPaginationMeta(total, page, limit) };
+    const transformedItems = items.map(item => ({
+      ...item,
+      user: item.user,
+      appUser: item.user ? { user: item.user } : null,
+    }));
+
+
+    return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
 
   static async getById(id) {
@@ -67,7 +75,10 @@ class DailyReportService {
 
     if (!report) throw new NotFoundError('Daily Report');
 
-    return report;
+    return {
+      ...report,
+      appUser: report.user ? { user: report.user } : null,
+    };
   }
 
   static async create(currentUser, data, files = []) {

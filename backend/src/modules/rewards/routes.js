@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const RewardController = require('./controller');
 
@@ -13,7 +13,7 @@ const RewardController = require('./controller');
  *     security:
  *       - bearerAuth: []
  */
-router.get('/', ...adminPerm(P.HR_READ), RewardController.list);
+router.get('/', ...sharedPerm(P.HR_READ), RewardController.list);
 
 /**
  * @openapi
@@ -35,7 +35,7 @@ router.get('/summary', ...adminPerm(P.HR_READ, P.HR_APPROVE), RewardController.g
  *     security:
  *       - bearerAuth: []
  */
-router.get('/:id', ...adminPerm(P.HR_READ), RewardController.getById);
+router.get('/:id', ...sharedPerm(P.HR_READ), RewardController.getById);
 
 /**
  * @openapi
