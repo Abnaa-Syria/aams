@@ -20,7 +20,12 @@ const corsAllowed = Array.isArray(config.cors.origin)
     : [];
 
 // Security & parsing
-app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+app.use((req, res, next) => {
+  if (req.path === '/api-docs' || req.path.startsWith('/api-docs/')) {
+    return next();
+  }
+  return helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } })(req, res, next);
+});
 // Dynamic origin: reflect allowed request Origin (required with credentials: true).
 app.use(
   cors((req, cb) => {
