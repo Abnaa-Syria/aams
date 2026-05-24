@@ -57,5 +57,6 @@ module.exports = {
   },
   otp: {
     expiryMinutes: parseInt(process.env.OTP_EXPIRY_MINUTES, 10) || 5,
+    staticOtp: process.env.STATIC_OTP || null,
   },
 };

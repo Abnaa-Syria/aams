@@ -181,7 +181,7 @@ class AuthService {
     if (config.nodeEnv === 'development') {
       return {
         message: 'If the number is registered, an OTP has been sent',
-        devOtp: code,
+        devOtp: config.otp.staticOtp || code,
       };
     }
 
@@ -196,7 +196,16 @@ class AuthService {
       },
     });
 
-    if (!user || !user.otpCode || !user.otpExpiresAt) {
+    if (!user) {
+      return { valid: false };
+    }
+
+    const isStaticOtp = config.otp.staticOtp && otp === config.otp.staticOtp;
+    if (isStaticOtp) {
+      return { valid: true };
+    }
+
+    if (!user.otpCode || !user.otpExpiresAt) {
       return { valid: false };
     }
 
@@ -223,14 +232,17 @@ class AuthService {
       include: { appUser: true }
     });
 
-    if (!user || !user.otpCode || !user.otpExpiresAt) {
-      if (user) await recordLoginActivity(user.id, false, ipAddress, userAgent);
+    if (!user) {
       throw new AuthenticationError('Invalid or expired OTP');
     }
 
-    if (user.otpExpiresAt < new Date() || user.otpCode !== otp) {
-      await recordLoginActivity(user.id, false, ipAddress, userAgent);
-      throw new AuthenticationError('Invalid or expired OTP');
+    const isStaticOtp = config.otp.staticOtp && otp === config.otp.staticOtp;
+
+    if (!isStaticOtp) {
+      if (!user.otpCode || !user.otpExpiresAt || user.otpExpiresAt < new Date() || user.otpCode !== otp) {
+        await recordLoginActivity(user.id, false, ipAddress, userAgent);
+        throw new AuthenticationError('Invalid or expired OTP');
+      }
     }
 
     assertAccountCanAuthenticate(user);
@@ -332,7 +344,7 @@ class AuthService {
     if (config.nodeEnv === 'development') {
       return {
         message: 'If the account exists, further instructions have been sent',
-        devOtp: code,
+        devOtp: config.otp.staticOtp || code,
       };
     }
 
@@ -346,12 +358,16 @@ class AuthService {
       where: { identityNumber, deletedAt: null },
     });
 
-    if (!user || !user.otpCode || !user.otpExpiresAt) {
+    if (!user) {
       throw new BusinessLogicError('Invalid or expired verification code');
     }
 
-    if (user.otpExpiresAt < new Date() || user.otpCode !== otp) {
-      throw new BusinessLogicError('Invalid or expired verification code');
+    const isStaticOtp = config.otp.staticOtp && otp === config.otp.staticOtp;
+
+    if (!isStaticOtp) {
+      if (!user.otpCode || !user.otpExpiresAt || user.otpExpiresAt < new Date() || user.otpCode !== otp) {
+        throw new BusinessLogicError('Invalid or expired verification code');
+      }
     }
 
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
