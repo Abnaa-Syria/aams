@@ -490,8 +490,9 @@ static async getMe(userId) {
           roomNumber: true,
           supervisorId: true,
           shifts: {
-            where: { status: "ACTIVE" },
+            where: { status: { in: ["ACTIVE", "REQUESTED", "APPROVED"] } },
             select: { id: true, status: true, startedAt: true },
+            orderBy: { createdAt: "desc" },
             take: 1,
           },
           _count: {
@@ -519,7 +520,7 @@ static async getMe(userId) {
   if (user.appUser) {
     const activeShift = user.appUser.shifts?.[0] || null;
     user.appUser.currentShift = activeShift;
-    user.appUser.isOnShift = !!activeShift;
+    user.appUser.isOnShift = activeShift ? activeShift.status === 'ACTIVE' : false;
     delete user.appUser.shifts;
   }
 
