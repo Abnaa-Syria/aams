@@ -479,6 +479,12 @@ static async getMe(userId) {
       lastLoginAt: true,
       createdAt: true,
       updatedAt: true,
+      shifts: {
+        where: { status: { in: ["ACTIVE", "REQUESTED", "APPROVED"] } },
+        select: { id: true, status: true, startedAt: true },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
       appUser: {
         select: {
           id: true,
@@ -489,12 +495,6 @@ static async getMe(userId) {
           sevenHundredNumber: true,
           roomNumber: true,
           supervisorId: true,
-          shifts: {
-            where: { status: { in: ["ACTIVE", "REQUESTED", "APPROVED"] } },
-            select: { id: true, status: true, startedAt: true },
-            orderBy: { createdAt: "desc" },
-            take: 1,
-          },
           _count: {
             select: {
               shifts: {
@@ -518,11 +518,12 @@ static async getMe(userId) {
   }
 
   if (user.appUser) {
-    const activeShift = user.appUser.shifts?.[0] || null;
+    const activeShift = user.shifts?.[0] || null;
     user.appUser.currentShift = activeShift;
     user.appUser.isOnShift = activeShift ? activeShift.status === 'ACTIVE' : false;
     delete user.appUser.shifts;
   }
+  delete user.shifts;
 
   return await publicUserWithPermissions(user);
 }
