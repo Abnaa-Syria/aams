@@ -143,6 +143,7 @@ class LeaveRequestService {
           update: { usedDays: { increment: leaveReq.totalDays }, remainingDays: { decrement: leaveReq.totalDays } },
         });
         await tx.user.update({ where: { id: leaveReq.userId }, data: { availabilityStatus: 'ON_LEAVE' } });
+        await tx.appUser.updateMany({ where: { userId: leaveReq.userId }, data: { availabilityStatus: 'ON_LEAVE' } });
       }
 
       return updated;

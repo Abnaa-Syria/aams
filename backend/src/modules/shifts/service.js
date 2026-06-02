@@ -245,6 +245,7 @@ class ShiftService {
 
     await prisma.shiftLog.create({ data: { shiftId: parseInt(shiftId), action: 'SHIFT_APPROVED', performedBy: adminUser.id } });
     await prisma.user.update({ where: { id: shift.userId }, data: { availabilityStatus: 'ON_SHIFT' } });
+    await prisma.appUser.updateMany({ where: { userId: shift.userId }, data: { availabilityStatus: 'ON_SHIFT' } });
     await logAudit({ userId: adminUser.id, action: 'APPROVE_SHIFT', entity: 'Shift', entityId: String(shiftId) });
     return updated;
   }
@@ -330,6 +331,7 @@ class ShiftService {
     }
 
     await prisma.user.update({ where: { id: userId }, data: { availabilityStatus: 'AVAILABLE' } });
+    await prisma.appUser.updateMany({ where: { userId: userId }, data: { availabilityStatus: 'AVAILABLE' } });
     await prisma.shiftLog.create({ data: { shiftId: parseInt(shiftId), action: 'SHIFT_ENDED', performedBy: userId } });
     return updated;
   }

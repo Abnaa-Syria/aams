@@ -192,8 +192,13 @@ class VehicleService {
         select: { userId: true }
       });
       if (activeShifts.length > 0) {
+        const userIds = activeShifts.map(s => s.userId);
         await tx.user.updateMany({
-          where: { id: { in: activeShifts.map(s => s.userId) } },
+          where: { id: { in: userIds } },
+          data: { availabilityStatus: 'AVAILABLE' }
+        });
+        await tx.appUser.updateMany({
+          where: { userId: { in: userIds } },
           data: { availabilityStatus: 'AVAILABLE' }
         });
       }
