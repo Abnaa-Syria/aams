@@ -1,5 +1,70 @@
 const ShiftService = require('./service');
 const ApiResponse = require('../../utils/response');
+const { ValidationError } = require('../../utils/errors');
+const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
+
+const SHIFT_START_UPLOAD_FIELDS = [
+  { name: 'startPhoto', maxCount: 1 },
+  { name: 'startPhotoUrl', maxCount: 1 },
+  { name: 'startVehiclePhoto', maxCount: 1 },
+  { name: 'startVehiclePhotoUrl', maxCount: 1 },
+  { name: 'startAppPhoto', maxCount: 1 },
+  { name: 'startAppPhotoUrl', maxCount: 1 },
+  { name: 'startOdometerPhoto', maxCount: 1 },
+  { name: 'startOdometerPhotoUrl', maxCount: 1 },
+];
+
+function isPlaceholderFileValue(value) {
+  return typeof value === 'string' && /^File\(/i.test(value.trim());
+}
+
+function pickUploadedOrBodyUrl(files, fieldNames, body) {
+  for (const name of fieldNames) {
+    const uploaded = files?.[name]?.[0];
+    if (uploaded?.path) return normalizeStoredUploadPath(uploaded.path);
+
+    const raw = body?.[name];
+    if (raw && typeof raw === 'string' && !isPlaceholderFileValue(raw)) {
+      return raw.trim();
+    }
+  }
+  return undefined;
+}
+
+function parsePositiveIntField(body, fieldName) {
+  const raw = body?.[fieldName];
+  if (raw === undefined || raw === null || raw === '') return null;
+  const parsed = parseInt(String(raw), 10);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function parseRequestStartPayload(req) {
+  const body = req.body || {};
+  const files = req.files || {};
+
+  const vehicleId = parsePositiveIntField(body, 'vehicleId');
+  const platformAccountId = parsePositiveIntField(body, 'platformAccountId');
+  const startOdometer = parsePositiveIntField(body, 'startOdometer');
+
+  if (!vehicleId) throw new ValidationError('vehicleId is required');
+  if (!platformAccountId) throw new ValidationError('platformAccountId is required');
+  if (startOdometer === null) throw new ValidationError('startOdometer is required');
+
+  const payload = {
+    vehicleId,
+    platformAccountId,
+    startOdometer,
+    notes: body.notes || undefined,
+    requestedStartTime: body.requestedStartTime || undefined,
+    requestedEndTime: body.requestedEndTime || undefined,
+    startPhotoUrl: pickUploadedOrBodyUrl(files, ['startPhoto', 'startPhotoUrl'], body),
+    startVehiclePhotoUrl: pickUploadedOrBodyUrl(files, ['startVehiclePhoto', 'startVehiclePhotoUrl'], body),
+    startAppPhotoUrl: pickUploadedOrBodyUrl(files, ['startAppPhoto', 'startAppPhotoUrl'], body),
+    startOdometerPhotoUrl: pickUploadedOrBodyUrl(files, ['startOdometerPhoto', 'startOdometerPhotoUrl'], body),
+  };
+
+  return payload;
+}
 
 class ShiftController {
   static async list(req, res, next) {
@@ -16,7 +81,8 @@ class ShiftController {
   }
   static async requestStart(req, res, next) {
     try {
-      const shift = await ShiftService.requestStart(req.user.id, req.body);
+      const payload = parseRequestStartPayload(req);
+      const shift = await ShiftService.requestStart(req.user.id, payload);
       return ApiResponse.created(res, shift, 'Shift start requested');
     } catch (err) { next(err); }
   }
@@ -28,7 +94,7 @@ class ShiftController {
   }
   static async reject(req, res, next) {
     try {
-      const shift = await ShiftService.reject(req.params.id, req.body.reason, req.user);
+      const shift = await ShiftService.reject(req.params.id, req.body?.reason, req.user);
       return ApiResponse.success(res, shift, 'Shift rejected');
     } catch (err) { next(err); }
   }
@@ -46,16 +112,18 @@ class ShiftController {
   }
   static async endShift(req, res, next) {
     try {
-      const shift = await ShiftService.endShift(req.params.id, req.user.id, req.body);
+      const shift = await ShiftService.endShift(req.params.id, req.user.id, req.body || {});
       return ApiResponse.success(res, shift, 'Shift ended');
     } catch (err) { next(err); }
   }
   static async cancel(req, res, next) {
     try {
-      const shift = await ShiftService.cancel(req.params.id, req.body.reason, req.user.id);
+      const shift = await ShiftService.cancel(req.params.id, req.body?.reason, req.user.id);
       return ApiResponse.success(res, shift, 'Shift cancelled');
     } catch (err) { next(err); }
   }
 }
 
 module.exports = ShiftController;
+module.exports.SHIFT_START_UPLOAD_FIELDS = SHIFT_START_UPLOAD_FIELDS;
+module.exports.parseRequestStartPayload = parseRequestStartPayload;

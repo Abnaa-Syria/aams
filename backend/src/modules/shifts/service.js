@@ -1,5 +1,5 @@
 const prisma = require('../../config/database');
-const { NotFoundError, BusinessLogicError } = require('../../utils/errors');
+const { NotFoundError, BusinessLogicError, ValidationError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta, buildOrderBy } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
 const { buildDriverNameUserFilter } = require('../../utils/listScope');
@@ -188,7 +188,40 @@ class ShiftService {
     };
   }
 
+  static parseShiftDateTime(value) {
+    if (!value) return null;
+    const normalized = String(value).trim().replace(' ', 'T');
+    const date = new Date(normalized);
+    if (Number.isNaN(date.getTime())) {
+      throw new ValidationError(`Invalid date: ${value}`);
+    }
+    return date;
+  }
+
   static async requestStart(userId, data) {
+    if (!data || typeof data !== 'object') {
+      throw new ValidationError('Request body is required');
+    }
+
+    const vehicleId = parseInt(data.vehicleId, 10);
+    const platformAccountId = parseInt(data.platformAccountId, 10);
+    const startOdometer = parseInt(data.startOdometer, 10);
+
+    if (Number.isNaN(vehicleId)) throw new ValidationError('vehicleId is required');
+    if (Number.isNaN(platformAccountId)) throw new ValidationError('platformAccountId is required');
+    if (Number.isNaN(startOdometer)) throw new ValidationError('startOdometer is required');
+
+    const requestedStartTime = data.requestedStartTime
+      ? ShiftService.parseShiftDateTime(data.requestedStartTime)
+      : null;
+    const requestedEndTime = data.requestedEndTime
+      ? ShiftService.parseShiftDateTime(data.requestedEndTime)
+      : null;
+
+    if (requestedStartTime && requestedEndTime && requestedEndTime <= requestedStartTime) {
+      throw new BusinessLogicError('requestedEndTime must be after requestedStartTime');
+    }
+
     const user = await prisma.user.findUnique({ 
       where: { id: userId },
       include: { appUser: true }
@@ -201,35 +234,37 @@ class ShiftService {
     const activeShift = await prisma.shift.findFirst({ where: { userId, status: { in: ['REQUESTED', 'APPROVED', 'ACTIVE'] } } });
     if (activeShift) throw new BusinessLogicError('You already have an active or pending shift');
 
-    const vehicle = await prisma.vehicle.findFirst({ where: { id: data.vehicleId, status: 'ACTIVE', deletedAt: null } });
+    const vehicle = await prisma.vehicle.findFirst({ where: { id: vehicleId, status: 'ACTIVE', deletedAt: null } });
     if (!vehicle) throw new BusinessLogicError('Vehicle is not available');
 
     const activeVehicleShift = await prisma.shift.findFirst({
-      where: { vehicleId: data.vehicleId, status: 'ACTIVE' },
+      where: { vehicleId, status: 'ACTIVE' },
       select: { id: true },
     });
     if (activeVehicleShift) throw new BusinessLogicError('Vehicle already has an active shift');
 
-    const platformAccount = await prisma.platformAccount.findFirst({ where: { id: data.platformAccountId, userId, status: 'ACTIVE', deletedAt: null } });
+    const platformAccount = await prisma.platformAccount.findFirst({
+      where: { id: platformAccountId, userId, status: 'ACTIVE', deletedAt: null },
+    });
     if (!platformAccount) throw new BusinessLogicError('Platform account not found or inactive');
 
     // Odometer validation: must not be less than vehicle's last recorded odometer
-    if (data.startOdometer < (vehicle.odometerKm || 0)) {
-      throw new BusinessLogicError(`Start odometer (${data.startOdometer}) cannot be less than vehicle's last recorded reading (${vehicle.odometerKm})`);
+    if (startOdometer < (vehicle.odometerKm || 0)) {
+      throw new BusinessLogicError(`Start odometer (${startOdometer}) cannot be less than vehicle's last recorded reading (${vehicle.odometerKm})`);
     }
 
     const shift = await prisma.shift.create({
       data: {
         userId,
         appUserId: user.appUser?.id || null, // Set appUserId for operational queries
-        vehicleId: data.vehicleId,
-        platformAccountId: data.platformAccountId,
-        requestedStartTime: data.requestedStartTime ? new Date(data.requestedStartTime) : null,
-        requestedEndTime: data.requestedEndTime ? new Date(data.requestedEndTime) : null,
+        vehicleId,
+        platformAccountId,
+        requestedStartTime,
+        requestedEndTime,
         startPhotoUrl: data.startPhotoUrl,
         startVehiclePhotoUrl: data.startVehiclePhotoUrl,
         startAppPhotoUrl: data.startAppPhotoUrl,
-        startOdometer: data.startOdometer,
+        startOdometer,
         notes: data.notes,
         status: 'REQUESTED',
       },
@@ -238,10 +273,10 @@ class ShiftService {
     // Log the starting odometer
     await prisma.vehicleOdometerLog.create({
       data: {
-        vehicleId: data.vehicleId,
+        vehicleId,
         userId,
         shiftId: shift.id,
-        reading: data.startOdometer,
+        reading: startOdometer,
         photoUrl: data.startOdometerPhotoUrl || data.startPhotoUrl,
         type: 'START_SHIFT',
       },

@@ -1,8 +1,10 @@
 const router = require('express').Router();
 const ShiftController = require('./controller');
+const SHIFT_START_UPLOAD_FIELDS = ShiftController.SHIFT_START_UPLOAD_FIELDS;
 const { authenticate } = require('../../middlewares/auth');
 const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
+const upload = require('../../utils/upload');
 
 /**
  * @openapi
@@ -70,7 +72,12 @@ router.get('/', ...sharedPerm(P.SHIFTS_READ), ShiftController.list);
  *       422:
  *         description: Business rules (blocked account, duplicate pending shift, invalid vehicle/account)
  */
-router.post('/request-start', ...sharedPerm(P.SHIFTS_WRITE), ShiftController.requestStart);
+router.post(
+  '/request-start',
+  ...sharedPerm(P.SHIFTS_WRITE),
+  upload.fields(SHIFT_START_UPLOAD_FIELDS),
+  ShiftController.requestStart,
+);
 
 /**
  * @openapi
