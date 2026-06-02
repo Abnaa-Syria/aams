@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const VehicleController = require('./controller');
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 
 /**
@@ -42,7 +42,7 @@ const { PERMISSIONS: P } = require('../../constants/permissions');
  *       201:
  *         description: Created
  */
-router.get('/', ...adminPerm(P.FLEET_READ), VehicleController.list);
+router.get('/', ...sharedPerm(P.FLEET_READ), VehicleController.list);
 
 /**
  * @openapi
@@ -93,7 +93,7 @@ router.get('/', ...adminPerm(P.FLEET_READ), VehicleController.list);
  *         description: Deleted
  */
 router.get('/assignments', ...adminPerm(P.FLEET_READ), VehicleController.listAssignments);
-router.get('/:id', ...adminPerm(P.FLEET_READ), VehicleController.getById);
+router.get('/:id', ...sharedPerm(P.FLEET_READ), VehicleController.getById);
 router.post('/', ...adminPerm(P.FLEET_WRITE), VehicleController.create);
 router.put('/:id', ...adminPerm(P.FLEET_WRITE), VehicleController.update);
 router.patch('/:id', ...adminPerm(P.FLEET_WRITE), VehicleController.update);
