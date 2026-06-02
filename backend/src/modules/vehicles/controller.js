@@ -46,7 +46,7 @@ class VehicleController {
   }
   static async getSummary(req, res, next) {
     try {
-      const summary = await VehicleService.getVehicleProfileSummary(req.params.id);
+      const summary = await VehicleService.getVehicleProfileSummary(req.params.id, req.user);
       return ApiResponse.success(res, summary);
     } catch (err) { next(err); }
   }

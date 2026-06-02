@@ -143,7 +143,7 @@ router.post('/:id/assign-driver', ...adminPerm(P.FLEET_WRITE), VehicleController
  *         description: Released
  */
 router.post('/:id/release-driver', ...adminPerm(P.FLEET_WRITE), VehicleController.releaseDriver);
-router.get('/:id/summary', ...adminPerm(P.FLEET_READ), VehicleController.getSummary);
+router.get('/:id/summary', ...sharedPerm(P.FLEET_READ), VehicleController.getSummary);
 router.delete('/:id', ...adminPerm(P.FLEET_WRITE), VehicleController.remove);
 
 module.exports = router;

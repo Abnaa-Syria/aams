@@ -304,7 +304,7 @@ class VehicleService {
     return remindersCreated;
   }
 
-  static async getVehicleProfileSummary(id) {
+  static async getVehicleProfileSummary(id, currentUser = null) {
     const vid = parseInt(id);
     if (isNaN(vid)) throw new NotFoundError('Vehicle');
     
@@ -313,6 +313,17 @@ class VehicleService {
       where: { id: vid, deletedAt: null },
     });
     if (!vehicle) throw new NotFoundError('Vehicle');
+
+    // Operational scoping for DRIVER: restrict access to their active assigned vehicle
+    if (currentUser?.appUser?.appRole === 'DRIVER') {
+      const isAssigned = await prisma.vehicleAssignment.findFirst({
+        where: { vehicleId: vid, userId: currentUser.id, isActive: true },
+        select: { id: true }
+      });
+      if (!isAssigned) {
+        throw new NotFoundError('Vehicle');
+      }
+    }
 
     const [activeAssignment, activeShift, fuelKPIs, violationKPIs, maintenanceCount, oilCount, latestOilLog, assignmentCount] = await Promise.all([
       // 2. Current Long-term Assignee
