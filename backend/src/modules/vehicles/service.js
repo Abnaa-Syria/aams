@@ -5,14 +5,27 @@ const { logAudit } = require('../../utils/auditLogger');
 const { buildDriverNameUserFilter } = require('../../utils/listScope');
 
 class VehicleService {
-  static async list(query) {
+  static async list(query, currentUser = null) {
     const { page, limit, skip } = getPaginationParams(query);
     const orderBy = buildOrderBy(query, ['createdAt', 'plateNumber', 'manufacturer']);
     const searchFilter = buildSearchFilter(query, ['plateNumber', 'manufacturer', 'model']);
     const driverNameFilter = buildDriverNameUserFilter(query);
 
+    // Operational scoping for DRIVER: restrict list to their active assigned vehicle(s)
+    const appRole = currentUser?.appUser?.appRole;
+    const isDriver = appRole === 'DRIVER';
+    const scope = isDriver ? {
+      assignments: {
+        some: {
+          userId: currentUser.id,
+          isActive: true,
+        }
+      }
+    } : {};
+
     const where = {
       deletedAt: null,
+      ...scope,
       ...searchFilter,
       ...(query.status && { status: query.status }),
       ...(query.ownershipStatus && { ownershipStatus: query.ownershipStatus }),
