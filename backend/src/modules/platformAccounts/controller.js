@@ -4,6 +4,7 @@ const { ADMIN_ROLES } = require('../../utils/listScope');
 const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
 const prisma = require('../../config/database');
 const { NotFoundError, AuthorizationError } = require('../../utils/errors');
+const { resolveUserIdFromDriverInput } = require('../../utils/driverIdentity');
 
 class PlatformAccountController {
   static async list(req, res, next) {
@@ -26,15 +27,9 @@ class PlatformAccountController {
 
   static async create(req, res, next) {
     try {
-      // Resolve userId based on appRole
-      // DRIVER: use own appUserId from token
-      // SUPERVISOR/ADMIN: use body.userId if provided
-      let userId;
-      if (req.user.appRole === 'DRIVER') {
-        userId = req.user.appUserId;
-      } else {
-        userId = req.body.userId ? parseInt(req.body.userId, 10) : req.user.appUserId;
-      }
+      const userId = req.user.appRole === 'DRIVER'
+        ? req.user.id
+        : await resolveUserIdFromDriverInput(req.body, req.user);
       const item = await PlatformAccountService.create(userId, req.body, req.file, req.user.id);
       return ApiResponse.created(res, item, 'Platform account created');
     } catch (err) {

@@ -4,6 +4,7 @@ const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagina
 const { logAudit } = require('../../utils/auditLogger');
 const { ADMIN_ROLES, mergeDriverNameIntoUserWhere, applyUserOwnedListScope } = require('../../utils/listScope');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
+const { resolveUserIdFromDriverInput, stripOperationalIdentityFields } = require('../../utils/driverIdentity');
 
 class PlatformAccountService {
   static async list(query, currentUser) {
@@ -125,13 +126,14 @@ class PlatformAccountService {
       }
     });
 
-    if (data.userId !== undefined) {
-      const newUid = parseInt(data.userId);
+    if (data.userId !== undefined || data.appUserId !== undefined) {
+      const newUid = await resolveUserIdFromDriverInput(data, currentUser);
       if (!ADMIN_ROLES.has(currentUser.role) && newUid !== existing.userId) {
         throw new AuthorizationError('Unauthorized user transfer');
       }
       updateData.userId = newUid;
     }
+    data = stripOperationalIdentityFields(data);
     if (updateData.platformId) updateData.platformId = parseInt(updateData.platformId);
     if (updateData.isAlternate !== undefined) updateData.isAlternate = updateData.isAlternate === 'true' || updateData.isAlternate === true;
     if (updateData.receiptDate) updateData.receiptDate = new Date(updateData.receiptDate);

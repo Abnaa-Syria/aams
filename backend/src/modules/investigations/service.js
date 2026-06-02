@@ -4,6 +4,7 @@ const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagina
 const { logAudit } = require('../../utils/auditLogger');
 const { ADMIN_ROLES, mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
+const { mergeAppUserIdFilter, resolveUserIdFromDriverInput } = require('../../utils/driverIdentity');
 
 class InvestigationService {
   static async list(query, currentUser) {
@@ -29,6 +30,7 @@ class InvestigationService {
         where.userId = -1;
       }
     }
+    where = mergeAppUserIdFilter(where, query.appUserId);
 
     where = mergeDriverNameIntoUserWhere(where, query);
 
@@ -85,9 +87,10 @@ class InvestigationService {
   }
 
   static async create(adminId, data, files = []) {
+    const userId = await resolveUserIdFromDriverInput(data);
     const investigation = await prisma.investigation.create({
       data: {
-        userId: parseInt(data.userId),
+        userId,
         createdById: adminId,
         category: data.category,
         title: data.title,
@@ -106,7 +109,7 @@ class InvestigationService {
     await logAudit({ userId: adminId, action: 'CREATE_INVESTIGATION', entity: 'Investigation', entityId: String(investigation.id) });
 
     if (data.updateUserStatus === 'true' || data.updateUserStatus === true) {
-      await prisma.user.update({ where: { id: parseInt(data.userId) }, data: { accountStatus: 'UNDER_INVESTIGATION' } });
+      await prisma.user.update({ where: { id: userId }, data: { accountStatus: 'UNDER_INVESTIGATION' } });
     }
 
     return prisma.investigation.findUnique({ where: { id: investigation.id }, include: { attachments: true, eventLogs: true } });

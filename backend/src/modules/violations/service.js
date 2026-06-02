@@ -4,6 +4,7 @@ const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagina
 const { logAudit } = require('../../utils/auditLogger');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
 const { mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
+const { mergeAppUserIdFilter, resolveUserIdFromDriverInput } = require('../../utils/driverIdentity');
 
 class ViolationService {
   static async list(query, currentUser) {
@@ -14,6 +15,7 @@ class ViolationService {
       ...(query.status && { status: query.status }),
       ...(query.userId && { userId: parseInt(query.userId) }),
     };
+    where = mergeAppUserIdFilter(where, query.appUserId);
 
     const appRole = currentUser?.appUser?.appRole;
     if (appRole === 'DRIVER') {
@@ -72,7 +74,7 @@ class ViolationService {
     // Only admins/supervisors should report violations for others
     // If a driver is reporting, it might be an incident (handled in incidents module)
     
-    const targetUserId = parseInt(data.userId);
+    const targetUserId = await resolveUserIdFromDriverInput(data);
     
     // Get target user with appUser
     const targetUser = await prisma.user.findUnique({ 

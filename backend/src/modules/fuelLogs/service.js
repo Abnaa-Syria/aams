@@ -4,6 +4,7 @@ const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagina
 const { logAudit } = require('../../utils/auditLogger');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
 const { mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
+const { mergeAppUserIdFilter } = require('../../utils/driverIdentity');
 
 class FuelLogService {
   static async list(query, currentUser) {
@@ -15,6 +16,7 @@ class FuelLogService {
       ...(query.shiftId && { shiftId: parseInt(query.shiftId) }),
       ...(query.userId && { userId: parseInt(query.userId) }),
     };
+    where = mergeAppUserIdFilter(where, query.appUserId);
 
     if (query.dateFrom || query.dateTo) {
       where.fuelDate = {};

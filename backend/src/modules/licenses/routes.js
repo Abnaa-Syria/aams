@@ -13,6 +13,7 @@ const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
 const { AuthorizationError } = require('../../utils/errors');
 const fs = require('fs');
 const { normalizeStoredUploadPath, resolveStoredPathToAbsolute } = require('../../utils/uploadPath');
+const { resolveUserIdFromDriverInput, stripOperationalIdentityFields } = require('../../utils/driverIdentity');
 
 /**
  * @openapi
@@ -210,16 +211,10 @@ router.get('/:id/download', ...sharedPerm(P.DOCUMENTS_READ), async (req, res, ne
  */
 router.post('/', ...sharedPerm(P.DOCUMENTS_WRITE), upload.single('file'), async (req, res, next) => {
   try {
-    // Resolve userId based on appRole
-    // DRIVER: use own appUserId from token
-    // SUPERVISOR/ADMIN: use body.userId if provided
-    let userId;
-    if (req.user.appRole === 'DRIVER') {
-      userId = req.user.appUserId;
-    } else {
-      userId = req.body.userId ? parseInt(req.body.userId, 10) : req.user.appUserId;
-    }
-    const data = { ...req.body, userId };
+    const userId = req.user.appRole === 'DRIVER'
+      ? req.user.id
+      : await resolveUserIdFromDriverInput(req.body, req.user);
+    const data = { ...stripOperationalIdentityFields(req.body), userId };
     if (data.issueDate) data.issueDate = new Date(data.issueDate);
     if (data.expiryDate) data.expiryDate = new Date(data.expiryDate);
     if (req.file) { data.fileUrl = normalizeStoredUploadPath(req.file.path); data.fileName = req.file.originalname; }
@@ -236,9 +231,12 @@ router.put('/:id', ...sharedPerm(P.DOCUMENTS_WRITE), upload.single('file'), asyn
     });
     if (!existing) throw new NotFoundError('License');
     
-    const data = { ...req.body };
+    const data = stripOperationalIdentityFields({ ...req.body });
     if (data.issueDate) data.issueDate = new Date(data.issueDate);
     if (data.expiryDate) data.expiryDate = new Date(data.expiryDate);
+    if (req.body.appUserId !== undefined) {
+      data.userId = await resolveUserIdFromDriverInput(req.body, req.user);
+    }
     
     // Prevent transferring to another user for drivers
     if (req.user.appRole === 'DRIVER' && data.userId && parseInt(data.userId, 10) !== existing.userId) {
@@ -272,11 +270,11 @@ router.patch('/:id', ...sharedPerm(P.DOCUMENTS_WRITE), upload.single('file'), as
     });
     if (!existing) throw new NotFoundError('License');
     await assertCanAccessDriverRecord(req, existing.userId);
-    const data = { ...req.body };
+    const data = stripOperationalIdentityFields({ ...req.body });
     if (data.issueDate) data.issueDate = new Date(data.issueDate);
     if (data.expiryDate) data.expiryDate = new Date(data.expiryDate);
-    if (data.userId !== undefined) {
-      const newUid = parseInt(data.userId, 10);
+    if (req.body.userId !== undefined || req.body.appUserId !== undefined) {
+      const newUid = await resolveUserIdFromDriverInput(req.body, req.user);
       if (!ADMIN_ROLES.has(req.user.role) && newUid !== existing.userId) {
         throw new AuthorizationError('لا يمكن نقل الرخصة لمستخدم آخر');
       }

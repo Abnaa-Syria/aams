@@ -9,7 +9,7 @@ const {
 describe('listScope', () => {
   it('scopes DRIVER to own userId', () => {
     const where = applyUserOwnedListScope({ status: 'PENDING' }, {
-      user: { role: 'DRIVER', id: 42 },
+      user: { role: null, appRole: 'DRIVER', id: 42 },
       query: {},
     });
     assert.equal(where.userId, 42);
@@ -26,16 +26,32 @@ describe('listScope', () => {
 
   it('SUPERVISOR uses nested user filter', () => {
     const where = applyUserOwnedListScope({ a: 1 }, {
-      user: { role: 'SUPERVISOR', id: 3 },
+      user: { role: null, appRole: 'SUPERVISOR', id: 3, appUserId: 30 },
       query: {},
     });
     assert.equal(where.a, 1);
-    assert.deepEqual(where.user, { supervisorId: 3, role: 'DRIVER' });
+    assert.deepEqual(where.user, { appUser: { supervisorId: 30, appRole: 'DRIVER' } });
+  });
+
+  it('ADMIN can filter by appUserId', () => {
+    const where = applyUserOwnedListScope({}, {
+      user: { role: 'OPERATIONS_ADMIN', id: 1 },
+      query: { appUserId: '77' },
+    });
+    assert.deepEqual(where.user, { appUser: { id: 77 } });
+  });
+
+  it('SUPERVISOR keeps team scope when filtering by appUserId', () => {
+    const where = applyUserOwnedListScope({}, {
+      user: { role: null, appRole: 'SUPERVISOR', id: 3, appUserId: 30 },
+      query: { appUserId: '77' },
+    });
+    assert.deepEqual(where.user, { appUser: { supervisorId: 30, appRole: 'DRIVER', id: 77 } });
   });
 
   it('mid-shift DRIVER scopes via shift.userId', () => {
     const where = applyMidShiftListScope({}, {
-      user: { role: 'DRIVER', id: 9 },
+      user: { role: null, appRole: 'DRIVER', id: 9 },
       query: {},
     });
     assert.deepEqual(where.shift, { userId: 9 });
@@ -43,13 +59,13 @@ describe('listScope', () => {
 
   it('merges driver name filter with existing user scope', () => {
     const where = mergeDriverNameIntoUserWhere(
-      { status: 'PENDING', user: { supervisorId: 3, role: 'DRIVER' } },
+      { status: 'PENDING', user: { appUser: { supervisorId: 3, appRole: 'DRIVER' } } },
       { driverName: 'Ali' },
     );
 
     assert.equal(where.status, 'PENDING');
-    assert.equal(where.user.supervisorId, 3);
-    assert.equal(where.user.role, 'DRIVER');
+    assert.equal(where.user.appUser.supervisorId, 3);
+    assert.equal(where.user.appUser.appRole, 'DRIVER');
     assert.deepEqual(where.user.OR, [
       { fullNameAr: { contains: 'Ali' } },
       { fullNameEn: { contains: 'Ali' } },

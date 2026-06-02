@@ -3,6 +3,7 @@ const { NotFoundError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
 const { ADMIN_ROLES, mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
+const { mergeAppUserIdFilter, resolveUserIdFromDriverInput } = require('../../utils/driverIdentity');
 
 class RewardService {
   static async list(query, currentUser) {
@@ -21,6 +22,7 @@ class RewardService {
     } else if (!ADMIN_ROLES.has(currentUser.role)) {
       where.userId = -1;
     }
+    where = mergeAppUserIdFilter(where, query.appUserId);
 
     where = mergeDriverNameIntoUserWhere(where, query);
 
@@ -65,7 +67,7 @@ class RewardService {
     const item = await prisma.reward.create({
       data: {
         ...data,
-        userId: parseInt(data.userId),
+        userId: await resolveUserIdFromDriverInput(data),
         amount: data.amount ? parseFloat(data.amount) : undefined,
         points: data.points ? parseInt(data.points) : undefined,
         periodStart: data.periodStart ? new Date(data.periodStart) : undefined,

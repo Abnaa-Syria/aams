@@ -3,6 +3,7 @@ const { NotFoundError, BusinessLogicError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta, buildOrderBy } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
 const { buildDriverNameUserFilter } = require('../../utils/listScope');
+const { parsePositiveInt } = require('../../utils/driverIdentity');
 
 const BLOCKED_STATUSES = ['TEMPORARILY_SUSPENDED', 'RESTRICTED', 'ARCHIVED'];
 
@@ -25,8 +26,19 @@ class ShiftService {
           : {};
 
     const nameFilter = buildDriverNameUserFilter(query);
+    const queryAppUserId = parsePositiveInt(query.appUserId);
 
-    const scopedAppUserWhere = scope.appUser && typeof scope.appUser === 'object' ? scope.appUser : null;
+    const scopedUserWhere = scope.user && typeof scope.user === 'object' ? scope.user : null;
+    const userFilter = {
+      ...(scopedUserWhere || {}),
+      ...((queryAppUserId || scopedUserWhere?.appUser) && {
+        appUser: {
+          ...(scopedUserWhere?.appUser || {}),
+          ...(queryAppUserId && { id: queryAppUserId }),
+        },
+      }),
+      ...(nameFilter || {}),
+    };
 
     const where = {
       ...scope,
@@ -37,7 +49,7 @@ class ShiftService {
       ...(query.vehicleId && { vehicleId: parseInt(query.vehicleId) }),
       ...(query.dateFrom && { requestedAt: { gte: new Date(query.dateFrom) } }),
       ...(query.dateTo && { requestedAt: { ...((query.dateFrom && { gte: new Date(query.dateFrom) }) || {}), lte: new Date(query.dateTo) } }),
-      ...(nameFilter && { user: { ...(scopedAppUserWhere || {}), ...nameFilter } }),
+      ...((queryAppUserId || nameFilter) && { user: userFilter }),
     };
 
     const [items, total] = await Promise.all([
@@ -192,6 +204,12 @@ class ShiftService {
     const vehicle = await prisma.vehicle.findFirst({ where: { id: data.vehicleId, status: 'ACTIVE', deletedAt: null } });
     if (!vehicle) throw new BusinessLogicError('Vehicle is not available');
 
+    const activeVehicleShift = await prisma.shift.findFirst({
+      where: { vehicleId: data.vehicleId, status: 'ACTIVE' },
+      select: { id: true },
+    });
+    if (activeVehicleShift) throw new BusinessLogicError('Vehicle already has an active shift');
+
     const platformAccount = await prisma.platformAccount.findFirst({ where: { id: data.platformAccountId, userId, status: 'ACTIVE', deletedAt: null } });
     if (!platformAccount) throw new BusinessLogicError('Platform account not found or inactive');
 
@@ -269,6 +287,12 @@ class ShiftService {
     if (!shift) throw new NotFoundError('Shift');
     if (shift.userId !== userId) throw new BusinessLogicError('Not your shift');
     if (shift.status !== 'APPROVED') throw new BusinessLogicError('Shift is not approved');
+
+    const activeVehicleShift = await prisma.shift.findFirst({
+      where: { vehicleId: shift.vehicleId, status: 'ACTIVE', id: { not: shift.id } },
+      select: { id: true },
+    });
+    if (activeVehicleShift) throw new BusinessLogicError('Vehicle already has an active shift');
 
     const updated = await prisma.shift.update({
       where: { id: parseInt(shiftId) },

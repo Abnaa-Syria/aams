@@ -51,6 +51,7 @@
 									"    pm.collectionVariables.set(\"access_token\", res.data.accessToken);",
 									"    pm.collectionVariables.set(\"refresh_token\", res.data.refreshToken);",
 									"    pm.collectionVariables.set(\"user_id\", res.data.user.id.toString());",
+									"    if (res.data.user.appUser && res.data.user.appUser.id) pm.collectionVariables.set(\"app_user_id\", res.data.user.appUser.id.toString());",
 									"    console.log(\"✅ Tokens saved successfully\");",
 									"} else {",
 									"    console.log(\"❌ Login failed - check response\", res);",
@@ -149,6 +150,7 @@
 									"",
 									"if (res.data && res.data.id) {",
 									"    pm.collectionVariables.set(\"user_id\", res.data.id.toString());",
+									"    if (res.data.appUser && res.data.appUser.id) pm.collectionVariables.set(\"app_user_id\", res.data.appUser.id.toString());",
 									"    console.log(\"✅ User ID saved:\", res.data.id);",
 									"}"
 								]
@@ -1508,6 +1510,7 @@
 		{ "key": "access_token", "value": "", "type": "string" },
 		{ "key": "refresh_token", "value": "", "type": "string" },
 		{ "key": "user_id", "value": "1", "type": "string" },
+		{ "key": "app_user_id", "value": "", "type": "string" },
 		{ "key": "shift_id", "value": "", "type": "string" }
 	]
 }

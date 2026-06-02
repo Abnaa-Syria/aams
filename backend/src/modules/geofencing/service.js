@@ -2,6 +2,7 @@ const prisma = require('../../config/database');
 const { NotFoundError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
+const { mergeAppUserIdFilter } = require('../../utils/driverIdentity');
 
 class GeofencingService {
   // --- LOCATIONS ---
@@ -36,11 +37,12 @@ class GeofencingService {
 
   static async getLocationHistory(query) {
     const { page, limit, skip } = getPaginationParams(query);
-    const where = {
+    let where = {
       ...(query.userId && { userId: parseInt(query.userId) }),
       ...(query.dateFrom && { recordedAt: { gte: new Date(query.dateFrom) } }),
       ...(query.dateTo && { recordedAt: { ...((query.dateFrom && { gte: new Date(query.dateFrom) }) || {}), lte: new Date(query.dateTo) } }),
     };
+    where = mergeAppUserIdFilter(where, query.appUserId);
 
     const [items, total] = await Promise.all([
       prisma.locationHistory.findMany({
@@ -56,7 +58,15 @@ class GeofencingService {
   static async getLatestLocations(query) {
     // Basic implementation: get the latest location for each active driver (in real prod, Redis is better)
     // Here we'll just fetch latest 1 location per user for those requested
-    const userIds = query.userIds ? query.userIds.split(',').map(id => parseInt(id)) : [];
+    let userIds = query.userIds ? query.userIds.split(',').map(id => parseInt(id)) : [];
+    if (query.appUserIds) {
+      const appUserIds = query.appUserIds.split(',').map(id => parseInt(id, 10)).filter(id => !Number.isNaN(id));
+      const appUsers = await prisma.appUser.findMany({
+        where: { id: { in: appUserIds } },
+        select: { userId: true },
+      });
+      userIds = [...userIds, ...appUsers.map((u) => u.userId)];
+    }
     if (!userIds.length) return [];
 
     // Prisma doesn't have distinct ON without PostgreSQL, so we'll do an IN query and group in memory if needed

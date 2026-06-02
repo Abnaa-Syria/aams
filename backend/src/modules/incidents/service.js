@@ -2,6 +2,7 @@ const prisma = require('../../config/database');
 const { NotFoundError, BusinessLogicError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
+const { mergeAppUserIdFilter } = require('../../utils/driverIdentity');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
 const { mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
 
@@ -15,6 +16,7 @@ class IncidentService {
       ...(query.status && { status: query.status }),
       ...(query.userId && { userId: parseInt(query.userId) }),
     };
+    where = mergeAppUserIdFilter(where, query.appUserId);
 
     const appRole = currentUser?.appUser?.appRole;
     if (appRole === 'DRIVER') {

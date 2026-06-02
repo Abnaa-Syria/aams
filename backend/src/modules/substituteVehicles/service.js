@@ -1,16 +1,18 @@
 const prisma = require('../../config/database');
 const { NotFoundError, BusinessLogicError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
+const { mergeAppUserIdFilter, resolveUserIdFromDriverInput } = require('../../utils/driverIdentity');
 
 class SubstituteVehicleService {
   static async list(query, currentUser) {
     const { page, limit, skip } = getPaginationParams(query);
-    const where = {
+    let where = {
       ...(query.userId && { userId: parseInt(query.userId) }),
       ...(query.vehicleId && { vehicleId: parseInt(query.vehicleId) }),
       ...(query.status === 'ACTIVE' && { isActive: true }),
       ...(query.status === 'RETURNED' && { isActive: false }),
     };
+    where = mergeAppUserIdFilter(where, query.appUserId);
     
     if (currentUser?.appRole === 'DRIVER') {
       where.userId = currentUser.id;
@@ -39,18 +41,19 @@ class SubstituteVehicleService {
   }
 
   static async assign(data, adminId) {
+    const userId = await resolveUserIdFromDriverInput(data);
     const vehicle = await prisma.vehicle.findUnique({ where: { id: data.vehicleId } });
     if (!vehicle || vehicle.status !== 'ACTIVE') throw new BusinessLogicError('Vehicle is not active');
 
     // Check if user already has an active substitute vehicle
     const activeAssign = await prisma.substituteVehicleAssignment.findFirst({
-      where: { userId: data.userId, isActive: true },
+      where: { userId, isActive: true },
     });
     if (activeAssign) throw new BusinessLogicError('User already has an active substitute vehicle');
 
     return prisma.substituteVehicleAssignment.create({
       data: {
-        userId: data.userId,
+        userId,
         vehicleId: data.vehicleId,
         assignedBy: adminId,
         reason: data.reason,

@@ -4,6 +4,7 @@ const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagina
 const { logAudit } = require('../../utils/auditLogger');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
 const { mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
+const { mergeAppUserIdFilter } = require('../../utils/driverIdentity');
 
 class DailyReportService {
   static async list(query, currentUser) {
@@ -28,6 +29,7 @@ class DailyReportService {
       // Admins and other roles can filter by userId freely
       where.userId = parseInt(query.userId);
     }
+    where = mergeAppUserIdFilter(where, query.appUserId);
 
     if (query.dateFrom || query.dateTo) {
       where.reportDate = {};

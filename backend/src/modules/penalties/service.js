@@ -3,6 +3,7 @@ const { NotFoundError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
 const { ADMIN_ROLES, mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
+const { mergeAppUserIdFilter, resolveUserIdFromDriverInput } = require('../../utils/driverIdentity');
 
 class PenaltyService {
   static async list(query, currentUser) {
@@ -21,6 +22,7 @@ class PenaltyService {
     } else if (!ADMIN_ROLES.has(currentUser.role)) {
       where.userId = -1;
     }
+    where = mergeAppUserIdFilter(where, query.appUserId);
 
     where = mergeDriverNameIntoUserWhere(where, query);
 
@@ -69,7 +71,7 @@ class PenaltyService {
     const item = await prisma.penalty.create({
       data: {
         ...data,
-        userId: parseInt(data.userId),
+        userId: await resolveUserIdFromDriverInput(data),
         amount: data.amount ? parseFloat(data.amount) : undefined,
         penaltyDate: data.penaltyDate ? new Date(data.penaltyDate) : new Date(),
         linkedEntityId: data.linkedEntityId ? parseInt(data.linkedEntityId) : undefined,

@@ -4,6 +4,7 @@ const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagina
 const { logAudit } = require('../../utils/auditLogger');
 const { ADMIN_ROLES, mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
+const { mergeAppUserIdFilter } = require('../../utils/driverIdentity');
 
 class LeaveRequestService {
   static async list(query, currentUser) {
@@ -22,6 +23,7 @@ class LeaveRequestService {
     } else if (!ADMIN_ROLES.has(currentUser.role)) {
       where.userId = -1;
     }
+    where = mergeAppUserIdFilter(where, query.appUserId);
     
     where = mergeDriverNameIntoUserWhere(where, query);
 

@@ -3,6 +3,7 @@ const { NotFoundError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta, buildOrderBy } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
 const { mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
+const { mergeAppUserIdFilter, stripOperationalIdentityFields } = require('../../utils/driverIdentity');
 
 class DocumentService {
   static async list(query) {
@@ -15,6 +16,7 @@ class DocumentService {
       ...(query.type && { type: query.type }),
       ...(query.status && { status: query.status }),
     };
+    where = mergeAppUserIdFilter(where, query.appUserId);
 
     where = mergeDriverNameIntoUserWhere(where, query);
 
@@ -48,7 +50,7 @@ class DocumentService {
   }
 
   static async create(data) {
-    return prisma.document.create({ data: { ...data, expiryDate: data.expiryDate ? new Date(data.expiryDate) : undefined, issueDate: data.issueDate ? new Date(data.issueDate) : undefined } });
+    return prisma.document.create({ data: { ...stripOperationalIdentityFields(data), expiryDate: data.expiryDate ? new Date(data.expiryDate) : undefined, issueDate: data.issueDate ? new Date(data.issueDate) : undefined } });
   }
 
   static async update(id, data, adminUser) {

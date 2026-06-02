@@ -7,6 +7,7 @@ const ApiResponse = require('../../utils/response');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { applyUserOwnedListScope } = require('../../utils/listScope');
 const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
+const { resolveUserIdFromDriverInput, stripOperationalIdentityFields } = require('../../utils/driverIdentity');
 
 /**
  * @openapi
@@ -157,8 +158,8 @@ router.get('/:id', ...adminPerm(P.FLEET_READ), async (req, res, next) => {
 router.post('/', ...adminPerm(P.HR_APPROVE, P.COMPLIANCE_WRITE), async (req, res, next) => {
   try {
     const data = {
-      ...req.body,
-      userId: parseInt(req.body.userId),
+      ...stripOperationalIdentityFields(req.body),
+      userId: await resolveUserIdFromDriverInput(req.body),
       ratedById: req.user.id,
       overallScore: parseFloat(req.body.overallScore),
       punctuality: req.body.punctuality ? parseFloat(req.body.punctuality) : undefined,
@@ -193,11 +194,11 @@ router.post('/', ...adminPerm(P.HR_APPROVE, P.COMPLIANCE_WRITE), async (req, res
  */
 router.put('/:id', ...adminPerm(P.HR_APPROVE, P.COMPLIANCE_WRITE), async (req, res, next) => {
   try {
-    const data = { ...req.body };
+    const data = stripOperationalIdentityFields({ ...req.body });
     ['overallScore', 'punctuality', 'customerHandling', 'communication', 'compliance', 'productivity'].forEach(f => {
       if (data[f]) data[f] = parseFloat(data[f]);
     });
-    if (data.userId) data.userId = parseInt(data.userId);
+    if (req.body.userId || req.body.appUserId) data.userId = await resolveUserIdFromDriverInput(req.body);
     const item = await prisma.rating.update({ where: { id: parseInt(req.params.id) }, data });
     return ApiResponse.success(res, item, 'Rating updated');
   } catch (err) { next(err); }

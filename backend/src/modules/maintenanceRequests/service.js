@@ -4,6 +4,7 @@ const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagina
 const { logAudit } = require('../../utils/auditLogger');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
 const { mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
+const { mergeAppUserIdFilter } = require('../../utils/driverIdentity');
 
 class MaintenanceRequestService {
   static async list(query, currentUser) {
@@ -14,6 +15,7 @@ class MaintenanceRequestService {
       ...(query.status && { status: query.status }),
       ...(query.priority && { priority: query.priority }),
     };
+    where = mergeAppUserIdFilter(where, query.appUserId);
 
     // Scoping using userId and appRole
     if (currentUser.appRole === 'DRIVER') {

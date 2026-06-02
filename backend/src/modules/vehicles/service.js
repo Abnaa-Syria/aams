@@ -3,6 +3,7 @@ const { NotFoundError, BusinessLogicError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta, buildOrderBy, buildSearchFilter } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
 const { buildDriverNameUserFilter } = require('../../utils/listScope');
+const { mergeAppUserIdFilter } = require('../../utils/driverIdentity');
 
 class VehicleService {
   static async list(query, currentUser = null) {
@@ -187,6 +188,11 @@ class VehicleService {
     const vid = parseInt(vehicleId);
     
     await prisma.$transaction(async (tx) => {
+      const activeShifts = await tx.shift.findMany({
+        where: { vehicleId: vid, status: { in: ['REQUESTED', 'APPROVED', 'ACTIVE'] } },
+        select: { userId: true }
+      });
+
       // 1. Release assignment
       await tx.vehicleAssignment.updateMany({
         where: { vehicleId: vid, isActive: true },
@@ -200,10 +206,6 @@ class VehicleService {
       });
 
       // 3. Reset availability for users who were on those shifts
-      const activeShifts = await tx.shift.findMany({
-        where: { vehicleId: vid, status: 'ACTIVE' },
-        select: { userId: true }
-      });
       if (activeShifts.length > 0) {
         const userIds = activeShifts.map(s => s.userId);
         await tx.user.updateMany({
@@ -334,6 +336,7 @@ class VehicleService {
       // 3. Current Active Driver (On Shift)
       prisma.shift.findFirst({
         where: { vehicleId: vid, status: 'ACTIVE' },
+        orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
         include: { user: { select: { id: true, fullNameAr: true, mobileNumber: true } } },
       }),
       // 4. Fuel KPIs
@@ -381,11 +384,12 @@ class VehicleService {
 
   static async listAssignments(query) {
     const { page, limit, skip } = getPaginationParams(query);
-    const where = {
+    let where = {
       ...(query.vehicleId && { vehicleId: parseInt(query.vehicleId) }),
       ...(query.userId && { userId: parseInt(query.userId) }),
       ...(query.isActive !== undefined && { isActive: query.isActive === 'true' }),
     };
+    where = mergeAppUserIdFilter(where, query.appUserId);
 
     const [items, total] = await Promise.all([
       prisma.vehicleAssignment.findMany({

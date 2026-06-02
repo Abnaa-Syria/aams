@@ -2,15 +2,17 @@ const prisma = require('../../config/database');
 const { NotFoundError, BusinessLogicError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
+const { mergeAppUserIdFilter } = require('../../utils/driverIdentity');
 
 class CanceledOrderService {
   static async list(query, currentUser) {
     const { page, limit, skip } = getPaginationParams(query);
-    const where = {
+    let where = {
       ...(query.shiftId && { shiftId: parseInt(query.shiftId) }),
       ...(query.platformName && { platformName: query.platformName }),
       ...(query.userId && { userId: parseInt(query.userId) }),
     };
+    where = mergeAppUserIdFilter(where, query.appUserId);
 
     if (currentUser.appRole === 'DRIVER') {
       where.userId = currentUser.id;

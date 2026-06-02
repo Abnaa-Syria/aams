@@ -13,6 +13,7 @@ const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
 const { AuthorizationError } = require('../../utils/errors');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
 const { streamAttachmentDownload } = require('../../utils/streamAttachment');
+const { resolveUserIdFromDriverInput, stripOperationalIdentityFields } = require('../../utils/driverIdentity');
 
 /**
  * @openapi
@@ -185,17 +186,11 @@ router.get('/:id/files/cash-receipt/download', ...sharedPerm(P.FINANCE_READ), as
  */
 router.post('/', ...sharedPerm(P.FINANCE_WRITE), upload.fields([{ name: 'proofFile', maxCount: 1 }, { name: 'cashReceiptFile', maxCount: 1 }]), async (req, res, next) => {
   try {
-    // Resolve userId based on appRole
-    // DRIVER: use own appUserId from token
-    // SUPERVISOR/ADMIN: use body.userId if provided
-    let userId;
-    if (req.user.appRole === 'DRIVER') {
-      userId = req.user.appUserId;
-    } else {
-      userId = req.body.userId ? parseInt(req.body.userId, 10) : req.user.appUserId;
-    }
+    const userId = req.user.appRole === 'DRIVER'
+      ? req.user.id
+      : await resolveUserIdFromDriverInput(req.body, req.user);
     const data = {
-      ...req.body,
+      ...stripOperationalIdentityFields(req.body),
       userId,
       isDefault: req.body.isDefault === 'true',
       paymentMethod: req.body.paymentMethod || 'BANK_TRANSFER',
@@ -224,9 +219,9 @@ router.put('/:id', ...sharedPerm(P.FINANCE_WRITE), upload.fields([{ name: 'proof
     });
     if (!existing) throw new NotFoundError('Bank Account');
     await assertCanAccessDriverRecord(req, existing.userId);
-    const data = { ...req.body };
-    if (data.userId !== undefined) {
-      const newUid = parseInt(data.userId, 10);
+    const data = stripOperationalIdentityFields({ ...req.body });
+    if (req.body.userId !== undefined || req.body.appUserId !== undefined) {
+      const newUid = await resolveUserIdFromDriverInput(req.body, req.user);
       if (!ADMIN_ROLES.has(req.user.role) && newUid !== existing.userId) {
         throw new AuthorizationError('لا يمكن نقل الحساب لمستخدم آخر');
       }

@@ -4,6 +4,7 @@ const { ADMIN_ROLES } = require('../../utils/listScope');
 const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
 const { AuthorizationError } = require('../../utils/errors');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
+const { resolveUserIdFromDriverInput, stripOperationalIdentityFields } = require('../../utils/driverIdentity');
 
 class DocumentController {
   static async list(req, res, next) {
@@ -20,19 +21,12 @@ class DocumentController {
   }
   static async create(req, res, next) {
     try {
-      const data = { ...req.body };
+      const data = stripOperationalIdentityFields({ ...req.body });
       if (req.file) { data.fileUrl = normalizeStoredUploadPath(req.file.path); data.fileName = req.file.originalname; }
       
-      // Resolve userId based on appRole
-      // DRIVER: use own appUserId from token
-      // SUPERVISOR/ADMIN: use body.userId if provided
-      let userId;
-      if (req.user.appRole === 'DRIVER') {
-        userId = req.user.appUserId;
-      } else {
-        userId = data.userId ? parseInt(data.userId, 10) : req.user.appUserId;
-      }
-      data.userId = userId;
+      data.userId = req.user.appRole === 'DRIVER'
+        ? req.user.id
+        : await resolveUserIdFromDriverInput(req.body, req.user);
       
       const doc = await DocumentService.create(data);
       return ApiResponse.created(res, doc, 'Document created');
@@ -41,7 +35,10 @@ class DocumentController {
   static async update(req, res, next) {
     try {
       const existing = await DocumentService.getById(req.params.id);
-      const data = { ...req.body };
+      const data = stripOperationalIdentityFields({ ...req.body });
+      if (req.body.appUserId !== undefined) {
+        data.userId = await resolveUserIdFromDriverInput(req.body, req.user);
+      }
       
       // Prevent transferring to another user for drivers
       if (req.user.appRole === 'DRIVER' && data.userId && parseInt(data.userId, 10) !== existing.userId) {

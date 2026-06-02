@@ -3,6 +3,7 @@ const { NotFoundError, BusinessLogicError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
+const { mergeAppUserIdFilter, resolveUserIdFromDriverInput } = require('../../utils/driverIdentity');
 
 class AssetService {
   // --- ASSET CATALOG ---
@@ -60,11 +61,12 @@ class AssetService {
 
   static async listAssignments(query, currentUser) {
     const { page, limit, skip } = getPaginationParams(query);
-    const where = {
+    let where = {
       ...(query.userId && { userId: parseInt(query.userId) }),
       ...(query.assetId && { assetId: parseInt(query.assetId) }),
       ...(query.status && { status: query.status }),
     };
+    where = mergeAppUserIdFilter(where, query.appUserId);
 
     if (currentUser.appRole === 'DRIVER') {
       where.userId = currentUser.id;
@@ -93,7 +95,7 @@ class AssetService {
 
   static async assignAsset(data, file, adminId) {
     const assetId = parseInt(data.assetId);
-    const userId = parseInt(data.userId);
+    const userId = await resolveUserIdFromDriverInput(data);
 
     const asset = await prisma.asset.findUnique({ where: { id: assetId } });
     if (!asset) throw new NotFoundError('Asset');

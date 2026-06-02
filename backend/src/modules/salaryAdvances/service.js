@@ -3,6 +3,7 @@ const { NotFoundError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
 const { ADMIN_ROLES, mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
+const { mergeAppUserIdFilter } = require('../../utils/driverIdentity');
 
 class SalaryAdvanceService {
   static async list(query, currentUser) {
@@ -20,6 +21,7 @@ class SalaryAdvanceService {
     } else if (!ADMIN_ROLES.has(currentUser.role)) {
       where.userId = -1;
     }
+    where = mergeAppUserIdFilter(where, query.appUserId);
 
     where = mergeDriverNameIntoUserWhere(where, query);
 

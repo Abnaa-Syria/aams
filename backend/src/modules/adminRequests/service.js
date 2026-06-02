@@ -2,15 +2,17 @@ const prisma = require('../../config/database');
 const { NotFoundError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
+const { mergeAppUserIdFilter } = require('../../utils/driverIdentity');
 
 class AdminRequestService {
   static async list(query, currentUser) {
     const { page, limit, skip } = getPaginationParams(query);
-    const where = {
+    let where = {
       ...(query.status && { status: query.status }),
       ...(query.type && { type: query.type }),
       ...(query.userId && { userId: parseInt(query.userId) }),
     };
+    where = mergeAppUserIdFilter(where, query.appUserId);
 
     if (currentUser.appRole === 'DRIVER') {
       where.userId = currentUser.id;

@@ -1,5 +1,6 @@
 const VehicleService = require('./service');
 const ApiResponse = require('../../utils/response');
+const { resolveUserIdFromDriverInput } = require('../../utils/driverIdentity');
 
 class VehicleController {
   static async list(req, res, next) {
@@ -28,7 +29,8 @@ class VehicleController {
   }
   static async assignDriver(req, res, next) {
     try {
-      const result = await VehicleService.assignDriver(req.params.id, req.body.userId, req.body.notes, req.user);
+      const userId = await resolveUserIdFromDriverInput(req.body, req.user);
+      const result = await VehicleService.assignDriver(req.params.id, userId, req.body.notes, req.user);
       return ApiResponse.success(res, result, 'Driver assigned to vehicle');
     } catch (err) { next(err); }
   }

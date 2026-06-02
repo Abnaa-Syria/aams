@@ -2,13 +2,16 @@ const prisma = require('../../config/database');
 const { NotFoundError, BusinessLogicError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
+const { parsePositiveInt } = require('../../utils/driverIdentity');
 
 class OilChangeLogService {
   static async list(query, currentUser) {
     const { page, limit, skip } = getPaginationParams(query);
+    const queryAppUserId = parsePositiveInt(query.appUserId);
     const where = {
       ...(query.vehicleId && { vehicleId: parseInt(query.vehicleId) }),
       ...((query.reportedById || query.userId) && { performedBy: parseInt(query.reportedById || query.userId) }),
+      ...(queryAppUserId && { performer: { appUser: { id: queryAppUserId } } }),
     };
 
     if (currentUser.appRole === 'DRIVER') {

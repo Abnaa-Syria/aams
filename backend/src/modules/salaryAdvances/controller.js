@@ -1,6 +1,7 @@
 const SalaryAdvanceService = require('./service');
 const ApiResponse = require('../../utils/response');
 const { ADMIN_ROLES } = require('../../utils/listScope');
+const { resolveUserIdFromDriverInput } = require('../../utils/driverIdentity');
 
 class SalaryAdvanceController {
   static async list(req, res, next) {
@@ -23,8 +24,9 @@ class SalaryAdvanceController {
 
   static async create(req, res, next) {
     try {
-      let uid = req.body.userId ? parseInt(req.body.userId, 10) : req.user.id;
-      if (!ADMIN_ROLES.has(req.user.role)) uid = req.user.id;
+      let uid = ADMIN_ROLES.has(req.user.role)
+        ? await resolveUserIdFromDriverInput(req.body, req.user)
+        : req.user.id;
       const item = await SalaryAdvanceService.create(uid, req.body, req.user.id);
       return ApiResponse.created(res, item, 'Salary advance requested');
     } catch (err) {

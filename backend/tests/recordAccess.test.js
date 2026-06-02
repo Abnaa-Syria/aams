@@ -36,13 +36,13 @@ describe('recordAccess.assertCanAccessDriverRecord', () => {
 
   it('allows driver to access own record', async () => {
     const { assertCanAccessDriverRecord } = loadWithMockDb({ user: { findFirst: async () => null } });
-    await assertCanAccessDriverRecord({ user: { role: 'DRIVER', id: 5 } }, 5);
+    await assertCanAccessDriverRecord({ user: { role: null, appRole: 'DRIVER', id: 5 } }, 5);
   });
 
   it('denies driver accessing other driver record', async () => {
     const { assertCanAccessDriverRecord } = loadWithMockDb({ user: { findFirst: async () => null } });
     await assert.rejects(
-      () => assertCanAccessDriverRecord({ user: { role: 'DRIVER', id: 5 } }, 6),
+      () => assertCanAccessDriverRecord({ user: { role: null, appRole: 'DRIVER', id: 5 } }, 6),
       (err) => {
         assert.ok(err instanceof AuthorizationError);
         return true;
@@ -54,12 +54,12 @@ describe('recordAccess.assertCanAccessDriverRecord', () => {
     const { assertCanAccessDriverRecord } = loadWithMockDb({
       user: {
         findFirst: async ({ where }) => {
-          assert.deepEqual(where, { id: 10, supervisorId: 2, role: 'DRIVER', deletedAt: null });
+          assert.deepEqual(where, { id: 10, appUser: { supervisorId: 2, appRole: 'DRIVER' }, deletedAt: null });
           return { id: 10 };
         },
       },
     });
-    await assertCanAccessDriverRecord({ user: { role: 'SUPERVISOR', id: 2 } }, 10);
+    await assertCanAccessDriverRecord({ user: { role: null, appRole: 'SUPERVISOR', id: 20, appUserId: 2 } }, 10);
   });
 
   it('denies supervisor to access non-assigned driver record', async () => {
@@ -67,7 +67,7 @@ describe('recordAccess.assertCanAccessDriverRecord', () => {
       user: { findFirst: async () => null },
     });
     await assert.rejects(
-      () => assertCanAccessDriverRecord({ user: { role: 'SUPERVISOR', id: 2 } }, 10),
+      () => assertCanAccessDriverRecord({ user: { role: null, appRole: 'SUPERVISOR', id: 20, appUserId: 2 } }, 10),
       (err) => err instanceof AuthorizationError,
     );
   });

@@ -3,6 +3,7 @@ const { NotFoundError, BusinessLogicError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
+const { parsePositiveInt } = require('../../utils/driverIdentity');
 
 class ComplaintService {
   static async list(query, currentUser) {
@@ -11,6 +12,7 @@ class ComplaintService {
       ...(query.status && { status: query.status }),
       ...(query.type && { type: query.type }),
     };
+    const queryAppUserId = parsePositiveInt(query.appUserId);
 
     // Scoping logic (Drivers see only theirs, Supervisors see their team)
     if (currentUser.appRole === 'DRIVER') {
@@ -19,12 +21,14 @@ class ComplaintService {
       // If supervisor specifies a filedById, it must be one of their drivers
       if (query.userId) {
         where.filedById = parseInt(query.userId);
-        where.filedBy = { appUser: { supervisorId: currentUser.appUserId } };
+        where.filedBy = { appUser: { supervisorId: currentUser.appUserId, ...(queryAppUserId && { id: queryAppUserId }) } };
       } else {
-        where.filedBy = { appUser: { supervisorId: currentUser.appUserId } };
+        where.filedBy = { appUser: { supervisorId: currentUser.appUserId, ...(queryAppUserId && { id: queryAppUserId }) } };
       }
     } else if (query.userId) {
       where.filedById = parseInt(query.userId);
+    } else if (queryAppUserId) {
+      where.filedBy = { appUser: { id: queryAppUserId } };
     }
 
     const [items, total] = await Promise.all([
