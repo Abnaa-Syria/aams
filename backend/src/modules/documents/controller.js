@@ -28,6 +28,7 @@ class DocumentController {
         ? req.user.id
         : await resolveUserIdFromDriverInput(req.body, req.user);
       
+      delete data.file;
       const doc = await DocumentService.create(data);
       return ApiResponse.created(res, doc, 'Document created');
     } catch (err) { next(err); }
@@ -46,6 +47,7 @@ class DocumentController {
       }
       
       if (req.file) { data.fileUrl = normalizeStoredUploadPath(req.file.path); data.fileName = req.file.originalname; }
+      delete data.file;
       const doc = await DocumentService.update(req.params.id, data, req.user);
       return ApiResponse.success(res, doc, 'Document updated');
     } catch (err) { next(err); }

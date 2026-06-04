@@ -206,6 +206,8 @@ router.post('/', ...sharedPerm(P.FINANCE_WRITE), upload.fields([{ name: 'proofFi
     if (files.cashReceiptFile && files.cashReceiptFile[0]) {
       data.cashReceiptPhotoUrl = normalizeStoredUploadPath(files.cashReceiptFile[0].path);
     }
+    delete data.proofFile;
+    delete data.cashReceiptFile;
     const item = await prisma.bankAccount.create({ data });
     return ApiResponse.created(res, item, 'Bank account created');
   } catch (err) { next(err); }
@@ -239,6 +241,8 @@ router.put('/:id', ...sharedPerm(P.FINANCE_WRITE), upload.fields([{ name: 'proof
     if (files.cashReceiptFile && files.cashReceiptFile[0]) {
       data.cashReceiptPhotoUrl = normalizeStoredUploadPath(files.cashReceiptFile[0].path);
     }
+    delete data.proofFile;
+    delete data.cashReceiptFile;
     const item = await prisma.bankAccount.update({ where: { id: parseInt(req.params.id, 10) }, data });
     return ApiResponse.success(res, item, 'Bank account updated');
   } catch (err) { next(err); }

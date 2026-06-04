@@ -76,7 +76,7 @@ class LeaveRequestService {
 
     const insertData = {
       userId: parseInt(userId),
-      leaveType: data.leaveType,
+      leaveType: data.leaveType || data.type,
       startDate,
       endDate,
       totalDays,
@@ -99,7 +99,9 @@ class LeaveRequestService {
     if (!existing) throw new NotFoundError('Leave Request');
 
     const updateData = {};
-    if (data.leaveType !== undefined) updateData.leaveType = data.leaveType;
+    if (data.leaveType !== undefined || data.type !== undefined) {
+      updateData.leaveType = data.leaveType !== undefined ? data.leaveType : data.type;
+    }
     if (data.startDate !== undefined) updateData.startDate = new Date(data.startDate);
     if (data.endDate !== undefined) updateData.endDate = new Date(data.endDate);
     if (data.reason !== undefined) updateData.reason = data.reason;

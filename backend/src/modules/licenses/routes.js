@@ -218,6 +218,7 @@ router.post('/', ...sharedPerm(P.DOCUMENTS_WRITE), upload.single('file'), async 
     if (data.issueDate) data.issueDate = new Date(data.issueDate);
     if (data.expiryDate) data.expiryDate = new Date(data.expiryDate);
     if (req.file) { data.fileUrl = normalizeStoredUploadPath(req.file.path); data.fileName = req.file.originalname; }
+    delete data.file;
     const item = await prisma.license.create({ data });
     return ApiResponse.created(res, item, 'License created');
   } catch (err) { next(err); }
@@ -248,6 +249,7 @@ router.put('/:id', ...sharedPerm(P.DOCUMENTS_WRITE), upload.single('file'), asyn
     }
     
     if (req.file) { data.fileUrl = normalizeStoredUploadPath(req.file.path); data.fileName = req.file.originalname; }
+    delete data.file;
     const item = await prisma.license.update({ where: { id: parseInt(req.params.id, 10) }, data });
     return ApiResponse.success(res, item, 'License updated');
   } catch (err) { next(err); }
@@ -282,6 +284,7 @@ router.patch('/:id', ...sharedPerm(P.DOCUMENTS_WRITE), upload.single('file'), as
       await assertCanAccessDriverRecord(req, newUid);
     }
     if (req.file) { data.fileUrl = normalizeStoredUploadPath(req.file.path); data.fileName = req.file.originalname; }
+    delete data.file;
     const item = await prisma.license.update({ where: { id: parseInt(req.params.id, 10) }, data });
     return ApiResponse.success(res, item, 'License updated');
   } catch (err) { next(err); }
