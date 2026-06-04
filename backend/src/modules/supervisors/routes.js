@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const SupervisorController = require('./controller');
-const { adminPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 
 /**
@@ -25,7 +25,7 @@ const { PERMISSIONS: P } = require('../../constants/permissions');
  *       200:
  *         description: Supervisors list
  */
-router.get('/', ...adminPerm(P.USERS_READ), SupervisorController.list);
+router.get('/', ...sharedPerm(P.USERS_READ), SupervisorController.list);
 
 /**
  * @openapi
@@ -44,7 +44,7 @@ router.get('/', ...adminPerm(P.USERS_READ), SupervisorController.list);
  *       200:
  *         description: Supervisor details
  */
-router.get('/:id', ...adminPerm(P.USERS_READ), SupervisorController.getById);
+router.get('/:id', ...sharedPerm(P.USERS_READ), SupervisorController.getById);
 
 /**
  * @openapi
@@ -63,7 +63,7 @@ router.get('/:id', ...adminPerm(P.USERS_READ), SupervisorController.getById);
  *       200:
  *         description: Drivers list
  */
-router.get('/:id/drivers', ...adminPerm(P.USERS_READ), SupervisorController.getDrivers);
+router.get('/:id/drivers', ...sharedPerm(P.USERS_READ), SupervisorController.getDrivers);
 
 /**
  * @openapi
@@ -91,6 +91,6 @@ router.get('/:id/drivers', ...adminPerm(P.USERS_READ), SupervisorController.getD
  *       200:
  *         description: Drivers assigned
  */
-router.post('/:id/assign-drivers', ...adminPerm(P.USERS_WRITE), SupervisorController.assignDrivers);
+router.post('/:id/assign-drivers', ...sharedPerm(P.USERS_WRITE), SupervisorController.assignDrivers);
 
 module.exports = router;

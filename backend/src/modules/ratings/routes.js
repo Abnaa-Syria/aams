@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const prisma = require('../../config/database');
 const ApiResponse = require('../../utils/response');
@@ -34,7 +34,7 @@ const { resolveUserIdFromDriverInput, stripOperationalIdentityFields } = require
  *       200:
  *         description: Ratings list
  */
-router.get('/', ...adminPerm(P.FLEET_READ), async (req, res, next) => {
+router.get('/', ...sharedPerm(P.FLEET_READ), async (req, res, next) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query);
     let where = {
@@ -78,7 +78,7 @@ router.get('/', ...adminPerm(P.FLEET_READ), async (req, res, next) => {
  *       200:
  *         description: _avg fields and _count
  */
-router.get('/user/:userId/average', ...adminPerm(P.FLEET_READ), async (req, res, next) => {
+router.get('/user/:userId/average', ...sharedPerm(P.FLEET_READ), async (req, res, next) => {
   try {
     const targetUserId = parseInt(req.params.userId, 10);
     await assertCanAccessDriverRecord(req, targetUserId);
@@ -108,7 +108,7 @@ router.get('/user/:userId/average', ...adminPerm(P.FLEET_READ), async (req, res,
  *       200:
  *         description: Rating
  */
-router.get('/:id', ...adminPerm(P.FLEET_READ), async (req, res, next) => {
+router.get('/:id', ...sharedPerm(P.FLEET_READ), async (req, res, next) => {
   try {
     const item = await prisma.rating.findUnique({
       where: { id: parseInt(req.params.id) },
@@ -155,7 +155,7 @@ router.get('/:id', ...adminPerm(P.FLEET_READ), async (req, res, next) => {
  *       201:
  *         description: Created
  */
-router.post('/', ...adminPerm(P.HR_APPROVE, P.COMPLIANCE_WRITE), async (req, res, next) => {
+router.post('/', ...sharedPerm(P.HR_APPROVE, P.COMPLIANCE_WRITE), async (req, res, next) => {
   try {
     const data = {
       ...stripOperationalIdentityFields(req.body),
@@ -192,7 +192,7 @@ router.post('/', ...adminPerm(P.HR_APPROVE, P.COMPLIANCE_WRITE), async (req, res
  *       200:
  *         description: Updated
  */
-router.put('/:id', ...adminPerm(P.HR_APPROVE, P.COMPLIANCE_WRITE), async (req, res, next) => {
+router.put('/:id', ...sharedPerm(P.HR_APPROVE, P.COMPLIANCE_WRITE), async (req, res, next) => {
   try {
     const data = stripOperationalIdentityFields({ ...req.body });
     ['overallScore', 'punctuality', 'customerHandling', 'communication', 'compliance', 'productivity'].forEach(f => {
@@ -221,7 +221,7 @@ router.put('/:id', ...adminPerm(P.HR_APPROVE, P.COMPLIANCE_WRITE), async (req, r
  *       200:
  *         description: Deleted
  */
-router.delete('/:id', ...adminPerm(P.HR_APPROVE, P.COMPLIANCE_WRITE), async (req, res, next) => {
+router.delete('/:id', ...sharedPerm(P.HR_APPROVE, P.COMPLIANCE_WRITE), async (req, res, next) => {
   try {
     await prisma.rating.delete({ where: { id: parseInt(req.params.id) } });
     return ApiResponse.success(res, null, 'Rating deleted');

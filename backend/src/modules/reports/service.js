@@ -46,7 +46,8 @@ class ReportService {
       violationsCount,
       activeAssets,
       rewards,
-      penalties
+      penalties,
+      activeVehicle
     ] = await Promise.all([
       // 2. Total count of Shifts
       prisma.shift.count({
@@ -79,8 +80,28 @@ class ReportService {
       prisma.penalty.aggregate({
         _sum: { amount: true },
         where: { userId: id, status: 'APPLIED', createdAt: dateFilter }
+      }),
+      // Active Vehicle Assignment
+      prisma.vehicleAssignment.findFirst({
+        where: { userId: id, isActive: true, releasedAt: null },
+        include: { vehicle: { select: { plateNumber: true, manufacturer: true, model: true } } }
       })
     ]);
+
+    const formattedAssets = [...activeAssets];
+    if (activeVehicle && activeVehicle.vehicle) {
+      formattedAssets.unshift({
+        id: `veh-${activeVehicle.id}`,
+        status: 'ASSIGNED',
+        assignedAt: activeVehicle.assignedAt,
+        asset: {
+          id: activeVehicle.vehicleId,
+          type: 'VEHICLE',
+          nameAr: `${activeVehicle.vehicle.manufacturer || ''} ${activeVehicle.vehicle.model || ''} (${activeVehicle.vehicle.plateNumber})`.trim(),
+          nameEn: `${activeVehicle.vehicle.manufacturer || ''} ${activeVehicle.vehicle.model || ''} (${activeVehicle.vehicle.plateNumber})`.trim(),
+        }
+      });
+    }
 
     return {
       driver: user,
@@ -96,7 +117,7 @@ class ReportService {
         appliedDeductionsSum: penalties._sum.amount ? parseFloat(penalties._sum.amount) : 0,
         recordedViolationsCount: violationsCount,
       },
-      activeAssets
+      activeAssets: formattedAssets
     };
   }
 

@@ -92,11 +92,11 @@ router.get('/', ...sharedPerm(P.FLEET_READ), VehicleController.list);
  *       200:
  *         description: Deleted
  */
-router.get('/assignments', ...adminPerm(P.FLEET_READ), VehicleController.listAssignments);
+router.get('/assignments', ...sharedPerm(P.FLEET_READ), VehicleController.listAssignments);
 router.get('/:id', ...sharedPerm(P.FLEET_READ), VehicleController.getById);
-router.post('/', ...adminPerm(P.FLEET_WRITE), VehicleController.create);
-router.put('/:id', ...adminPerm(P.FLEET_WRITE), VehicleController.update);
-router.patch('/:id', ...adminPerm(P.FLEET_WRITE), VehicleController.update);
+router.post('/', ...sharedPerm(P.FLEET_WRITE), VehicleController.create);
+router.put('/:id', ...sharedPerm(P.FLEET_WRITE), VehicleController.update);
+router.patch('/:id', ...sharedPerm(P.FLEET_WRITE), VehicleController.update);
 
 /**
  * @openapi
@@ -122,8 +122,8 @@ router.patch('/:id', ...adminPerm(P.FLEET_WRITE), VehicleController.update);
  *       200:
  *         description: Assigned
  */
-router.post('/:id/assign', ...adminPerm(P.FLEET_WRITE), VehicleController.assignDriver);
-router.post('/:id/assign-driver', ...adminPerm(P.FLEET_WRITE), VehicleController.assignDriver);
+router.post('/:id/assign', ...sharedPerm(P.FLEET_WRITE), VehicleController.assignDriver);
+router.post('/:id/assign-driver', ...sharedPerm(P.FLEET_WRITE), VehicleController.assignDriver);
 
 /**
  * @openapi
@@ -142,8 +142,8 @@ router.post('/:id/assign-driver', ...adminPerm(P.FLEET_WRITE), VehicleController
  *       200:
  *         description: Released
  */
-router.post('/:id/release-driver', ...adminPerm(P.FLEET_WRITE), VehicleController.releaseDriver);
+router.post('/:id/release-driver', ...sharedPerm(P.FLEET_WRITE), VehicleController.releaseDriver);
 router.get('/:id/summary', ...sharedPerm(P.FLEET_READ), VehicleController.getSummary);
-router.delete('/:id', ...adminPerm(P.FLEET_WRITE), VehicleController.remove);
+router.delete('/:id', ...sharedPerm(P.FLEET_WRITE), VehicleController.remove);
 
 module.exports = router;

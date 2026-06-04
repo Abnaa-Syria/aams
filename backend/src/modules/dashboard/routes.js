@@ -116,6 +116,18 @@ router.get('/driver', authenticate, async (req, res, next) => {
 
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
 
+    const period = req.query.period || 'month';
+    const nowTime = new Date();
+    let startDate = new Date(nowTime.getFullYear(), nowTime.getMonth(), 1); // default month
+    
+    if (period === 'week') {
+      startDate = new Date();
+      startDate.setDate(startDate.getDate() - 7);
+      startDate.setHours(0, 0, 0, 0);
+    } else if (period === 'year') {
+      startDate = new Date(nowTime.getFullYear(), 0, 1);
+    }
+
     // 1. Current Active Shift
     const currentShift = await prisma.shift.findFirst({
       where: { userId, status: 'ACTIVE' },
@@ -133,6 +145,10 @@ router.get('/driver', authenticate, async (req, res, next) => {
       fuelToday,
       userRating,
       userProfile,
+      dailyReportsPeriod,
+      shiftsPeriodCount,
+      violationsPeriodCount,
+      fuelLogsPeriodCount
     ] = await Promise.all([
       prisma.shift.findMany({
         where: { userId, OR: [{ startedAt: { gte: today } }, { status: 'ACTIVE' }] },
@@ -158,6 +174,19 @@ router.get('/driver', authenticate, async (req, res, next) => {
         where: { id: userId },
         select: { city: { select: { nameAr: true } } },
       }),
+      prisma.dailyReport.aggregate({
+        where: { userId, reportDate: { gte: startDate } },
+        _sum: { totalOrders: true, totalHours: true },
+      }),
+      prisma.shift.count({
+        where: { userId, startedAt: { gte: startDate } }
+      }),
+      prisma.violation.count({
+        where: { userId, violationDate: { gte: startDate } }
+      }),
+      prisma.fuelLog.count({
+        where: { userId, fuelDate: { gte: startDate } }
+      })
     ]);
 
     // Calculate daily hours from shifts (real-time)
@@ -192,6 +221,9 @@ router.get('/driver', authenticate, async (req, res, next) => {
       tasks.dailyReport = latestShift.dailyReports.length > 0;
     }
 
+    const ratingVal = userRating._avg.overallScore ? Number(userRating._avg.overallScore.toFixed(1)) : 0;
+    const achievementRate = ratingVal ? Math.round((ratingVal / 5) * 100) : 100;
+
     const data = {
       stats: {
         today: {
@@ -203,7 +235,19 @@ router.get('/driver', authenticate, async (req, res, next) => {
           hours: Number((dailyReportsMonth._sum.totalHours || 0).toFixed(1)),
           orders: dailyReportsMonth._sum.totalOrders || 0,
         },
-        rating: userRating._avg.overallScore ? Number(userRating._avg.overallScore.toFixed(1)) : 0,
+        period: {
+          hours: Number((dailyReportsPeriod._sum.totalHours || 0).toFixed(1)),
+          orders: dailyReportsPeriod._sum.totalOrders || 0,
+          shiftsCount: shiftsPeriodCount,
+          violationsCount: violationsPeriodCount,
+          fuelLogsCount: fuelLogsPeriodCount,
+          achievementRate,
+        },
+        rating: ratingVal,
+        shiftsCount: shiftsPeriodCount,
+        violationsCount: violationsPeriodCount,
+        fuelLogsCount: fuelLogsPeriodCount,
+        achievementRate,
       },
       profile: {
         city: userProfile?.city?.nameAr || null,

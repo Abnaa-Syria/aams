@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { adminPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
 const { DASHBOARD_VIEW_PERMISSIONS } = require('../../constants/permissions');
 const prisma = require('../../config/database');
 const ApiResponse = require('../../utils/response');
@@ -28,8 +28,8 @@ const ReportController = require('./controller');
  *       200:
  *         description: Composite summary JSON object
  */
-router.get('/driver-summary/:userId', ...adminPerm(...DASHBOARD_VIEW_PERMISSIONS), ReportController.getDriverSummary);
-router.get('/dashboard-overview', ...adminPerm(...DASHBOARD_VIEW_PERMISSIONS), ReportController.getDashboardOverview);
+router.get('/driver-summary/:userId', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), ReportController.getDriverSummary);
+router.get('/dashboard-overview', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), ReportController.getDashboardOverview);
 
 
 /**
@@ -56,7 +56,7 @@ router.get('/dashboard-overview', ...adminPerm(...DASHBOARD_VIEW_PERMISSIONS), R
  */
 
 // Driver productivity report
-router.get('/driver-productivity', ...adminPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
+router.get('/driver-productivity', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
   try {
     const { dateFrom, dateTo, userId } = req.query;
     const where = {};
@@ -104,7 +104,7 @@ router.get('/driver-productivity', ...adminPerm(...DASHBOARD_VIEW_PERMISSIONS), 
  *       200:
  *         description: "{ total, byVehicle }"
  */
-router.get('/fuel-summary', ...adminPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
+router.get('/fuel-summary', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
   try {
     const { dateFrom, dateTo } = req.query;
     const where = { status: 'APPROVED' };
@@ -131,7 +131,7 @@ router.get('/fuel-summary', ...adminPerm(...DASHBOARD_VIEW_PERMISSIONS), async (
  *       200:
  *         description: "{ byType, bySeverity, byStatus }"
  */
-router.get('/incidents-summary', ...adminPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
+router.get('/incidents-summary', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
   try {
     const byType = await prisma.incident.groupBy({ by: ['type'], _count: true });
     const bySeverity = await prisma.incident.groupBy({ by: ['severity'], _count: true });
@@ -152,7 +152,7 @@ router.get('/incidents-summary', ...adminPerm(...DASHBOARD_VIEW_PERMISSIONS), as
  *       200:
  *         description: "{ byType }"
  */
-router.get('/penalties-summary', ...adminPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
+router.get('/penalties-summary', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
   try {
     const byType = await prisma.penalty.groupBy({ by: ['type'], _sum: { amount: true }, _count: true, where: { status: 'APPLIED' } });
     return ApiResponse.success(res, { byType });
@@ -175,7 +175,7 @@ router.get('/penalties-summary', ...adminPerm(...DASHBOARD_VIEW_PERMISSIONS), as
  *       200:
  *         description: "{ documents, licenses }"
  */
-router.get('/expiring-documents', ...adminPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
+router.get('/expiring-documents', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
   try {
     const days = parseInt(req.query.days) || 30;
     const futureDate = new Date(); futureDate.setDate(futureDate.getDate() + days);
@@ -207,7 +207,7 @@ router.get('/expiring-documents', ...adminPerm(...DASHBOARD_VIEW_PERMISSIONS), a
  *       200:
  *         description: "{ byType, byStatus }"
  */
-router.get('/leaves-summary', ...adminPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
+router.get('/leaves-summary', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
   try {
     const byType = await prisma.leaveRequest.groupBy({ by: ['leaveType'], _count: true, _sum: { totalDays: true } });
     const byStatus = await prisma.leaveRequest.groupBy({ by: ['status'], _count: true });
@@ -227,7 +227,7 @@ router.get('/leaves-summary', ...adminPerm(...DASHBOARD_VIEW_PERMISSIONS), async
  *       200:
  *         description: groupBy platformName
  */
-router.get('/platform-performance', ...adminPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
+router.get('/platform-performance', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
   try {
     const breakdowns = await prisma.reportAppBreakdown.groupBy({
       by: ['platformName'],
