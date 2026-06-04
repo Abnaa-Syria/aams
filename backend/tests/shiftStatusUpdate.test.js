@@ -88,6 +88,12 @@ describe('Shift status update routing', () => {
       shiftLog: {
         create: async () => ({}),
       },
+      user: {
+        update: async () => ({}),
+      },
+      appUser: {
+        updateMany: async () => ({}),
+      },
     });
 
     const result = await ShiftService.updateStatus(21, 'ACTIVE', null, { id: 1 });
