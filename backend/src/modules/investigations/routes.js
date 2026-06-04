@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const upload = require('../../utils/upload');
 const prisma = require('../../config/database');
@@ -23,7 +23,7 @@ const InvestigationController = require('./controller');
  *     security:
  *       - bearerAuth: []
  */
-router.get('/', ...adminPerm(P.COMPLIANCE_READ), InvestigationController.list);
+router.get('/', ...sharedPerm(P.COMPLIANCE_READ), InvestigationController.list);
 
 /**
  * @openapi
@@ -34,9 +34,9 @@ router.get('/', ...adminPerm(P.COMPLIANCE_READ), InvestigationController.list);
  *     security:
  *       - bearerAuth: []
  */
-router.get('/:id', ...adminPerm(P.COMPLIANCE_READ), InvestigationController.getById);
+router.get('/:id', ...sharedPerm(P.COMPLIANCE_READ), InvestigationController.getById);
 
-router.get('/:id/attachments/:attachmentId/download', ...adminPerm(P.COMPLIANCE_READ), async (req, res, next) => {
+router.get('/:id/attachments/:attachmentId/download', ...sharedPerm(P.COMPLIANCE_READ), async (req, res, next) => {
   try {
     const investigationId = parseInt(req.params.id, 10);
     const attachmentId = parseInt(req.params.attachmentId, 10);
@@ -70,7 +70,7 @@ router.get('/:id/attachments/:attachmentId/download', ...adminPerm(P.COMPLIANCE_
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', ...adminPerm(P.COMPLIANCE_WRITE), upload.array('attachments', 5), InvestigationController.create);
+router.post('/', ...sharedPerm(P.COMPLIANCE_WRITE), upload.array('attachments', 5), InvestigationController.create);
 
 /**
  * @openapi
@@ -81,7 +81,7 @@ router.post('/', ...adminPerm(P.COMPLIANCE_WRITE), upload.array('attachments', 5
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id', ...adminPerm(P.COMPLIANCE_WRITE), InvestigationController.update);
+router.patch('/:id', ...sharedPerm(P.COMPLIANCE_WRITE), InvestigationController.update);
 
 /**
  * @openapi
@@ -92,7 +92,7 @@ router.patch('/:id', ...adminPerm(P.COMPLIANCE_WRITE), InvestigationController.u
  *     security:
  *       - bearerAuth: []
  */
-router.post('/:id/respond', ...adminPerm(P.COMPLIANCE_WRITE), upload.array('attachments', 3), InvestigationController.respond);
+router.post('/:id/respond', ...sharedPerm(P.COMPLIANCE_WRITE), upload.array('attachments', 3), InvestigationController.respond);
 
 /**
  * @openapi
@@ -103,6 +103,6 @@ router.post('/:id/respond', ...adminPerm(P.COMPLIANCE_WRITE), upload.array('atta
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id/status', ...adminPerm(P.COMPLIANCE_WRITE), InvestigationController.updateStatus);
+router.patch('/:id/status', ...sharedPerm(P.COMPLIANCE_WRITE), InvestigationController.updateStatus);
 
 module.exports = router;

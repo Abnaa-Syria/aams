@@ -46,7 +46,7 @@ router.post('/', ...sharedPerm(P.HR_WRITE), SalaryAdvanceController.create);
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id', ...adminPerm(P.FINANCE_WRITE), SalaryAdvanceController.update);
+router.patch('/:id', ...sharedPerm(P.FINANCE_WRITE), SalaryAdvanceController.update);
 
 /**
  * @openapi
@@ -57,7 +57,7 @@ router.patch('/:id', ...adminPerm(P.FINANCE_WRITE), SalaryAdvanceController.upda
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id/review', ...adminPerm(P.FINANCE_APPROVE), SalaryAdvanceController.review);
+router.patch('/:id/review', ...sharedPerm(P.FINANCE_APPROVE), SalaryAdvanceController.review);
 
 /**
  * @openapi
@@ -68,6 +68,6 @@ router.patch('/:id/review', ...adminPerm(P.FINANCE_APPROVE), SalaryAdvanceContro
  *     security:
  *       - bearerAuth: []
  */
-router.delete('/:id', ...adminPerm(P.FINANCE_WRITE), SalaryAdvanceController.cancel);
+router.delete('/:id', ...sharedPerm(P.FINANCE_WRITE), SalaryAdvanceController.cancel);
 
 module.exports = router;

@@ -84,7 +84,7 @@ router.get('/', ...sharedPerm(P.DOCUMENTS_READ), async (req, res, next) => {
  *       200:
  *         description: List
  */
-router.get('/expiring', ...adminPerm(P.DOCUMENTS_READ), async (req, res, next) => {
+router.get('/expiring', ...sharedPerm(P.DOCUMENTS_READ), async (req, res, next) => {
   try {
     const days = parseInt(req.query.days) || 30;
     const futureDate = new Date(); futureDate.setDate(futureDate.getDate() + days);
@@ -312,7 +312,7 @@ router.patch('/:id', ...sharedPerm(P.DOCUMENTS_WRITE), upload.single('file'), as
  *       200:
  *         description: Reviewed
  */
-router.patch('/:id/review', ...adminPerm(P.DOCUMENTS_REVIEW), async (req, res, next) => {
+router.patch('/:id/review', ...sharedPerm(P.DOCUMENTS_REVIEW), async (req, res, next) => {
   try {
     const item = await prisma.license.update({
       where: { id: parseInt(req.params.id) },
@@ -340,7 +340,7 @@ router.patch('/:id/review', ...adminPerm(P.DOCUMENTS_REVIEW), async (req, res, n
  *       200:
  *         description: Deleted
  */
-router.delete('/:id', ...adminPerm(P.DOCUMENTS_WRITE), async (req, res, next) => {
+router.delete('/:id', ...sharedPerm(P.DOCUMENTS_WRITE), async (req, res, next) => {
   try {
     await prisma.license.update({ where: { id: parseInt(req.params.id) }, data: { deletedAt: new Date() } });
     return ApiResponse.success(res, null, 'License deleted');

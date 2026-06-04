@@ -69,7 +69,7 @@ router.get('/:id', ...sharedPerm(P.COMPLIANCE_READ), ViolationController.getViol
  */
 router.post(
   '/',
-  ...adminPerm(P.COMPLIANCE_WRITE),
+  ...sharedPerm(P.COMPLIANCE_WRITE),
   upload.fields([
     { name: 'vehicle_photo', maxCount: 1 },
     { name: 'violation_photo', maxCount: 1 },
@@ -87,7 +87,7 @@ router.post(
  *     security:
  *       - bearerAuth: []
  */
-router.put('/:id', ...adminPerm(P.COMPLIANCE_WRITE), ViolationController.updateViolation);
+router.put('/:id', ...sharedPerm(P.COMPLIANCE_WRITE), ViolationController.updateViolation);
 
 /**
  * @openapi
@@ -98,7 +98,7 @@ router.put('/:id', ...adminPerm(P.COMPLIANCE_WRITE), ViolationController.updateV
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id', ...adminPerm(P.COMPLIANCE_WRITE), ViolationController.updateViolation);
+router.patch('/:id', ...sharedPerm(P.COMPLIANCE_WRITE), ViolationController.updateViolation);
 
 /**
  * @openapi
@@ -109,7 +109,7 @@ router.patch('/:id', ...adminPerm(P.COMPLIANCE_WRITE), ViolationController.updat
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id/review', ...adminPerm(P.COMPLIANCE_WRITE), ViolationController.reviewViolation);
+router.patch('/:id/review', ...sharedPerm(P.COMPLIANCE_WRITE), ViolationController.reviewViolation);
 
 /**
  * @openapi
@@ -120,6 +120,6 @@ router.patch('/:id/review', ...adminPerm(P.COMPLIANCE_WRITE), ViolationControlle
  *     security:
  *       - bearerAuth: []
  */
-router.delete('/:id', ...adminPerm(P.COMPLIANCE_WRITE), ViolationController.deleteViolation);
+router.delete('/:id', ...sharedPerm(P.COMPLIANCE_WRITE), ViolationController.deleteViolation);
 
 module.exports = router;

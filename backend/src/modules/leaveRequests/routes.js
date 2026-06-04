@@ -34,7 +34,7 @@ router.get('/', ...sharedPerm(P.HR_READ), LeaveRequestController.list);
  *     security:
  *       - bearerAuth: []
  */
-router.get('/balances/:userId', ...adminPerm(P.HR_READ), LeaveRequestController.getBalances);
+router.get('/balances/:userId', ...sharedPerm(P.HR_READ), LeaveRequestController.getBalances);
 
 /**
  * @openapi
@@ -47,7 +47,7 @@ router.get('/balances/:userId', ...adminPerm(P.HR_READ), LeaveRequestController.
  */
 router.get('/:id', ...sharedPerm(P.HR_READ), LeaveRequestController.getById);
 
-router.get('/:id/files/attachment/download', ...adminPerm(P.HR_READ), async (req, res, next) => {
+router.get('/:id/files/attachment/download', ...sharedPerm(P.HR_READ), async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
     const leaveReq = await prisma.leaveRequest.findUnique({
@@ -83,7 +83,7 @@ router.post('/', ...sharedPerm(P.HR_WRITE), upload.single('attachment'), LeaveRe
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id', ...adminPerm(P.HR_WRITE), LeaveRequestController.update);
+router.patch('/:id', ...sharedPerm(P.HR_WRITE), LeaveRequestController.update);
 
 /**
  * @openapi
@@ -94,7 +94,7 @@ router.patch('/:id', ...adminPerm(P.HR_WRITE), LeaveRequestController.update);
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id/review', ...adminPerm(P.HR_APPROVE), LeaveRequestController.review);
+router.patch('/:id/review', ...sharedPerm(P.HR_APPROVE), LeaveRequestController.review);
 
 /**
  * @openapi
@@ -105,6 +105,6 @@ router.patch('/:id/review', ...adminPerm(P.HR_APPROVE), LeaveRequestController.r
  *     security:
  *       - bearerAuth: []
  */
-router.delete('/:id', ...adminPerm(P.HR_WRITE), LeaveRequestController.cancel);
+router.delete('/:id', ...sharedPerm(P.HR_WRITE), LeaveRequestController.cancel);
 
 module.exports = router;

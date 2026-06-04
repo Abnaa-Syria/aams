@@ -84,7 +84,8 @@ router.patch('/:id', ...sharedPerm(P.FLEET_WRITE), upload.single('file'), Platfo
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id/verify', ...adminPerm(P.FLEET_WRITE), PlatformAccountController.verify);
+router.patch('/:id/verify', ...sharedPerm(P.FLEET_WRITE), PlatformAccountController.verify);
+router.patch('/:id/status', ...sharedPerm(P.FLEET_WRITE), PlatformAccountController.verify);
 
 /**
  * @openapi

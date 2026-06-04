@@ -56,7 +56,7 @@ router.get('/', ...sharedPerm(P.DOCUMENTS_READ), DocumentController.list);
  *       200:
  *         description: List
  */
-router.get('/expiring', ...adminPerm(P.DOCUMENTS_READ), DocumentController.getExpiring);
+router.get('/expiring', ...sharedPerm(P.DOCUMENTS_READ), DocumentController.getExpiring);
 
 router.get('/:id/download', ...sharedPerm(P.DOCUMENTS_READ), async (req, res, next) => {
   try {
@@ -173,7 +173,7 @@ router.get('/:id', ...sharedPerm(P.DOCUMENTS_READ), DocumentController.getById);
  *         description: Created
  */
 router.post('/', ...sharedPerm(P.DOCUMENTS_WRITE), upload.single('file'), DocumentController.create);
-router.put('/:id', ...adminPerm(P.DOCUMENTS_WRITE), authenticate, upload.single('file'), DocumentController.update);
+router.put('/:id', ...sharedPerm(P.DOCUMENTS_WRITE), upload.single('file'), DocumentController.update);
 
 /**
  * @openapi
@@ -184,7 +184,7 @@ router.put('/:id', ...adminPerm(P.DOCUMENTS_WRITE), authenticate, upload.single(
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id', ...adminPerm(P.DOCUMENTS_WRITE), authenticate, upload.single('file'), DocumentController.update);
+router.patch('/:id', ...sharedPerm(P.DOCUMENTS_WRITE), upload.single('file'), DocumentController.update);
 
 /**
  * @openapi
@@ -211,7 +211,7 @@ router.patch('/:id', ...adminPerm(P.DOCUMENTS_WRITE), authenticate, upload.singl
  *       200:
  *         description: Reviewed
  */
-router.patch('/:id/review', ...adminPerm(P.DOCUMENTS_REVIEW), DocumentController.review);
-router.delete('/:id', ...adminPerm(P.DOCUMENTS_WRITE), DocumentController.remove);
+router.patch('/:id/review', ...sharedPerm(P.DOCUMENTS_REVIEW), DocumentController.review);
+router.delete('/:id', ...sharedPerm(P.DOCUMENTS_WRITE), DocumentController.remove);
 
 module.exports = router;

@@ -191,7 +191,7 @@ router.post('/:id/cancel', ...sharedPerm(P.SHIFTS_WRITE), ShiftController.cancel
  *       200:
  *         description: Shift APPROVED
  */
-router.post('/:id/approve', ...adminPerm(P.SHIFTS_APPROVE), ShiftController.approve);
+router.post('/:id/approve', ...sharedPerm(P.SHIFTS_APPROVE), ShiftController.approve);
 
 /**
  * @openapi
@@ -217,7 +217,7 @@ router.post('/:id/approve', ...adminPerm(P.SHIFTS_APPROVE), ShiftController.appr
  *       200:
  *         description: Shift REJECTED
  */
-router.post('/:id/reject', ...adminPerm(P.SHIFTS_APPROVE), ShiftController.reject);
+router.post('/:id/reject', ...sharedPerm(P.SHIFTS_APPROVE), ShiftController.reject);
 
 /**
  * @openapi
@@ -236,7 +236,7 @@ router.post('/:id/reject', ...adminPerm(P.SHIFTS_APPROVE), ShiftController.rejec
  *       200:
  *         description: Shift closure APPROVED
  */
-router.post('/:id/approve-closure', ...adminPerm(P.SHIFTS_APPROVE), ShiftController.approveClosure);
+router.post('/:id/approve-closure', ...sharedPerm(P.SHIFTS_APPROVE), ShiftController.approveClosure);
 
 /**
  * @openapi
@@ -265,6 +265,6 @@ router.post('/:id/approve-closure', ...adminPerm(P.SHIFTS_APPROVE), ShiftControl
  *       200:
  *         description: Shift status updated successfully
  */
-router.patch('/:id/status', ...adminPerm(P.SHIFTS_APPROVE), ShiftController.updateStatus);
+router.patch('/:id/status', ...sharedPerm(P.SHIFTS_APPROVE), ShiftController.updateStatus);
 
 module.exports = router;

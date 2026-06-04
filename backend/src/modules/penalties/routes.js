@@ -24,7 +24,7 @@ router.get('/', ...sharedPerm(P.COMPLIANCE_READ), PenaltyController.list);
  *     security:
  *       - bearerAuth: []
  */
-router.get('/totals', ...adminPerm(P.COMPLIANCE_READ), PenaltyController.getTotals);
+router.get('/totals', ...sharedPerm(P.COMPLIANCE_READ), PenaltyController.getTotals);
 
 /**
  * @openapi
@@ -46,7 +46,7 @@ router.get('/:id', ...sharedPerm(P.COMPLIANCE_READ), PenaltyController.getById);
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', ...adminPerm(P.COMPLIANCE_WRITE), PenaltyController.create);
+router.post('/', ...sharedPerm(P.COMPLIANCE_WRITE), PenaltyController.create);
 
 /**
  * @openapi
@@ -57,7 +57,7 @@ router.post('/', ...adminPerm(P.COMPLIANCE_WRITE), PenaltyController.create);
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id', ...adminPerm(P.COMPLIANCE_WRITE), PenaltyController.update);
+router.patch('/:id', ...sharedPerm(P.COMPLIANCE_WRITE), PenaltyController.update);
 
 /**
  * @openapi
@@ -68,7 +68,7 @@ router.patch('/:id', ...adminPerm(P.COMPLIANCE_WRITE), PenaltyController.update)
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id/status', ...adminPerm(P.COMPLIANCE_WRITE), PenaltyController.updateStatus);
+router.patch('/:id/status', ...sharedPerm(P.COMPLIANCE_WRITE), PenaltyController.updateStatus);
 
 /**
  * @openapi
@@ -79,6 +79,6 @@ router.patch('/:id/status', ...adminPerm(P.COMPLIANCE_WRITE), PenaltyController.
  *     security:
  *       - bearerAuth: []
  */
-router.delete('/:id', ...adminPerm(P.COMPLIANCE_WRITE), PenaltyController.delete);
+router.delete('/:id', ...sharedPerm(P.COMPLIANCE_WRITE), PenaltyController.delete);
 
 module.exports = router;

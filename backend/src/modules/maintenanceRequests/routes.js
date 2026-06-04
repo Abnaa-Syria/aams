@@ -94,7 +94,7 @@ router.post(
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id', ...adminPerm(P.FLEET_WRITE), MaintenanceRequestController.updateRequest);
+router.patch('/:id', ...sharedPerm(P.FLEET_WRITE), MaintenanceRequestController.updateRequest);
 
 /**
  * @openapi
@@ -105,7 +105,7 @@ router.patch('/:id', ...adminPerm(P.FLEET_WRITE), MaintenanceRequestController.u
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id/status', ...adminPerm(P.FLEET_WRITE), MaintenanceRequestController.updateStatus);
+router.patch('/:id/status', ...sharedPerm(P.FLEET_WRITE), MaintenanceRequestController.updateStatus);
 
 /**
  * @openapi
@@ -116,6 +116,6 @@ router.patch('/:id/status', ...adminPerm(P.FLEET_WRITE), MaintenanceRequestContr
  *     security:
  *       - bearerAuth: []
  */
-router.delete('/:id', ...adminPerm(P.FLEET_WRITE), MaintenanceRequestController.deleteRequest);
+router.delete('/:id', ...sharedPerm(P.FLEET_WRITE), MaintenanceRequestController.deleteRequest);
 
 module.exports = router;

@@ -24,7 +24,7 @@ router.get('/', ...sharedPerm(P.HR_READ), RewardController.list);
  *     security:
  *       - bearerAuth: []
  */
-router.get('/summary', ...adminPerm(P.HR_READ, P.HR_APPROVE), RewardController.getSummary);
+router.get('/summary', ...sharedPerm(P.HR_READ, P.HR_APPROVE), RewardController.getSummary);
 
 /**
  * @openapi
@@ -46,7 +46,7 @@ router.get('/:id', ...sharedPerm(P.HR_READ), RewardController.getById);
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', ...adminPerm(P.HR_APPROVE), RewardController.create);
+router.post('/', ...sharedPerm(P.HR_APPROVE), RewardController.create);
 
 /**
  * @openapi
@@ -57,7 +57,7 @@ router.post('/', ...adminPerm(P.HR_APPROVE), RewardController.create);
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id', ...adminPerm(P.HR_APPROVE), RewardController.update);
+router.patch('/:id', ...sharedPerm(P.HR_APPROVE), RewardController.update);
 
 /**
  * @openapi
@@ -68,7 +68,7 @@ router.patch('/:id', ...adminPerm(P.HR_APPROVE), RewardController.update);
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id/status', ...adminPerm(P.HR_APPROVE), RewardController.updateStatus);
+router.patch('/:id/status', ...sharedPerm(P.HR_APPROVE), RewardController.updateStatus);
 
 /**
  * @openapi
@@ -79,6 +79,6 @@ router.patch('/:id/status', ...adminPerm(P.HR_APPROVE), RewardController.updateS
  *     security:
  *       - bearerAuth: []
  */
-router.delete('/:id', ...adminPerm(P.HR_APPROVE), RewardController.delete);
+router.delete('/:id', ...sharedPerm(P.HR_APPROVE), RewardController.delete);
 
 module.exports = router;

@@ -68,7 +68,7 @@ router.post('/', ...sharedPerm(P.SHIFTS_WRITE), upload.array('screenshots', 10),
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id/review', ...adminPerm(P.COMPLIANCE_WRITE), DailyReportController.reviewReport);
+router.patch('/:id/review', ...sharedPerm(P.COMPLIANCE_WRITE), DailyReportController.reviewReport);
 
 /**
  * @openapi
@@ -79,6 +79,6 @@ router.patch('/:id/review', ...adminPerm(P.COMPLIANCE_WRITE), DailyReportControl
  *     security:
  *       - bearerAuth: []
  */
-router.delete('/:id', ...adminPerm(P.COMPLIANCE_WRITE), DailyReportController.deleteReport);
+router.delete('/:id', ...sharedPerm(P.COMPLIANCE_WRITE), DailyReportController.deleteReport);
 
 module.exports = router;
