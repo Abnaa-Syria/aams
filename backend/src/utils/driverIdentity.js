@@ -1,5 +1,5 @@
 const prisma = require('../config/database');
-const { NotFoundError } = require('./errors');
+const { NotFoundError, ValidationError } = require('./errors');
 
 function parsePositiveInt(value) {
   if (value === undefined || value === null || value === '') return null;
@@ -38,7 +38,7 @@ async function resolveUserIdFromDriverInput(input = {}, fallbackUser = null) {
   }
 
   if (fallbackUser?.id) return fallbackUser.id;
-  return null;
+  throw new ValidationError('Driver identity (userId or appUserId) is required');
 }
 
 function stripOperationalIdentityFields(data) {
