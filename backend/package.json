@@ -13,7 +13,7 @@
     "db:push": "npx prisma db push",
     "seed": "node prisma/seed.js",
     "db:studio": "npx prisma studio",
-    "test": "node --test ./tests/listScope.test.js ./tests/recordAccess.test.js ./tests/shiftRequestStart.test.js"
+    "test": "node --test ./tests/listScope.test.js ./tests/recordAccess.test.js ./tests/shiftRequestStart.test.js ./tests/shiftStatusUpdate.test.js"
   },
   "keywords": [],
   "author": "",

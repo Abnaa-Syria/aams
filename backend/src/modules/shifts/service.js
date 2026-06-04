@@ -338,18 +338,20 @@ class ShiftService {
     return updated;
   }
 
-  static async endShift(shiftId, userId, data = {}) {
+  static async endShift(shiftId, userId, data = {}, bypassReportCheck = false) {
     const shift = await prisma.shift.findUnique({ where: { id: parseInt(shiftId) } });
     if (!shift) throw new NotFoundError('Shift');
     if (shift.userId !== userId) throw new BusinessLogicError('Not your shift');
     if (shift.status !== 'ACTIVE') throw new BusinessLogicError('Shift is not active');
     
     // Validate that a daily report has been submitted for this shift before ending
-    const reportCount = await prisma.dailyReport.count({
-      where: { shiftId: parseInt(shiftId) }
-    });
-    if (reportCount === 0) {
-      throw new BusinessLogicError('You must submit a daily report before ending your shift');
+    if (!bypassReportCheck) {
+      const reportCount = await prisma.dailyReport.count({
+        where: { shiftId: parseInt(shiftId) }
+      });
+      if (reportCount === 0) {
+        throw new BusinessLogicError('You must submit a daily report before ending your shift');
+      }
     }
 
     // Odometer validation: must not be less than start odometer
@@ -412,6 +414,34 @@ class ShiftService {
     await prisma.shiftLog.create({ data: { shiftId: parseInt(shiftId), action: 'SHIFT_CLOSURE_APPROVED', performedBy: adminUser.id } });
     await logAudit({ userId: adminUser.id, action: 'APPROVE_SHIFT_CLOSURE', entity: 'Shift', entityId: String(shiftId) });
     return updated;
+  }
+
+  static async updateStatus(shiftId, status, reason, adminUser) {
+    const shift = await prisma.shift.findUnique({
+      where: { id: parseInt(shiftId) },
+      include: { vehicle: true }
+    });
+    if (!shift) throw new NotFoundError('Shift');
+
+    if (status === shift.status) return shift;
+
+    switch (status) {
+      case 'APPROVED':
+        return await ShiftService.approve(shiftId, adminUser);
+      case 'REJECTED':
+        return await ShiftService.reject(shiftId, reason || 'Status updated by admin', adminUser);
+      case 'ACTIVE':
+        return await ShiftService.startShift(shiftId, shift.userId);
+      case 'ENDED':
+        return await ShiftService.endShift(shiftId, shift.userId, {
+          endOdometer: shift.vehicle?.odometerKm || shift.startOdometer || 0,
+          notes: reason || 'Ended by admin',
+        }, true);
+      case 'CANCELLED':
+        return await ShiftService.cancel(shiftId, reason || 'Cancelled by admin', adminUser.id);
+      default:
+        throw new ValidationError(`Invalid shift status: ${status}`);
+    }
   }
 
   static async cancel(shiftId, reason, userId) {

@@ -122,6 +122,12 @@ class ShiftController {
       return ApiResponse.success(res, shift, 'Shift cancelled');
     } catch (err) { next(err); }
   }
+  static async updateStatus(req, res, next) {
+    try {
+      const shift = await ShiftService.updateStatus(req.params.id, req.body?.status, req.body?.reason, req.user);
+      return ApiResponse.success(res, shift, 'Shift status updated');
+    } catch (err) { next(err); }
+  }
 }
 
 module.exports = ShiftController;

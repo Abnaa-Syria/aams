@@ -238,4 +238,33 @@ router.post('/:id/reject', ...adminPerm(P.SHIFTS_APPROVE), ShiftController.rejec
  */
 router.post('/:id/approve-closure', ...adminPerm(P.SHIFTS_APPROVE), ShiftController.approveClosure);
 
+/**
+ * @openapi
+ * /shifts/{id}/status:
+ *   patch:
+ *     tags: [Shifts]
+ *     summary: Update shift status (admin)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [status]
+ *             properties:
+ *               status: { type: string, enum: [REQUESTED, APPROVED, ACTIVE, ENDED, CANCELLED] }
+ *               reason: { type: string }
+ *     responses:
+ *       200:
+ *         description: Shift status updated successfully
+ */
+router.patch('/:id/status', ...adminPerm(P.SHIFTS_APPROVE), ShiftController.updateStatus);
+
 module.exports = router;
