@@ -126,7 +126,7 @@ router.get('/:id', ...sharedPerm(P.SHIFTS_READ), authenticate, async (req, res, 
  *       201:
  *         description: Created
  */
-router.post('/', ...sharedPerm(P.SHIFTS_WRITE), authenticate, upload.single('screenshot'), async (req, res, next) => {
+router.post('/', ...sharedPerm(P.SHIFTS_WRITE), authenticate, upload.fields([{ name: 'screenshot', maxCount: 1 }, { name: 'photo', maxCount: 1 }]), async (req, res, next) => {
   try {
     const { ensureActiveShift } = require('../../utils/shiftSecurity');
     let shiftId = req.body.shiftId ? parseInt(req.body.shiftId, 10) : null;
@@ -149,7 +149,8 @@ router.post('/', ...sharedPerm(P.SHIFTS_WRITE), authenticate, upload.single('scr
       notes: req.body.notes,
       checklistData: req.body.checklistData ? JSON.parse(req.body.checklistData) : undefined,
     };
-    if (req.file) data.screenshotUrl = normalizeStoredUploadPath(req.file.path);
+    const file = (req.files && (req.files.screenshot?.[0] || req.files.photo?.[0])) || null;
+    if (file) data.screenshotUrl = normalizeStoredUploadPath(file.path);
     const item = await prisma.midShiftRecord.create({ data });
     return ApiResponse.created(res, item, 'Mid-shift record created');
   } catch (err) { next(err); }
