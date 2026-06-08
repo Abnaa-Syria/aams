@@ -77,9 +77,98 @@ class DailyReportService {
 
     if (!report) throw new NotFoundError('Daily Report');
 
+    let reviewer = null;
+    if (report.reviewedBy) {
+      const reviewerUser = await prisma.user.findUnique({
+        where: { id: report.reviewedBy },
+        select: {
+          id: true,
+          fullNameAr: true,
+          fullNameEn: true,
+          role: true,
+          appUser: { select: { appRole: true } },
+        },
+      });
+      if (reviewerUser) {
+        let roleNameAr = 'مشرف';
+        if (reviewerUser.role === 'SUPER_ADMIN') {
+          roleNameAr = 'مدير النظام';
+        } else if (reviewerUser.role === 'OPERATIONS_ADMIN') {
+          roleNameAr = 'مشرف العمليات';
+        } else if (reviewerUser.role === 'HR_ADMIN') {
+          roleNameAr = 'مشرف الموارد البشرية';
+        } else if (reviewerUser.role === 'FLEET_ADMIN') {
+          roleNameAr = 'مشرف الأسطول';
+        } else if (reviewerUser.role === 'FINANCE_ADMIN') {
+          roleNameAr = 'مشرف المالية';
+        } else if (reviewerUser.appUser?.appRole === 'SUPERVISOR') {
+          roleNameAr = 'مشرف الفريق';
+        }
+
+        reviewer = {
+          id: reviewerUser.id,
+          fullNameAr: reviewerUser.fullNameAr,
+          fullNameEn: reviewerUser.fullNameEn,
+          role: reviewerUser.role,
+          appRole: reviewerUser.appUser?.appRole || null,
+          roleNameAr,
+        };
+      }
+    }
+
+    // Calculate weekly and monthly summaries relative to the report's date
+    const reportDate = new Date(report.reportDate);
+    
+    // Weekly: last 7 days ending on reportDate
+    const weekStart = new Date(reportDate);
+    weekStart.setDate(weekStart.getDate() - 7);
+    
+    // Monthly: start of month of reportDate
+    const monthStart = new Date(reportDate.getFullYear(), reportDate.getMonth(), 1);
+
+    const [weeklySummary, monthlySummary] = await Promise.all([
+      prisma.dailyReport.aggregate({
+        where: {
+          userId: report.userId,
+          reportDate: {
+            gte: weekStart,
+            lte: reportDate,
+          },
+          status: { not: 'REJECTED' },
+        },
+        _sum: { totalHours: true, totalOrders: true },
+      }),
+      prisma.dailyReport.aggregate({
+        where: {
+          userId: report.userId,
+          reportDate: {
+            gte: monthStart,
+            lte: reportDate,
+          },
+          status: { not: 'REJECTED' },
+        },
+        _sum: { totalHours: true, totalOrders: true },
+      }),
+    ]);
+
+    const weeklyHours = weeklySummary._sum.totalHours ? Number(Number(weeklySummary._sum.totalHours).toFixed(1)) : 0;
+    const weeklyOrders = weeklySummary._sum.totalOrders || 0;
+    
+    const monthlyHours = monthlySummary._sum.totalHours ? Number(Number(monthlySummary._sum.totalHours).toFixed(1)) : 0;
+    const monthlyOrders = monthlySummary._sum.totalOrders || 0;
+
     return {
       ...report,
       appUser: report.user ? { user: report.user } : null,
+      reviewer,
+      weeklySummary: {
+        hours: weeklyHours,
+        orders: weeklyOrders,
+      },
+      monthlySummary: {
+        hours: monthlyHours,
+        orders: monthlyOrders,
+      },
     };
   }
 
