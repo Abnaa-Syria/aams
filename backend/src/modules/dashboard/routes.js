@@ -115,6 +115,8 @@ router.get('/driver', authenticate, async (req, res, next) => {
     today.setHours(0, 0, 0, 0);
 
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const weekStart = new Date(today);
+    weekStart.setDate(weekStart.getDate() - 7);
 
     const period = req.query.period || 'month';
     const nowTime = new Date();
@@ -142,6 +144,7 @@ router.get('/driver', authenticate, async (req, res, next) => {
       shiftsToday,
       dailyReportsToday,
       dailyReportsMonth,
+      dailyReportsWeek,
       fuelToday,
       userRating,
       userProfile,
@@ -160,6 +163,10 @@ router.get('/driver', authenticate, async (req, res, next) => {
       }),
       prisma.dailyReport.aggregate({
         where: { userId, createdAt: { gte: monthStart } },
+        _sum: { totalOrders: true, totalHours: true },
+      }),
+      prisma.dailyReport.aggregate({
+        where: { userId, createdAt: { gte: weekStart } },
         _sum: { totalOrders: true, totalHours: true },
       }),
       prisma.fuelLog.aggregate({
@@ -230,6 +237,10 @@ router.get('/driver', authenticate, async (req, res, next) => {
           hours: Number(hoursToday.toFixed(1)),
           orders: dailyReportsToday._sum.totalOrders || 0,
           fuel: fuelToday._sum.amount || 0,
+        },
+        weekly: {
+          hours: Number((dailyReportsWeek._sum.totalHours || 0).toFixed(1)),
+          orders: dailyReportsWeek._sum.totalOrders || 0,
         },
         monthly: {
           hours: Number((dailyReportsMonth._sum.totalHours || 0).toFixed(1)),
