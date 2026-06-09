@@ -394,7 +394,8 @@ class ShiftService {
     if (shift.status !== 'ACTIVE') throw new BusinessLogicError('Shift is not active');
     
     // Validate that a daily report has been submitted for this shift before ending
-    if (!bypassReportCheck) {
+    const shouldBypass = bypassReportCheck || data.emergency === true || data.isEmergency === true || data.force === true;
+    if (!shouldBypass) {
       const reportCount = await prisma.dailyReport.count({
         where: { shiftId: parseInt(shiftId) }
       });

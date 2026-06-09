@@ -205,11 +205,18 @@ class DailyReportService {
       }
     }
 
-    // 1. Check if a report already exists for this user on this day
-    const existing = await prisma.dailyReport.findFirst({
-      where: { userId, reportDate },
-    });
-    if (existing) throw new BusinessLogicError('A report already exists for this date');
+    // 1. Check if a report already exists for this shift or this date
+    if (resolvedShiftId) {
+      const existingForShift = await prisma.dailyReport.findFirst({
+        where: { shiftId: resolvedShiftId },
+      });
+      if (existingForShift) throw new BusinessLogicError('A report already exists for this shift');
+    } else {
+      const existing = await prisma.dailyReport.findFirst({
+        where: { userId, reportDate },
+      });
+      if (existing) throw new BusinessLogicError('A report already exists for this date');
+    }
 
     // 2. Validate App Breakdowns (if provided)
     let appBreakdowns = [];
