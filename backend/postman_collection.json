@@ -974,6 +974,9 @@
 							"formdata": [
 								{ "key": "type", "value": "DRIVING_LICENSE", "type": "text" },
 								{ "key": "licenseNumber", "value": "12345678", "type": "text" },
+								{ "key": "title", "value": "", "type": "text", "description": "Optional — defaults from type (e.g. رخصة قيادة)" },
+								{ "key": "issueDate", "value": "2024-01-01", "type": "text" },
+								{ "key": "expiryDate", "value": "2029-01-01", "type": "text" },
 								{ "key": "file", "type": "file", "src": [] }
 							]
 						},

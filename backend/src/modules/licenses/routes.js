@@ -15,6 +15,22 @@ const fs = require('fs');
 const { normalizeStoredUploadPath, resolveStoredPathToAbsolute } = require('../../utils/uploadPath');
 const { resolveUserIdFromDriverInput, stripOperationalIdentityFields } = require('../../utils/driverIdentity');
 
+const LICENSE_TYPE_TITLES = {
+  DRIVING_LICENSE: 'رخصة قيادة',
+  TRANSPORT_LICENSE: 'رخصة نقل',
+  MEDICAL_CERTIFICATE: 'شهادة طبية',
+  OTHER_CERTIFICATE: 'شهادة أخرى',
+};
+
+function resolveLicenseTitle(data) {
+  const title = String(data.title || '').trim();
+  if (title) return title;
+  if (data.type && LICENSE_TYPE_TITLES[data.type]) {
+    return LICENSE_TYPE_TITLES[data.type];
+  }
+  return 'وثيقة';
+}
+
 /**
  * @openapi
  * /licenses:
@@ -219,6 +235,7 @@ router.post('/', ...sharedPerm(P.DOCUMENTS_WRITE), upload.single('file'), async 
     if (data.expiryDate) data.expiryDate = new Date(data.expiryDate);
     if (req.file) { data.fileUrl = normalizeStoredUploadPath(req.file.path); data.fileName = req.file.originalname; }
     delete data.file;
+    data.title = resolveLicenseTitle(data);
     const item = await prisma.license.create({ data });
     return ApiResponse.created(res, item, 'License created');
   } catch (err) { next(err); }
