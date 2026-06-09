@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { authenticate } = require('../../middlewares/auth');
+const { authenticate, requireAppRole } = require('../../middlewares/auth');
 const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const PenaltyController = require('./controller');
@@ -28,6 +28,17 @@ router.get('/totals', ...sharedPerm(P.COMPLIANCE_READ), PenaltyController.getTot
 
 /**
  * @openapi
+ * /penalties/{id}/appeal:
+ *   post:
+ *     tags: [Penalties]
+ *     summary: Driver appeal against own penalty
+ *     security:
+ *       - bearerAuth: []
+ */
+router.post('/:id/appeal', ...sharedPerm(P.COMPLIANCE_READ), requireAppRole('DRIVER'), PenaltyController.appeal);
+
+/**
+ * @openapi
  * /penalties/{id}:
  *   get:
  *     tags: [Penalties]
@@ -46,7 +57,7 @@ router.get('/:id', ...sharedPerm(P.COMPLIANCE_READ), PenaltyController.getById);
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', ...sharedPerm(P.COMPLIANCE_WRITE), PenaltyController.create);
+router.post('/', ...adminPerm(P.COMPLIANCE_WRITE), PenaltyController.create);
 
 /**
  * @openapi
@@ -57,7 +68,7 @@ router.post('/', ...sharedPerm(P.COMPLIANCE_WRITE), PenaltyController.create);
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id', ...sharedPerm(P.COMPLIANCE_WRITE), PenaltyController.update);
+router.patch('/:id', ...adminPerm(P.COMPLIANCE_WRITE), PenaltyController.update);
 
 /**
  * @openapi
@@ -68,7 +79,7 @@ router.patch('/:id', ...sharedPerm(P.COMPLIANCE_WRITE), PenaltyController.update
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id/status', ...sharedPerm(P.COMPLIANCE_WRITE), PenaltyController.updateStatus);
+router.patch('/:id/status', ...adminPerm(P.COMPLIANCE_WRITE), PenaltyController.updateStatus);
 
 /**
  * @openapi
@@ -79,6 +90,6 @@ router.patch('/:id/status', ...sharedPerm(P.COMPLIANCE_WRITE), PenaltyController
  *     security:
  *       - bearerAuth: []
  */
-router.delete('/:id', ...sharedPerm(P.COMPLIANCE_WRITE), PenaltyController.delete);
+router.delete('/:id', ...adminPerm(P.COMPLIANCE_WRITE), PenaltyController.delete);
 
 module.exports = router;

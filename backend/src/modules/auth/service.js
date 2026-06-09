@@ -624,6 +624,38 @@ static async getMe(userId) {
     return user;
   }
 
+  static async deleteMe(userId, req) {
+    const { ipAddress, userAgent } = getClientMeta(req);
+    const user = await prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new NotFoundError('User');
+    }
+
+    await prisma.$transaction([
+      prisma.refreshToken.deleteMany({ where: { userId } }),
+      prisma.pushDeviceToken.deleteMany({ where: { userId } }),
+      prisma.user.update({
+        where: { id: userId },
+        data: { deletedAt: new Date(), accountStatus: 'ARCHIVED' },
+      }),
+    ]);
+
+    await logAudit({
+      userId,
+      action: 'DELETE_OWN_ACCOUNT',
+      entity: 'User',
+      entityId: userId,
+      ipAddress,
+      userAgent,
+    });
+
+    return { message: 'Account deleted successfully' };
+  }
+
   static async logout(userId, req) {
     const { ipAddress, userAgent } = getClientMeta(req);
 

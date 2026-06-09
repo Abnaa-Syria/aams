@@ -178,6 +178,21 @@
 					}
 				},
 				{
+					"name": "Delete My Account (Soft Delete)",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"description": "Soft deletes the authenticated driver account: sets accountStatus to ARCHIVED, sets deletedAt, and revokes refresh/push tokens.",
+						"url": {
+							"raw": "{{base_url}}/auth/me",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "me"]
+						}
+					}
+				},
+				{
 					"name": "Register Push Token",
 					"request": {
 						"method": "POST",
@@ -1135,10 +1150,70 @@
 						"header": [
 							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
 						],
+						"description": "Driver-scoped list. Supports page, limit, status, type.",
 						"url": {
-							"raw": "{{base_url}}/penalties",
+							"raw": "{{base_url}}/penalties?page=1&limit=20",
 							"host": ["{{base_url}}"],
-							"path": ["penalties"]
+							"path": ["penalties"],
+							"query": [
+								{ "key": "page", "value": "1" },
+								{ "key": "limit", "value": "20" },
+								{ "key": "status", "value": "", "disabled": true },
+								{ "key": "type", "value": "", "disabled": true }
+							]
+						}
+					}
+				},
+				{
+					"name": "My Penalties Totals",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"description": "Driver-scoped APPLIED penalties aggregate.",
+						"url": {
+							"raw": "{{base_url}}/penalties/totals",
+							"host": ["{{base_url}}"],
+							"path": ["penalties", "totals"]
+						}
+					}
+				},
+				{
+					"name": "Get My Penalty By ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" }
+						],
+						"description": "Returns the penalty only if it belongs to the authenticated driver.",
+						"url": {
+							"raw": "{{base_url}}/penalties/:id",
+							"host": ["{{base_url}}"],
+							"path": ["penalties", ":id"],
+							"variable": [{ "key": "id", "value": "1" }]
+						}
+					}
+				},
+				{
+					"name": "Appeal My Penalty",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"reason\": \"أرغب في مراجعة الجزاء لأن البيانات غير صحيحة\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"description": "Driver can appeal own PENDING or APPLIED penalty. Status becomes APPEALED.",
+						"url": {
+							"raw": "{{base_url}}/penalties/:id/appeal",
+							"host": ["{{base_url}}"],
+							"path": ["penalties", ":id", "appeal"],
+							"variable": [{ "key": "id", "value": "1" }]
 						}
 					}
 				},

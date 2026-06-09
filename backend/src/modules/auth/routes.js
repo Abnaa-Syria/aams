@@ -406,6 +406,7 @@ router.post('/admin/login', validate(adminLoginSchema), AuthController.adminLogi
 router.get('/me', authenticate, validate(meSchema), AuthController.me);
 
 router.put('/me', authenticate, AuthController.updateMe);
+router.delete('/me', authenticate, AuthController.deleteMe);
 router.put('/users/:userId', authenticate, AuthController.updateUser);
 
 /**

@@ -13,7 +13,7 @@ class PenaltyController {
 
   static async getTotals(req, res, next) {
     try {
-      const result = await PenaltyService.getTotals();
+      const result = await PenaltyService.getTotals(req.user, req.query);
       return ApiResponse.success(res, result);
     } catch (err) {
       next(err);
@@ -51,6 +51,15 @@ class PenaltyController {
     try {
       const item = await PenaltyService.updateStatus(req.params.id, req.user.id, req.body);
       return ApiResponse.success(res, item, 'Penalty status updated');
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async appeal(req, res, next) {
+    try {
+      const item = await PenaltyService.appeal(req.params.id, req.user, req.body);
+      return ApiResponse.success(res, item, 'Penalty appealed');
     } catch (err) {
       next(err);
     }

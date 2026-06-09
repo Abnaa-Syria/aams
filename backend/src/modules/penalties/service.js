@@ -1,11 +1,27 @@
 const prisma = require('../../config/database');
-const { NotFoundError } = require('../../utils/errors');
+const { BusinessLogicError, NotFoundError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
 const { ADMIN_ROLES, mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
 const { mergeAppUserIdFilter, resolveUserIdFromDriverInput } = require('../../utils/driverIdentity');
 
 class PenaltyService {
+  static applyReadScope(where, currentUser) {
+    if (currentUser.appRole === 'DRIVER') {
+      return { ...where, userId: currentUser.id };
+    }
+    if (currentUser.appRole === 'SUPERVISOR') {
+      return {
+        ...where,
+        user: { ...(where.user || {}), appUser: { supervisorId: currentUser.appUserId } },
+      };
+    }
+    if (!ADMIN_ROLES.has(currentUser.role)) {
+      return { ...where, userId: -1 };
+    }
+    return where;
+  }
+
   static async list(query, currentUser) {
     const { page, limit, skip } = getPaginationParams(query);
     let where = {
@@ -14,14 +30,7 @@ class PenaltyService {
       ...(query.userId && { userId: parseInt(query.userId) }),
     };
 
-    // Scoping using userId and appRole
-    if (currentUser.appRole === 'DRIVER') {
-      where.userId = currentUser.id;
-    } else if (currentUser.appRole === 'SUPERVISOR') {
-      where.user = { appUser: { supervisorId: currentUser.appUserId } };
-    } else if (!ADMIN_ROLES.has(currentUser.role)) {
-      where.userId = -1;
-    }
+    where = PenaltyService.applyReadScope(where, currentUser);
     where = mergeAppUserIdFilter(where, query.appUserId);
 
     where = mergeDriverNameIntoUserWhere(where, query);
@@ -44,27 +53,62 @@ class PenaltyService {
     return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
 
-  static async getTotals() {
+  static async getTotals(currentUser, query = {}) {
+    let where = {
+      status: 'APPLIED',
+      ...(query.type && { type: query.type }),
+    };
+    where = PenaltyService.applyReadScope(where, currentUser);
+
     return prisma.penalty.aggregate({
       _sum: { amount: true },
       _count: true,
-      where: { status: 'APPLIED' },
+      where,
     });
   }
 
   static async getById(id, currentUser) {
-    const item = await prisma.penalty.findUnique({
-      where: { id: parseInt(id) },
+    const item = await prisma.penalty.findFirst({
+      where: PenaltyService.applyReadScope({ id: parseInt(id) }, currentUser),
       include: { user: { select: { id: true, fullNameAr: true, fullNameEn: true } } },
     });
 
     if (!item) throw new NotFoundError('Penalty');
 
-    if (currentUser.appRole === 'DRIVER' && item.userId !== currentUser.id) {
+    return item;
+  }
+
+  static async appeal(id, currentUser, data = {}) {
+    if (currentUser.appRole !== 'DRIVER') {
       throw new NotFoundError('Penalty');
     }
 
-    return item;
+    const penalty = await prisma.penalty.findFirst({
+      where: { id: parseInt(id), userId: currentUser.id },
+    });
+    if (!penalty) throw new NotFoundError('Penalty');
+    if (!['PENDING', 'APPLIED'].includes(penalty.status)) {
+      throw new BusinessLogicError('لا يمكن الاعتراض على هذا الجزاء حالياً');
+    }
+
+    const notes = data.reason || data.notes
+      ? [penalty.notes, `Driver appeal: ${data.reason || data.notes}`].filter(Boolean).join('\n')
+      : penalty.notes;
+
+    const updated = await prisma.penalty.update({
+      where: { id: penalty.id },
+      data: { status: 'APPEALED', notes },
+    });
+
+    await logAudit({
+      userId: currentUser.id,
+      action: 'APPEAL_PENALTY',
+      entity: 'Penalty',
+      entityId: String(penalty.id),
+      newValue: { reason: data.reason || data.notes || null },
+    });
+
+    return updated;
   }
 
   static async create(adminId, data) {

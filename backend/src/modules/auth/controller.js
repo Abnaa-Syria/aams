@@ -142,6 +142,15 @@ class AuthController {
       return next(err);
     }
   }
+
+  static async deleteMe(req, res, next) {
+    try {
+      const result = await AuthService.deleteMe(req.user.id, req);
+      return ApiResponse.success(res, null, result.message);
+    } catch (err) {
+      return next(err);
+    }
+  }
 }
 
 module.exports = AuthController;
