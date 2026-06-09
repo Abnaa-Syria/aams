@@ -1,9 +1,16 @@
 const prisma = require('../../config/database');
-const { NotFoundError } = require('../../utils/errors');
+const { NotFoundError, BusinessLogicError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
 const { ADMIN_ROLES, mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
 const { mergeAppUserIdFilter } = require('../../utils/driverIdentity');
+const {
+  assertCanAccessOwnOrDriverRecord,
+  assertSupervisorCanInitialReview,
+  assertSupervisorCannotFinalReviewOwn,
+  buildSupervisorTeamOrSelfFilter,
+  isSupervisor,
+} = require('../../utils/recordAccess');
 
 class SalaryAdvanceService {
   static async list(query, currentUser) {
@@ -13,16 +20,14 @@ class SalaryAdvanceService {
       ...(query.userId && { userId: parseInt(query.userId) }),
     };
 
-    // Scoping using userId and appRole
     if (currentUser.appRole === 'DRIVER') {
       where.userId = currentUser.id;
     } else if (currentUser.appRole === 'SUPERVISOR') {
-      where.user = { appUser: { supervisorId: currentUser.appUserId } };
+      where = { ...where, ...buildSupervisorTeamOrSelfFilter(currentUser) };
     } else if (!ADMIN_ROLES.has(currentUser.role)) {
       where.userId = -1;
     }
     where = mergeAppUserIdFilter(where, query.appUserId);
-
     where = mergeDriverNameIntoUserWhere(where, query);
 
     const [items, total] = await Promise.all([
@@ -39,7 +44,6 @@ class SalaryAdvanceService {
       appUser: item.user ? { user: item.user } : null,
     }));
 
-
     return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
 
@@ -50,11 +54,12 @@ class SalaryAdvanceService {
     });
 
     if (!item) throw new NotFoundError('Salary Advance');
-    
-    if (currentUser.appRole === 'DRIVER') {
-      if (item.userId !== currentUser.id) {
-        throw new NotFoundError('Salary Advance');
-      }
+
+    if (currentUser.appRole === 'DRIVER' && item.userId !== currentUser.id) {
+      throw new NotFoundError('Salary Advance');
+    }
+    if (currentUser.appRole === 'SUPERVISOR') {
+      await assertCanAccessOwnOrDriverRecord(currentUser, item.userId);
     }
 
     return item;
@@ -103,9 +108,47 @@ class SalaryAdvanceService {
     return updated;
   }
 
-  static async review(id, adminId, data) {
+  static async supervisorReview(id, currentUser, data) {
     const existing = await prisma.salaryAdvance.findUnique({ where: { id: parseInt(id) } });
     if (!existing) throw new NotFoundError('Salary Advance');
+    if (existing.status !== 'PENDING') {
+      throw new BusinessLogicError('يمكن مراجعة الطلبات المعلقة فقط');
+    }
+
+    await assertSupervisorCanInitialReview(currentUser, existing.userId);
+
+    const approved = data.approved === true || data.status === 'APPROVED';
+    const updated = await prisma.salaryAdvance.update({
+      where: { id: parseInt(id) },
+      data: {
+        supervisorReviewedBy: currentUser.id,
+        supervisorReviewedAt: new Date(),
+        supervisorReviewNotes: data.reviewNotes || data.supervisorReviewNotes || null,
+        supervisorApproved: approved,
+        ...(approved === false && data.status === 'REJECTED' ? { status: 'REJECTED' } : {}),
+      },
+    });
+
+    await logAudit({
+      userId: currentUser.id,
+      action: 'SUPERVISOR_REVIEW_SALARY_ADVANCE',
+      entity: 'SalaryAdvance',
+      entityId: String(id),
+      newValue: { supervisorApproved: approved },
+    });
+    return updated;
+  }
+
+  static async review(id, adminId, data, currentUser = null) {
+    const existing = await prisma.salaryAdvance.findUnique({ where: { id: parseInt(id) } });
+    if (!existing) throw new NotFoundError('Salary Advance');
+
+    if (currentUser && isSupervisor(currentUser)) {
+      throw new BusinessLogicError('استخدم مراجعة المشرف المبدئية لهذا الطلب');
+    }
+    if (currentUser) {
+      assertSupervisorCannotFinalReviewOwn(currentUser, existing.userId);
+    }
 
     const updated = await prisma.salaryAdvance.update({
       where: { id: parseInt(id) },

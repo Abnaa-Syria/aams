@@ -94,6 +94,8 @@ router.patch('/:id', ...sharedPerm(P.HR_WRITE), LeaveRequestController.update);
  *     security:
  *       - bearerAuth: []
  */
+router.patch('/:id/supervisor-review', ...sharedPerm(P.HR_READ), LeaveRequestController.supervisorReview);
+
 router.patch('/:id/review', ...sharedPerm(P.HR_APPROVE), LeaveRequestController.review);
 
 /**

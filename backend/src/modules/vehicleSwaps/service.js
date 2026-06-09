@@ -1,6 +1,7 @@
 const prisma = require('../../config/database');
 const { NotFoundError, BusinessLogicError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
+const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
 
 class VehicleSwapService {
   static async list(query, currentUser) {
@@ -59,13 +60,16 @@ class VehicleSwapService {
     });
   }
 
-  static async review(id, adminId, data) {
+  static async review(id, adminId, data, currentUser = null) {
     const swapReq = await prisma.vehicleSwapRequest.findUnique({
       where: { id: parseInt(id) },
       include: { shift: true },
     });
     if (!swapReq) throw new NotFoundError('VehicleSwapRequest');
     if (swapReq.status !== 'REQUESTED') throw new BusinessLogicError('Can only review REQUESTED requests');
+    if (currentUser) {
+      await assertCanAccessDriverRecord(currentUser, swapReq.userId);
+    }
 
     const assignedVehicleId = data.assignedVehicleId || swapReq.newVehicleId;
 

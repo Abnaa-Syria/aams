@@ -21,6 +21,12 @@ class VehicleController {
       return ApiResponse.created(res, vehicle, 'Vehicle created');
     } catch (err) { next(err); }
   }
+  static async createForDriver(req, res, next) {
+    try {
+      const result = await VehicleService.createForDriver(req.user, req.body);
+      return ApiResponse.created(res, result, 'Driver vehicle created');
+    } catch (err) { next(err); }
+  }
   static async update(req, res, next) {
     try {
       const vehicle = await VehicleService.update(req.params.id, req.body, req.user);

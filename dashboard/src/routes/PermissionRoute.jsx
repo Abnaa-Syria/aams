@@ -1,6 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { hasAnyPermission } from '../utils/rolePermissions';
+import { hasAnyPermissionForUser } from '../utils/rolePermissions';
 
 export default function PermissionRoute({ anyOf = [], requiredRole = null, children }) {
   const { isAuthenticated, user, loading } = useSelector((state) => state.auth);
@@ -28,9 +28,7 @@ export default function PermissionRoute({ anyOf = [], requiredRole = null, child
 
   if (anyOf.length > 0) {
     // Check custom permissions first, then fallback to role-based permissions
-    const ok = user?.permissions 
-      ? anyOf.some(p => user.permissions.includes(p))
-      : hasAnyPermission(user?.role, anyOf);
+    const ok = hasAnyPermissionForUser(user, anyOf);
       
     if (!ok) {
       return <Navigate to="/unauthorized" replace />;

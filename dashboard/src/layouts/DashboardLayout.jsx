@@ -3,7 +3,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout, getMe } from '../store/authSlice';
 import { NAV_GROUPS } from '../config/navConfig';
-import { canSeeNavItem } from '../utils/rolePermissions';
+import { canSeeNavItemForUser } from '../utils/rolePermissions';
 import { apiService } from '../services/api';
 import { resolveUploadUrl } from '../utils/apiOrigin';
 import {
@@ -89,17 +89,19 @@ export default function DashboardLayout() {
   }, [showNotifications, fetchRecentNotifications]);
 
   const menuGroups = useMemo(() => {
-    const role = user?.role;
     return NAV_GROUPS.map((group) => ({
       ...group,
       items: group.items
-        .filter((item) => canSeeNavItem(role, item.anyOf, { superAdminOnly: item.superAdminOnly }))
+        .filter((item) => canSeeNavItemForUser(user, item.anyOf, {
+          superAdminOnly: item.superAdminOnly,
+          hideForSupervisor: item.hideForSupervisor,
+        }))
         .map((item) => ({
           ...item,
           icon: ICON_MAP[item.iconKey] || LuLayoutDashboard,
         })),
     })).filter((g) => g.items.length > 0);
-  }, [user?.role]);
+  }, [user]);
 
   const toggleGroup = (label) => {
     setCollapsedGroups((prev) => ({ ...prev, [label]: !prev[label] }));

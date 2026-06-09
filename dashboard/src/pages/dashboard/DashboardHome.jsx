@@ -1,26 +1,38 @@
 import { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { apiService } from '../../services/api';
 import KpiCard from '../../components/ui/KpiCard';
 import StatusBadge from '../../components/ui/StatusBadge';
+import { isSupervisorUser } from '../../utils/rolePermissions';
 import {
   LuUsers, LuTruck, LuClock, LuCircleAlert, LuFileText, LuCalendarOff,
   LuDollarSign, LuWrench, LuSearch, LuTriangleAlert, LuActivity,
-  LuShield, LuIdCard
+  LuShield, LuIdCard, LuFuel
 } from 'react-icons/lu';
 
 export default function DashboardHome() {
+  const user = useSelector((s) => s.auth.user);
+  const navigate = useNavigate();
+  const supervisor = isSupervisorUser(user);
   const [data, setData] = useState(null);
+  const [supervisorData, setSupervisorData] = useState(null);
   const [activity, setActivity] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const loadDashboard = async () => {
     try {
-      const [dashRes, actRes] = await Promise.all([
-        apiService.get('/dashboard'),
-        apiService.get('/dashboard/recent-activity'),
-      ]);
-      setData(dashRes.data.data);
-      setActivity(actRes.data.data);
+      if (supervisor) {
+        const { data: supRes } = await apiService.get('/supervisors/me/dashboard');
+        setSupervisorData(supRes.data);
+      } else {
+        const [dashRes, actRes] = await Promise.all([
+          apiService.get('/dashboard'),
+          apiService.get('/dashboard/recent-activity'),
+        ]);
+        setData(dashRes.data.data);
+        setActivity(actRes.data.data);
+      }
     } catch {
       // Handle gracefully
     } finally {
@@ -29,14 +41,67 @@ export default function DashboardHome() {
   };
 
   useEffect(() => {
-    loadDashboard();
-  }, []);
+    if (user) loadDashboard();
+  }, [user, supervisor]);
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-[400px]">
       <div className="w-12 h-12 border-4 border-brand-light border-t-brand-primary rounded-full animate-spin"></div>
     </div>
   );
+
+  if (supervisor && supervisorData) {
+    const s = supervisorData;
+    return (
+      <div className="page-container animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="mb-10">
+          <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-2">لوحة المشرف التشغيلية</h2>
+          <p className="text-slate-500 text-[0.95rem] font-medium">متابعة فريقك، الشفتات النشطة، والطلبات المعلقة.</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+          <KpiCard icon={LuUsers} label="السائقين التابعين" value={s.assignedDrivers} color="blue" />
+          <KpiCard icon={LuClock} label="شفتات نشطة" value={s.activeShifts} color="green" />
+          <KpiCard icon={LuActivity} label="طلبات شفت معلقة" value={s.pendingShiftRequests} color="orange" />
+          <KpiCard icon={LuCircleAlert} label="حوادث مفتوحة" value={s.openIncidents} color="red" />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+          <KpiCard icon={LuCalendarOff} label="إجازات بانتظار التوصية" value={s.pendingLeaves} color="emerald" />
+          <KpiCard icon={LuDollarSign} label="سلف بانتظار التوصية" value={s.pendingAdvances} color="orange" />
+          <KpiCard icon={LuFuel} label="وقود بانتظار المراجعة" value={s.pendingFuel} color="blue" />
+          <KpiCard icon={LuWrench} label="صيانة معلقة" value={s.pendingMaintenance} color="red" />
+        </div>
+
+        <div className="card !p-8 border-none ring-1 ring-slate-200/50">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-black text-slate-800">السائقون النشطون الآن</h3>
+            <button type="button" onClick={() => navigate('/shifts')} className="text-sm font-bold text-brand-primary hover:underline">عرض الشفتات</button>
+          </div>
+          <div className="flex flex-col gap-3">
+            {(s.activeShiftRows || []).length === 0 ? (
+              <p className="text-sm font-bold text-slate-400">لا يوجد سائقون نشطون حالياً</p>
+            ) : (
+              s.activeShiftRows.map((shift) => (
+                <button
+                  key={shift.id}
+                  type="button"
+                  onClick={() => navigate(`/shifts/${shift.id}`)}
+                  className="flex justify-between items-center p-4 bg-slate-50 hover:bg-white rounded-2xl border border-slate-100 transition-all text-right"
+                >
+                  <div>
+                    <div className="font-black text-slate-800">{shift.user?.fullNameAr}</div>
+                    <div className="text-xs font-bold text-slate-400">{shift.vehicle?.plateNumber}</div>
+                  </div>
+                  <StatusBadge status={shift.status} />
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const d = data || {};
   const overview = d.overview || {};

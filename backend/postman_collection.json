@@ -1192,6 +1192,26 @@
 					}
 				},
 				{
+					"name": "Driver - Add Own Vehicle",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"plateNumber\": \"أ ب ج 1234\",\n    \"manufacturer\": \"تويوتا\",\n    \"model\": \"كامري\",\n    \"year\": 2024,\n    \"color\": \"أبيض\",\n    \"odometerKm\": 12500,\n    \"insuranceCompany\": \"التعاونية للتأمين\",\n    \"insuranceExpiryDate\": \"2026-12-31\",\n    \"registrationExpiry\": \"2026-12-31\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/vehicles/driver",
+							"host": ["{{base_url}}"],
+							"path": ["vehicles", "driver"]
+						}
+					}
+				},
+				{
 					"name": "Vehicle Profile Summary",
 					"request": {
 						"method": "GET",

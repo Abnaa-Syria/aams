@@ -29,6 +29,20 @@ class SupervisorController {
       return ApiResponse.success(res, result, 'Drivers assigned successfully');
     } catch (err) { next(err); }
   }
+
+  static async getMyDashboard(req, res, next) {
+    try {
+      const dashboard = await SupervisorService.getMyDashboard(req.user);
+      return ApiResponse.success(res, dashboard);
+    } catch (err) { next(err); }
+  }
+
+  static async getMyDrivers(req, res, next) {
+    try {
+      const { drivers, meta } = await SupervisorService.getMyDrivers(req.user, req.query);
+      return ApiResponse.paginated(res, drivers, meta);
+    } catch (err) { next(err); }
+  }
 }
 
 module.exports = SupervisorController;

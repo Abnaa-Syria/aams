@@ -97,6 +97,84 @@ class SupervisorService {
     return { drivers: transformed, meta: buildPaginationMeta(total, page, limit) };
   }
 
+  static teamDriverWhere(supervisorAppUserId) {
+    return {
+      user: {
+        appUser: {
+          supervisorId: supervisorAppUserId,
+          appRole: 'DRIVER',
+        },
+      },
+    };
+  }
+
+  static async getMyDashboard(currentUser) {
+    const supervisorAppUserId = currentUser.appUserId;
+    if (!supervisorAppUserId || currentUser.appRole !== 'SUPERVISOR') {
+      throw new NotFoundError('Supervisor');
+    }
+
+    const teamWhere = SupervisorService.teamDriverWhere(supervisorAppUserId);
+
+    const [
+      assignedDrivers,
+      activeShifts,
+      pendingShiftRequests,
+      pendingLeaves,
+      pendingAdvances,
+      pendingFuel,
+      openIncidents,
+      pendingMaintenance,
+    ] = await Promise.all([
+      prisma.appUser.count({ where: { supervisorId: supervisorAppUserId, appRole: 'DRIVER' } }),
+      prisma.shift.count({ where: { status: 'ACTIVE', ...teamWhere } }),
+      prisma.shift.count({ where: { status: 'REQUESTED', ...teamWhere } }),
+      prisma.leaveRequest.count({
+        where: {
+          status: 'PENDING',
+          supervisorApproved: false,
+          ...teamWhere,
+        },
+      }),
+      prisma.salaryAdvance.count({
+        where: {
+          status: 'PENDING',
+          supervisorApproved: false,
+          ...teamWhere,
+        },
+      }),
+      prisma.fuelLog.count({ where: { status: 'PENDING', ...teamWhere } }),
+      prisma.incident.count({ where: { status: { in: ['OPEN', 'IN_PROGRESS'] }, ...teamWhere } }),
+      prisma.maintenanceRequest.count({ where: { status: 'REQUESTED', ...teamWhere } }),
+    ]);
+
+    const activeShiftRows = await prisma.shift.findMany({
+      where: { status: 'ACTIVE', ...teamWhere },
+      take: 20,
+      orderBy: { startedAt: 'desc' },
+      include: {
+        user: { select: { id: true, fullNameAr: true } },
+        vehicle: { select: { id: true, plateNumber: true } },
+      },
+    });
+
+    return {
+      assignedDrivers,
+      activeShifts,
+      pendingShiftRequests,
+      pendingLeaves,
+      pendingAdvances,
+      pendingFuel,
+      openIncidents,
+      pendingMaintenance,
+      activeShiftRows,
+    };
+  }
+
+  static async getMyDrivers(currentUser, query = {}) {
+    return SupervisorService.getDrivers(currentUser.id, query);
+  }
+
   static async assignDrivers(supervisorId, driverIds) {
     // Get supervisor's AppUser
     const supervisorAppUser = await prisma.appUser.findFirst({

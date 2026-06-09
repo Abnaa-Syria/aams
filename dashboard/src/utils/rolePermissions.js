@@ -24,6 +24,8 @@ export const PERMISSIONS = Object.freeze({
   INVENTORY_WRITE: 'inventory:write',
   ROLE_MANAGEMENT: 'role:management',
   DASHBOARD_VIEW: 'dashboard:view',
+  DAILY_REPORTS_READ: 'daily-reports:read',
+  DAILY_REPORTS_WRITE: 'daily-reports:write',
 });
 
 export const DASHBOARD_VIEW_PERMISSIONS = [
@@ -108,17 +110,38 @@ export const ROLE_PERMISSIONS = {
   SUPERVISOR: [
     PERMISSIONS.USERS_READ,
     PERMISSIONS.SHIFTS_READ,
+    PERMISSIONS.SHIFTS_APPROVE,
     PERMISSIONS.SHIFTS_WRITE,
     PERMISSIONS.DOCUMENTS_READ,
     PERMISSIONS.COMPLIANCE_READ,
+    PERMISSIONS.HR_READ,
+    PERMISSIONS.HR_WRITE,
+    PERMISSIONS.FINANCE_READ,
+    PERMISSIONS.FINANCE_WRITE,
+    PERMISSIONS.FLEET_READ,
+    PERMISSIONS.INVENTORY_READ,
+    PERMISSIONS.DASHBOARD_VIEW,
+    PERMISSIONS.DAILY_REPORTS_READ,
   ],
   DRIVER: [],
 };
+
+export function isSupervisorUser(user) {
+  return user?.role === 'SUPERVISOR' || user?.appRole === 'SUPERVISOR';
+}
 
 export function getGrantedPermissions(role) {
   if (!role) return new Set();
   if (role === 'SUPER_ADMIN') return new Set(ALL);
   return new Set(ROLE_PERMISSIONS[role] || []);
+}
+
+export function getEffectivePermissions(user) {
+  if (!user) return new Set();
+  if (Array.isArray(user.permissions) && user.permissions.length > 0) {
+    return new Set(user.permissions);
+  }
+  return getGrantedPermissions(user.role);
 }
 
 export function hasAnyPermission(role, permissionList) {
@@ -127,7 +150,19 @@ export function hasAnyPermission(role, permissionList) {
   return permissionList.some((p) => g.has(p));
 }
 
+export function hasAnyPermissionForUser(user, permissionList) {
+  if (!permissionList?.length) return true;
+  const g = getEffectivePermissions(user);
+  return permissionList.some((p) => g.has(p));
+}
+
 export function canSeeNavItem(role, permissionList, options = {}) {
   if (options.superAdminOnly) return role === 'SUPER_ADMIN';
   return hasAnyPermission(role, permissionList);
+}
+
+export function canSeeNavItemForUser(user, permissionList, options = {}) {
+  if (options.superAdminOnly) return user?.role === 'SUPER_ADMIN';
+  if (options.hideForSupervisor && isSupervisorUser(user)) return false;
+  return hasAnyPermissionForUser(user, permissionList);
 }

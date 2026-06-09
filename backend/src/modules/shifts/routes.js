@@ -238,6 +238,8 @@ router.post('/:id/reject', ...sharedPerm(P.SHIFTS_APPROVE), ShiftController.reje
  */
 router.post('/:id/approve-closure', ...sharedPerm(P.SHIFTS_APPROVE), ShiftController.approveClosure);
 
+router.post('/:id/force-end', ...sharedPerm(P.SHIFTS_APPROVE), ShiftController.forceEnd);
+
 /**
  * @openapi
  * /shifts/{id}/status:

@@ -4,6 +4,7 @@ const { getPaginationParams, buildPaginationMeta, buildOrderBy } = require('../.
 const { logAudit } = require('../../utils/auditLogger');
 const { buildDriverNameUserFilter } = require('../../utils/listScope');
 const { parsePositiveInt } = require('../../utils/driverIdentity');
+const { assertSupervisorOwnsShiftDriver, isSupervisor } = require('../../utils/recordAccess');
 
 const BLOCKED_STATUSES = ['TEMPORARILY_SUSPENDED', 'RESTRICTED', 'ARCHIVED'];
 
@@ -332,10 +333,17 @@ class ShiftService {
     return shift;
   }
 
+  static async assertSupervisorShiftAccess(actor, shift) {
+    if (isSupervisor(actor)) {
+      await assertSupervisorOwnsShiftDriver(actor, shift.userId);
+    }
+  }
+
   static async approve(shiftId, adminUser) {
     const shift = await prisma.shift.findUnique({ where: { id: parseInt(shiftId) } });
     if (!shift) throw new NotFoundError('Shift');
     if (shift.status !== 'REQUESTED') throw new BusinessLogicError('Shift is not in REQUESTED status');
+    await ShiftService.assertSupervisorShiftAccess(adminUser, shift);
 
     const updated = await prisma.shift.update({
       where: { id: parseInt(shiftId) },
@@ -351,6 +359,7 @@ class ShiftService {
     const shift = await prisma.shift.findUnique({ where: { id: parseInt(shiftId) } });
     if (!shift) throw new NotFoundError('Shift');
     if (shift.status !== 'REQUESTED') throw new BusinessLogicError('Shift is not in REQUESTED status');
+    await ShiftService.assertSupervisorShiftAccess(adminUser, shift);
 
     const updated = await prisma.shift.update({
       where: { id: parseInt(shiftId) },
@@ -447,11 +456,33 @@ class ShiftService {
     return updated;
   }
 
+  static async forceEnd(shiftId, actor, reason = '') {
+    const shift = await prisma.shift.findUnique({
+      where: { id: parseInt(shiftId) },
+      include: { vehicle: true },
+    });
+    if (!shift) throw new NotFoundError('Shift');
+    if (shift.status !== 'ACTIVE') throw new BusinessLogicError('Shift is not active');
+    await ShiftService.assertSupervisorShiftAccess(actor, shift);
+
+    return ShiftService.endShift(
+      shiftId,
+      shift.userId,
+      {
+        endOdometer: shift.vehicle?.odometerKm || shift.startOdometer || 0,
+        notes: reason || 'Force ended by supervisor',
+        force: true,
+      },
+      true,
+    );
+  }
+
   static async approveClosure(shiftId, adminUser) {
     const shift = await prisma.shift.findUnique({ where: { id: parseInt(shiftId) } });
     if (!shift) throw new NotFoundError('Shift');
     if (shift.status !== 'ENDED') throw new BusinessLogicError('Shift is not ENDED');
     if (shift.closureApprovedAt) throw new BusinessLogicError('Closure already approved');
+    await ShiftService.assertSupervisorShiftAccess(adminUser, shift);
 
     const updated = await prisma.shift.update({
       where: { id: parseInt(shiftId) },
@@ -472,6 +503,7 @@ class ShiftService {
       include: { vehicle: true }
     });
     if (!shift) throw new NotFoundError('Shift');
+    await ShiftService.assertSupervisorShiftAccess(adminUser, shift);
 
     if (status === shift.status) return shift;
 

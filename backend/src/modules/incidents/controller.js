@@ -33,6 +33,8 @@ class IncidentController {
 
   static async updateStatus(req, res, next) {
     try {
+      const existing = await IncidentService.getById(req.params.id);
+      await assertCanAccessDriverRecord(req, existing.userId);
       const incident = await IncidentService.updateStatus(req.params.id, req.user.id, req.body);
       return ApiResponse.success(res, incident, 'Incident status updated successfully');
     } catch (err) {

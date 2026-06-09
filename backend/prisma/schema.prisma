@@ -1366,6 +1366,10 @@ model LeaveRequest {
   reason        String        @db.Text
   attachmentUrl String?       @db.VarChar(500)
   status        RequestStatus @default(PENDING)
+  supervisorReviewedBy   Int?
+  supervisorReviewedAt   DateTime?
+  supervisorReviewNotes  String?       @db.Text
+  supervisorApproved     Boolean       @default(false)
   reviewedBy    Int?
   reviewedAt    DateTime?
   reviewNotes   String?       @db.Text
@@ -1396,6 +1400,10 @@ model SalaryAdvance {
   installmentAmount Decimal?  @db.Decimal(10, 2)
   deductFromCurrent Boolean   @default(false)
   status        RequestStatus @default(PENDING)
+  supervisorReviewedBy   Int?
+  supervisorReviewedAt   DateTime?
+  supervisorReviewNotes  String?       @db.Text
+  supervisorApproved     Boolean       @default(false)
   reviewedBy    Int?
   reviewedAt    DateTime?
   reviewNotes   String?       @db.Text

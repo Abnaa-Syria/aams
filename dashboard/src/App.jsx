@@ -106,8 +106,8 @@ export default function App() {
             <Route path="rewards/:id" element={<PermissionRoute anyOf={[P.HR_READ]}><RewardDetailPage /></PermissionRoute>} />
             <Route path="leaves" element={<PermissionRoute anyOf={[P.HR_READ]}><LeavesPage /></PermissionRoute>} />
             <Route path="leaves/:id" element={<PermissionRoute anyOf={[P.HR_READ]}><LeaveDetailPage /></PermissionRoute>} />
-            <Route path="salary-advances" element={<PermissionRoute anyOf={[P.FINANCE_READ]}><SalaryAdvancesPage /></PermissionRoute>} />
-            <Route path="salary-advances/:id" element={<PermissionRoute anyOf={[P.FINANCE_READ]}><SalaryAdvanceDetailPage /></PermissionRoute>} />
+            <Route path="salary-advances" element={<PermissionRoute anyOf={[P.FINANCE_READ, P.HR_READ]}><SalaryAdvancesPage /></PermissionRoute>} />
+            <Route path="salary-advances/:id" element={<PermissionRoute anyOf={[P.FINANCE_READ, P.HR_READ]}><SalaryAdvanceDetailPage /></PermissionRoute>} />
             <Route path="maintenance" element={<Navigate to="/maintenance-requests" replace />} />
             <Route path="maintenance-requests" element={<PermissionRoute anyOf={[P.INVENTORY_READ]}><MaintenancePage /></PermissionRoute>} />
             <Route path="maintenance-requests/:id" element={<PermissionRoute anyOf={[P.INVENTORY_READ]}><MaintenanceRequestDetailPage /></PermissionRoute>} />

@@ -57,6 +57,8 @@ router.patch('/:id', ...sharedPerm(P.FINANCE_WRITE), SalaryAdvanceController.upd
  *     security:
  *       - bearerAuth: []
  */
+router.patch('/:id/supervisor-review', ...sharedPerm(P.FINANCE_READ), SalaryAdvanceController.supervisorReview);
+
 router.patch('/:id/review', ...sharedPerm(P.FINANCE_APPROVE), SalaryAdvanceController.review);
 
 /**

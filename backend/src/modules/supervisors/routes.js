@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const SupervisorController = require('./controller');
 const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
+const { requireAppRole } = require('../../middlewares/auth');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 
 /**
@@ -25,6 +26,9 @@ const { PERMISSIONS: P } = require('../../constants/permissions');
  *       200:
  *         description: Supervisors list
  */
+router.get('/me/dashboard', ...sharedPerm(P.DASHBOARD_VIEW), requireAppRole('SUPERVISOR'), SupervisorController.getMyDashboard);
+router.get('/me/drivers', ...sharedPerm(P.USERS_READ), requireAppRole('SUPERVISOR'), SupervisorController.getMyDrivers);
+
 router.get('/', ...sharedPerm(P.USERS_READ), SupervisorController.list);
 
 /**

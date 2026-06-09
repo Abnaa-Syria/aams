@@ -104,6 +104,12 @@ class ShiftController {
       return ApiResponse.success(res, shift, 'Shift closure approved');
     } catch (err) { next(err); }
   }
+  static async forceEnd(req, res, next) {
+    try {
+      const shift = await ShiftService.forceEnd(req.params.id, req.user, req.body?.reason);
+      return ApiResponse.success(res, shift, 'Shift force ended');
+    } catch (err) { next(err); }
+  }
   static async startShift(req, res, next) {
     try {
       const shift = await ShiftService.startShift(req.params.id, req.user.id);

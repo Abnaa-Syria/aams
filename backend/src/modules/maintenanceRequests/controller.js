@@ -42,6 +42,8 @@ class MaintenanceRequestController {
 
   static async updateStatus(req, res, next) {
     try {
+      const existing = await MaintenanceRequestService.getById(req.params.id);
+      await assertCanAccessDriverRecord(req, existing.userId);
       const request = await MaintenanceRequestService.updateStatus(req.params.id, req.user.id, req.body);
       return ApiResponse.success(res, request, 'Maintenance request status updated successfully');
     } catch (err) {

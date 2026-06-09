@@ -45,8 +45,17 @@ class SalaryAdvanceController {
 
   static async review(req, res, next) {
     try {
-      const item = await SalaryAdvanceService.review(req.params.id, req.user.id, req.body);
+      const item = await SalaryAdvanceService.review(req.params.id, req.user.id, req.body, req.user);
       return ApiResponse.success(res, item, 'Salary advance reviewed');
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async supervisorReview(req, res, next) {
+    try {
+      const item = await SalaryAdvanceService.supervisorReview(req.params.id, req.user, req.body);
+      return ApiResponse.success(res, item, 'Supervisor review recorded');
     } catch (err) {
       next(err);
     }

@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const VehicleController = require('./controller');
-const { authenticate } = require('../../middlewares/auth');
+const { requireAppRole } = require('../../middlewares/auth');
 const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 
@@ -43,6 +43,7 @@ const { PERMISSIONS: P } = require('../../constants/permissions');
  *         description: Created
  */
 router.get('/', ...sharedPerm(P.FLEET_READ), VehicleController.list);
+router.post('/driver', ...sharedPerm(P.FLEET_WRITE), requireAppRole('DRIVER'), VehicleController.createForDriver);
 
 /**
  * @openapi

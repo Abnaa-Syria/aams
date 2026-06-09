@@ -4,14 +4,14 @@ const ApiResponse = require('../../utils/response');
 class UserController {
   static async list(req, res, next) {
     try {
-      const { users, meta } = await UserService.list(req.query);
+      const { users, meta } = await UserService.list(req.query, req.user);
       return ApiResponse.paginated(res, users, meta, 'Users retrieved');
     } catch (err) { next(err); }
   }
 
   static async getById(req, res, next) {
     try {
-      const user = await UserService.getById(req.params.id);
+      const user = await UserService.getById(req.params.id, req.user);
       return ApiResponse.success(res, user, 'User retrieved');
     } catch (err) { next(err); }
   }

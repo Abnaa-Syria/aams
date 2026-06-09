@@ -1,10 +1,17 @@
 const prisma = require('../../config/database');
-const { NotFoundError } = require('../../utils/errors');
+const { NotFoundError, BusinessLogicError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
 const { ADMIN_ROLES, mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
 const { mergeAppUserIdFilter } = require('../../utils/driverIdentity');
+const {
+  assertCanAccessOwnOrDriverRecord,
+  assertSupervisorCanInitialReview,
+  assertSupervisorCannotFinalReviewOwn,
+  buildSupervisorTeamOrSelfFilter,
+  isSupervisor,
+} = require('../../utils/recordAccess');
 
 class LeaveRequestService {
   static async list(query, currentUser) {
@@ -15,18 +22,15 @@ class LeaveRequestService {
       ...(query.userId && { userId: parseInt(query.userId) }),
     };
 
-    // Scoping using userId and appRole
     if (currentUser.appRole === 'DRIVER') {
       where.userId = currentUser.id;
     } else if (currentUser.appRole === 'SUPERVISOR') {
-      where.user = { appUser: { supervisorId: currentUser.appUserId } };
+      where = { ...where, ...buildSupervisorTeamOrSelfFilter(currentUser) };
     } else if (!ADMIN_ROLES.has(currentUser.role)) {
       where.userId = -1;
     }
     where = mergeAppUserIdFilter(where, query.appUserId);
-    
     where = mergeDriverNameIntoUserWhere(where, query);
-
 
     const [items, total] = await Promise.all([
       prisma.leaveRequest.findMany({
@@ -42,7 +46,6 @@ class LeaveRequestService {
       appUser: item.user ? { user: item.user } : null,
     }));
 
-
     return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
 
@@ -53,9 +56,12 @@ class LeaveRequestService {
     });
 
     if (!item) throw new NotFoundError('Leave Request');
-    
+
     if (currentUser.appRole === 'DRIVER' && item.userId !== currentUser.id) {
       throw new NotFoundError('Leave Request');
+    }
+    if (currentUser.appRole === 'SUPERVISOR') {
+      await assertCanAccessOwnOrDriverRecord(currentUser, item.userId);
     }
 
     return item;
@@ -106,8 +112,7 @@ class LeaveRequestService {
     if (data.endDate !== undefined) updateData.endDate = new Date(data.endDate);
     if (data.reason !== undefined) updateData.reason = data.reason;
     if (data.status !== undefined) updateData.status = data.status;
-    
-    // Recalculate totalDays if dates change
+
     if (updateData.startDate || updateData.endDate) {
       const s = updateData.startDate || existing.startDate;
       const e = updateData.endDate || existing.endDate;
@@ -123,9 +128,47 @@ class LeaveRequestService {
     return updated;
   }
 
-  static async review(id, adminId, data) {
+  static async supervisorReview(id, currentUser, data) {
     const leaveReq = await prisma.leaveRequest.findUnique({ where: { id: parseInt(id) } });
     if (!leaveReq) throw new NotFoundError('Leave Request');
+    if (leaveReq.status !== 'PENDING') {
+      throw new BusinessLogicError('يمكن مراجعة الطلبات المعلقة فقط');
+    }
+
+    await assertSupervisorCanInitialReview(currentUser, leaveReq.userId);
+
+    const approved = data.approved === true || data.status === 'APPROVED';
+    const updated = await prisma.leaveRequest.update({
+      where: { id: parseInt(id) },
+      data: {
+        supervisorReviewedBy: currentUser.id,
+        supervisorReviewedAt: new Date(),
+        supervisorReviewNotes: data.reviewNotes || data.supervisorReviewNotes || null,
+        supervisorApproved: approved,
+        ...(approved === false && data.status === 'REJECTED' ? { status: 'REJECTED' } : {}),
+      },
+    });
+
+    await logAudit({
+      userId: currentUser.id,
+      action: 'SUPERVISOR_REVIEW_LEAVE',
+      entity: 'LeaveRequest',
+      entityId: String(id),
+      newValue: { supervisorApproved: approved },
+    });
+    return updated;
+  }
+
+  static async review(id, adminId, data, currentUser = null) {
+    const leaveReq = await prisma.leaveRequest.findUnique({ where: { id: parseInt(id) } });
+    if (!leaveReq) throw new NotFoundError('Leave Request');
+
+    if (currentUser && isSupervisor(currentUser)) {
+      throw new BusinessLogicError('استخدم مراجعة المشرف المبدئية لهذا الطلب');
+    }
+    if (currentUser) {
+      assertSupervisorCannotFinalReviewOwn(currentUser, leaveReq.userId);
+    }
 
     const result = await prisma.$transaction(async (tx) => {
       const updated = await tx.leaveRequest.update({
@@ -138,7 +181,6 @@ class LeaveRequestService {
         },
       });
 
-      // Update leave balance if approved
       if (data.status === 'APPROVED') {
         const year = new Date().getFullYear();
         await tx.leaveBalance.upsert({

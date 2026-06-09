@@ -1,13 +1,16 @@
 import { useState } from 'react';
+import { useSelector } from 'react-redux';
 import GenericListPage from '../../components/ui/GenericListPage';
 import StatusBadge from '../../components/ui/StatusBadge';
 import StatusSelect from '../../components/ui/StatusSelect';
 import Modal from '../../components/ui/Modal';
 import UserSelect from '../../components/ui/UserSelect';
+import PermissionGate from '../../components/auth/PermissionGate';
 import { apiService } from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { LuPlus, LuPencil, LuEye } from 'react-icons/lu';
+import { isSupervisorUser, PERMISSIONS, hasAnyPermissionForUser } from '../../utils/rolePermissions';
 
 const columns = [
   { key: 'user', label: 'الموظف', render: (v) => v?.fullNameAr || '—' },
@@ -32,8 +35,33 @@ const statusOptions = [
   { value: 'CANCELLED', label: 'ملغي' },
 ];
 
+function SupervisorAdvanceReviewButtons({ row, onDone }) {
+  const handleReview = async (approved) => {
+    try {
+      await apiService.patch(`/salary-advances/${row.id}/supervisor-review`, {
+        approved,
+        status: approved ? 'APPROVED' : 'REJECTED',
+      });
+      toast.success(approved ? 'تمت التوصية بالموافقة' : 'تم الرفض');
+      onDone?.();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'فشلت المراجعة');
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-1">
+      <button type="button" onClick={() => handleReview(true)} className="px-2 py-1 text-[10px] font-bold rounded-lg bg-emerald-50 text-emerald-700">توصية</button>
+      <button type="button" onClick={() => handleReview(false)} className="px-2 py-1 text-[10px] font-bold rounded-lg bg-rose-50 text-rose-700">رفض</button>
+    </div>
+  );
+}
+
 export default function SalaryAdvancesPage() {
   const navigate = useNavigate();
+  const user = useSelector((s) => s.auth.user);
+  const supervisor = isSupervisorUser(user);
+  const canFinalReview = hasAnyPermissionForUser(user, [PERMISSIONS.FINANCE_APPROVE]);
   const [showCreate, setShowCreate] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedAdvance, setSelectedAdvance] = useState(null);
@@ -57,14 +85,15 @@ export default function SalaryAdvancesPage() {
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    if (!form.userId || !form.amount || !form.reason) {
+    const effectiveUserId = supervisor ? user.id : form.userId;
+    if (!effectiveUserId || !form.amount || !form.reason) {
       toast.error('يرجى تعبئة جميع الحقول المطلوبة');
       return;
     }
     setLoading(true);
     try {
       await apiService.post('/salary-advances', {
-        userId: form.userId,
+        userId: effectiveUserId,
         amount: parseFloat(form.amount),
         reason: form.reason,
         notes: form.notes || undefined,
@@ -103,10 +132,12 @@ export default function SalaryAdvancesPage() {
   };
 
   const createButton = (
-    <button onClick={() => setShowCreate(true)} className="btn btn-primary flex items-center gap-2">
-      <LuPlus size={18} />
-      <span>إضافة سلفة</span>
-    </button>
+    <PermissionGate anyOf={[PERMISSIONS.FINANCE_WRITE]}>
+      <button onClick={() => setShowCreate(true)} className="btn btn-primary flex items-center gap-2">
+        <LuPlus size={18} />
+        <span>{supervisor ? 'طلب سلفة لي' : 'إضافة سلفة'}</span>
+      </button>
+    </PermissionGate>
   );
 
   const actionsColumn = {
@@ -115,14 +146,19 @@ export default function SalaryAdvancesPage() {
     stopRowClick: true,
     render: (_, row) => (
       <div className="flex items-center gap-2">
-        <StatusSelect
-          id={row.id}
-          currentStatus={row.status}
-          apiUrl={`/salary-advances/${row.id}/review`}
-          options={statusOptions}
-          size="xs"
-          onSuccess={() => setReloadToken((t) => t + 1)}
-        />
+        {supervisor && row.userId !== user?.id && row.status === 'PENDING' && !row.supervisorApproved && (
+          <SupervisorAdvanceReviewButtons row={row} onDone={() => setReloadToken((t) => t + 1)} />
+        )}
+        {canFinalReview && (
+          <StatusSelect
+            id={row.id}
+            currentStatus={row.status}
+            apiUrl={`/salary-advances/${row.id}/review`}
+            options={statusOptions}
+            size="xs"
+            onSuccess={() => setReloadToken((t) => t + 1)}
+          />
+        )}
         <button
           onClick={() => navigate(`/salary-advances/${row.id}`)}
           className="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:text-primary hover:bg-primary-light/10 transition-all"
@@ -150,7 +186,7 @@ export default function SalaryAdvancesPage() {
 
       <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="إضافة طلب سلفة جديد">
         <form onSubmit={handleCreate} className="space-y-5">
-          <UserSelect value={form.userId} onChange={(v) => setForm((f) => ({ ...f, userId: v }))} required />
+          {!supervisor && <UserSelect value={form.userId} onChange={(v) => setForm((f) => ({ ...f, userId: v }))} required />}
 
           <div>
             <label className="block text-sm font-bold text-slate-600 mb-2">المبلغ (ر.س)</label>

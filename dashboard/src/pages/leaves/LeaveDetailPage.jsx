@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import { LuChevronLeft } from 'react-icons/lu';
 import { apiService } from '../../services/api';
 import StatusBadge from '../../components/ui/StatusBadge';
 import StatusSelect from '../../components/ui/StatusSelect';
 import AttachmentGallery from '../../components/attachments/AttachmentGallery';
+import { hasAnyPermissionForUser, isSupervisorUser, PERMISSIONS } from '../../utils/rolePermissions';
 
 const leaveTypeLabels = { ANNUAL: 'سنوية', SICK: 'مرضية', EMERGENCY: 'طارئة', UNPAID: 'بدون راتب', OTHER: 'أخرى' };
 
@@ -45,8 +47,24 @@ const statusOptions = [
 export default function LeaveDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const user = useSelector((s) => s.auth.user);
+  const supervisor = isSupervisorUser(user);
+  const canFinalReview = hasAnyPermissionForUser(user, [PERMISSIONS.HR_APPROVE]);
   const [row, setRow] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const handleSupervisorReview = async (approved) => {
+    try {
+      await apiService.patch(`/leave-requests/${id}/supervisor-review`, {
+        approved,
+        status: approved ? 'APPROVED' : 'REJECTED',
+      });
+      toast.success(approved ? 'تمت التوصية بالموافقة' : 'تم الرفض');
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'فشلت المراجعة');
+    }
+  };
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -114,20 +132,34 @@ export default function LeaveDetailPage() {
             <Field label="السبب" value={row.reason} />
             <div className="flex items-start justify-between gap-6 py-3 border-b border-slate-100">
               <div className="text-xs font-black text-slate-400 uppercase tracking-widest shrink-0">الحالة</div>
-              <StatusSelect
-                id={row.id}
-                currentStatus={row.status}
-                apiUrl={`/leave-requests/${row.id}/review`}
-                options={statusOptions}
-                size="md"
-                onSuccess={load}
-              />
+              <StatusBadge status={row.status} />
             </div>
+            {supervisor && row.userId !== user?.id && row.status === 'PENDING' && !row.supervisorApproved && (
+              <div className="flex gap-2 pt-3">
+                <button type="button" onClick={() => handleSupervisorReview(true)} className="btn btn-primary flex-1">توصية بالموافقة</button>
+                <button type="button" onClick={() => handleSupervisorReview(false)} className="btn bg-rose-50 text-rose-700 flex-1">رفض</button>
+              </div>
+            )}
+            {canFinalReview && (
+              <div className="pt-3">
+                <StatusSelect
+                  id={row.id}
+                  currentStatus={row.status}
+                  apiUrl={`/leave-requests/${row.id}/review`}
+                  options={statusOptions}
+                  size="md"
+                  onSuccess={load}
+                />
+              </div>
+            )}
           </Section>
 
           <Section title="معلومات المراجعة">
-            <Field label="تاريخ المراجعة" value={formatDate(row.reviewedAt)} />
-            <Field label="ملاحظات المراجعة" value={row.reviewNotes} />
+            <Field label="مراجعة المشرف" value={row.supervisorApproved ? 'موصى بالموافقة' : row.supervisorReviewedAt ? 'تمت المراجعة' : '—'} />
+            <Field label="تاريخ مراجعة المشرف" value={formatDate(row.supervisorReviewedAt)} />
+            <Field label="ملاحظات المشرف" value={row.supervisorReviewNotes} />
+            <Field label="تاريخ المراجعة النهائية" value={formatDate(row.reviewedAt)} />
+            <Field label="ملاحظات المراجعة النهائية" value={row.reviewNotes} />
           </Section>
         </div>
 

@@ -1210,7 +1210,7 @@ const ROLES_MAP = {
     HR_ADMIN:          { labelAr: 'مدير موارد بشرية', labelEn: 'HR Admin',         isSystem: true,  perms: ['users:read', 'documents:read', 'documents:review', 'documents:write', 'hr:read', 'hr:approve', 'hr:write', 'compliance:read', 'settings:read', 'inventory:read', 'dashboard:view'] },
     FLEET_ADMIN:       { labelAr: 'مدير أسطول',     labelEn: 'Fleet Admin',        isSystem: true,  perms: ['users:read', 'fleet:read', 'fleet:write', 'shifts:read', 'shifts:approve', 'shifts:write', 'documents:read', 'documents:review', 'documents:write', 'settings:read', 'compliance:read', 'compliance:write', 'inventory:read', 'inventory:write', 'dashboard:view'] },
     FINANCE_ADMIN:     { labelAr: 'مدير مالي',       labelEn: 'Finance Admin',     isSystem: true,  perms: ['users:read', 'finance:read', 'finance:approve', 'finance:write', 'hr:read', 'documents:read', 'settings:read', 'dashboard:view'] },
-    SUPERVISOR:        { labelAr: 'مشرف',            labelEn: 'Supervisor',        isSystem: false, perms: ['users:read', 'shifts:read', 'shifts:write', 'documents:read', 'compliance:read'] },
+    SUPERVISOR:        { labelAr: 'مشرف',            labelEn: 'Supervisor',        isSystem: false, perms: ['users:read', 'shifts:read', 'shifts:approve', 'shifts:write', 'documents:read', 'compliance:read', 'hr:read', 'hr:write', 'finance:read', 'finance:write', 'fleet:read', 'inventory:read', 'dashboard:view', 'daily-reports:read'] },
     DRIVER:            { labelAr: 'سائق',             labelEn: 'Driver',            isSystem: false, perms: [] },
   };
 

@@ -33,6 +33,8 @@ class FuelLogController {
 
   static async reviewLog(req, res, next) {
     try {
+      const existing = await FuelLogService.getById(req.params.id);
+      await assertCanAccessDriverRecord(req, existing.userId);
       const log = await FuelLogService.review(req.params.id, req.user.id, req.body);
       return ApiResponse.success(res, log, 'Fuel log reviewed successfully');
     } catch (err) {

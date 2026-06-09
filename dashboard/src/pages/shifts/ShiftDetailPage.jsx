@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
+import { hasAnyPermissionForUser, PERMISSIONS } from '../../utils/rolePermissions';
 import { 
   LuChevronLeft, LuUser, LuTruck, LuActivity, LuClock, LuFuel, 
   LuTriangleAlert, LuCircleAlert, LuClipboardList, LuEye, LuMapPin,
@@ -84,8 +86,22 @@ function PhotoItem({ label, url }) {
 export default function ShiftDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const user = useSelector((s) => s.auth.user);
+  const canApprove = hasAnyPermissionForUser(user, [PERMISSIONS.SHIFTS_APPROVE]);
   const [row, setRow] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const handleShiftAction = async (action, body = {}) => {
+    try {
+      if (action === 'approve') await apiService.post(`/shifts/${id}/approve`);
+      else if (action === 'reject') await apiService.post(`/shifts/${id}/reject`, body);
+      else if (action === 'force-end') await apiService.post(`/shifts/${id}/force-end`, body);
+      toast.success('تم تنفيذ الإجراء');
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'فشل الإجراء');
+    }
+  };
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -153,11 +169,24 @@ export default function ShiftDetailPage() {
               </p>
             </div>
           </div>
-          <div className="flex gap-3">
-             <div className="flex flex-col items-end">
-                <div className="text-[0.65rem] font-black text-slate-400 uppercase tracking-widest mb-1">تاريخ الطلب</div>
-                <div className="text-sm font-black text-slate-700">{formatDate(row.requestedAt)}</div>
-             </div>
+          <div className="flex flex-col items-end gap-3">
+            <div className="flex flex-col items-end">
+              <div className="text-[0.65rem] font-black text-slate-400 uppercase tracking-widest mb-1">تاريخ الطلب</div>
+              <div className="text-sm font-black text-slate-700">{formatDate(row.requestedAt)}</div>
+            </div>
+            {canApprove && (
+              <div className="flex flex-wrap gap-2 justify-end">
+                {row.status === 'REQUESTED' && (
+                  <>
+                    <button type="button" onClick={() => handleShiftAction('approve')} className="btn btn-primary !py-2 !px-4 text-sm">موافقة</button>
+                    <button type="button" onClick={() => handleShiftAction('reject', { reason: 'مرفوض من المشرف' })} className="btn bg-rose-50 text-rose-700 !py-2 !px-4 text-sm">رفض</button>
+                  </>
+                )}
+                {row.status === 'ACTIVE' && (
+                  <button type="button" onClick={() => handleShiftAction('force-end', { reason: 'إنهاء اضطراري من المشرف' })} className="btn bg-amber-50 text-amber-800 !py-2 !px-4 text-sm">إنهاء اضطراري</button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -18,7 +18,7 @@ class VehicleSwapController {
 
   static async review(req, res, next) {
     try {
-      const swapReq = await VehicleSwapService.review(req.params.id, req.user.id, req.validated.body);
+      const swapReq = await VehicleSwapService.review(req.params.id, req.user.id, req.validated.body, req.user);
       return ApiResponse.success(res, swapReq, 'Vehicle swap request reviewed');
     } catch (err) { next(err); }
   }

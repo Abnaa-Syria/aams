@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const { NotFoundError, ConflictError, BusinessLogicError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta, buildOrderBy, buildSearchFilter } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
+const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
 
 const USER_SELECT = {
   id: true,
@@ -80,7 +81,7 @@ const USER_DETAIL_SELECT = {
 };
 
 class UserService {
-  static async list(query) {
+  static async list(query, currentUser = null) {
     const { page, limit, skip } = getPaginationParams(query);
     const orderBy = buildOrderBy(query, ['createdAt', 'fullNameAr', 'fullNameEn', 'identityNumber', 'employeeNumber']);
     const searchFilter = buildSearchFilter(query, ['fullNameAr', 'fullNameEn', 'identityNumber', 'mobileNumber', 'email', 'employeeNumber', 'sevenHundredNumber']);
@@ -90,6 +91,15 @@ class UserService {
       ...searchFilter,
       ...(query.accountStatus && { accountStatus: query.accountStatus }),
     };
+
+    if (currentUser?.appRole === 'SUPERVISOR') {
+      where.userType = 'APP_USER';
+      where.appUser = {
+        ...(where.appUser || {}),
+        supervisorId: currentUser.appUserId,
+        appRole: 'DRIVER',
+      };
+    }
 
     // Correctly handle role filtering based on new architecture
     if (query.role) {
@@ -164,12 +174,16 @@ class UserService {
     return { users: transformedUsers, meta: buildPaginationMeta(total, page, limit) };
   }
 
-  static async getById(id) {
+  static async getById(id, currentUser = null) {
     const user = await prisma.user.findFirst({
       where: { id: parseInt(id), deletedAt: null },
       select: USER_DETAIL_SELECT,
     });
     if (!user) throw new NotFoundError('User');
+
+    if (currentUser?.appRole === 'SUPERVISOR') {
+      await assertCanAccessDriverRecord(currentUser, user.id);
+    }
     const { appUser, ...rest } = user;
     return {
       ...rest,

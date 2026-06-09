@@ -1,5 +1,5 @@
 const prisma = require('../../config/database');
-const { NotFoundError, BusinessLogicError } = require('../../utils/errors');
+const { NotFoundError, BusinessLogicError, ConflictError, ValidationError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta, buildOrderBy, buildSearchFilter } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
 const { buildDriverNameUserFilter } = require('../../utils/listScope');
@@ -75,6 +75,89 @@ class VehicleService {
 
   static async create(data) {
     return prisma.vehicle.create({ data });
+  }
+
+  static parseOptionalInt(value) {
+    if (value === undefined || value === null || value === '') return undefined;
+    const parsed = parseInt(value, 10);
+    if (Number.isNaN(parsed)) throw new ValidationError('Invalid numeric value');
+    return parsed;
+  }
+
+  static parseOptionalDate(value) {
+    if (!value) return undefined;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) throw new ValidationError('Invalid date value');
+    return date;
+  }
+
+  static async createForDriver(currentUser, data) {
+    if (currentUser?.appRole !== 'DRIVER') {
+      throw new BusinessLogicError('Only drivers can add their own vehicles');
+    }
+
+    const plateNumber = String(data.plateNumber || '').trim();
+    if (!plateNumber) throw new ValidationError('plateNumber is required');
+
+    const existingVehicle = await prisma.vehicle.findFirst({
+      where: { plateNumber, deletedAt: null },
+      select: { id: true },
+    });
+    if (existingVehicle) {
+      throw new ConflictError('رقم اللوحة مسجل مسبقاً');
+    }
+
+    const activeAssignment = await prisma.vehicleAssignment.findFirst({
+      where: { userId: currentUser.id, isActive: true },
+      select: { id: true },
+    });
+    if (activeAssignment) {
+      throw new BusinessLogicError('لديك مركبة نشطة بالفعل');
+    }
+
+    const vehicleData = {
+      plateNumber,
+      manufacturer: data.manufacturer || data.make || data.brand || undefined,
+      model: data.model || undefined,
+      year: VehicleService.parseOptionalInt(data.year),
+      color: data.color || undefined,
+      odometerKm: VehicleService.parseOptionalInt(data.odometerKm ?? data.odometer),
+      ownershipStatus: 'DRIVER_OWNED',
+      status: 'ACTIVE',
+      insuranceCompany: data.insuranceCompany || undefined,
+      insurancePolicyNo: data.insurancePolicyNo || data.insurancePolicyNumber || undefined,
+      insuranceStartDate: VehicleService.parseOptionalDate(data.insuranceStartDate),
+      insuranceExpiryDate: VehicleService.parseOptionalDate(data.insuranceExpiryDate || data.insuranceEndDate),
+      registrationNumber: data.registrationNumber || data.istimaraNumber || undefined,
+      registrationExpiry: VehicleService.parseOptionalDate(data.registrationExpiry || data.registrationExpiryDate || data.istimaraExpiryDate),
+      tankCapacity: VehicleService.parseOptionalInt(data.tankCapacity),
+      fuelType: data.fuelType || undefined,
+      notes: data.notes || undefined,
+    };
+
+    const result = await prisma.$transaction(async (tx) => {
+      const vehicle = await tx.vehicle.create({ data: vehicleData });
+      const assignment = await tx.vehicleAssignment.create({
+        data: {
+          vehicleId: vehicle.id,
+          userId: currentUser.id,
+          isActive: true,
+          notes: data.assignmentNotes || 'Driver added own vehicle',
+        },
+      });
+
+      return { vehicle, assignment };
+    });
+
+    await logAudit({
+      userId: currentUser.id,
+      action: 'DRIVER_CREATE_VEHICLE',
+      entity: 'Vehicle',
+      entityId: String(result.vehicle.id),
+      newValue: { plateNumber, ownershipStatus: 'DRIVER_OWNED' },
+    });
+
+    return result;
   }
 
   static async update(id, data, adminUser) {

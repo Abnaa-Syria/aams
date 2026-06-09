@@ -1,14 +1,17 @@
 import { useState } from 'react';
+import { useSelector } from 'react-redux';
 import GenericListPage from '../../components/ui/GenericListPage';
 import StatusBadge from '../../components/ui/StatusBadge';
 import StatusSelect from '../../components/ui/StatusSelect';
 import Modal from '../../components/ui/Modal';
 import FileUploadField from '../../components/ui/FileUploadField';
 import UserSelect from '../../components/ui/UserSelect';
+import PermissionGate from '../../components/auth/PermissionGate';
 import { apiService } from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { LuPlus, LuPencil, LuEye } from 'react-icons/lu';
+import { isSupervisorUser, PERMISSIONS, hasAnyPermissionForUser } from '../../utils/rolePermissions';
 
 const leaveTypeLabels = { ANNUAL: 'سنوية', SICK: 'مرضية', EMERGENCY: 'طارئة', UNPAID: 'بدون راتب', OTHER: 'أخرى' };
 const statusOptions = [
@@ -35,7 +38,7 @@ const columns = [
   ), stopRowClick: true },
 ];
 
-function LeaveModal({ isOpen, onClose, leave, onSave }) {
+function LeaveModal({ isOpen, onClose, leave, onSave, selfMode = false, currentUserId = null }) {
   const [form, setForm] = useState({
     userId: '',
     leaveType: '',
@@ -52,14 +55,15 @@ function LeaveModal({ isOpen, onClose, leave, onSave }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.userId || !form.leaveType || !form.startDate || !form.endDate || !form.reason) {
+    const effectiveUserId = selfMode ? currentUserId : form.userId;
+    if (!effectiveUserId || !form.leaveType || !form.startDate || !form.endDate || !form.reason) {
       toast.error('يرجى تعبئة جميع الحقول المطلوبة');
       return;
     }
     setLoading(true);
     try {
       const formData = new FormData();
-      formData.append('userId', form.userId);
+      formData.append('userId', effectiveUserId);
       formData.append('leaveType', form.leaveType);
       formData.append('startDate', form.startDate);
       formData.append('endDate', form.endDate);
@@ -109,12 +113,14 @@ function LeaveModal({ isOpen, onClose, leave, onSave }) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={leave ? 'تحديث طلب الإجازة' : 'إضافة طلب إجازة جديد'}>
       <form onSubmit={handleSubmit} className="space-y-5">
-        <UserSelect 
-          value={form.userId} 
-          onChange={(v) => setForm((f) => ({ ...f, userId: v }))} 
-          required 
-          disabled={!!leave}
-        />
+        {!selfMode && (
+          <UserSelect
+            value={form.userId}
+            onChange={(v) => setForm((f) => ({ ...f, userId: v }))}
+            required
+            disabled={!!leave}
+          />
+        )}
 
         <div>
           <label className="block text-sm font-bold text-slate-600 mb-2">نوع الإجازة</label>
@@ -178,8 +184,33 @@ function LeaveModal({ isOpen, onClose, leave, onSave }) {
   );
 }
 
+function SupervisorReviewButtons({ row, onDone }) {
+  const handleReview = async (approved) => {
+    try {
+      await apiService.patch(`/leave-requests/${row.id}/supervisor-review`, {
+        approved,
+        status: approved ? 'APPROVED' : 'REJECTED',
+      });
+      toast.success(approved ? 'تمت التوصية بالموافقة' : 'تم الرفض');
+      onDone?.();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'فشلت المراجعة');
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-1">
+      <button type="button" onClick={() => handleReview(true)} className="px-2 py-1 text-[10px] font-bold rounded-lg bg-emerald-50 text-emerald-700">توصية</button>
+      <button type="button" onClick={() => handleReview(false)} className="px-2 py-1 text-[10px] font-bold rounded-lg bg-rose-50 text-rose-700">رفض</button>
+    </div>
+  );
+}
+
 export default function LeavesPage() {
   const navigate = useNavigate();
+  const user = useSelector((s) => s.auth.user);
+  const supervisor = isSupervisorUser(user);
+  const canFinalReview = hasAnyPermissionForUser(user, [PERMISSIONS.HR_APPROVE]);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [selectedLeave, setSelectedLeave] = useState(null);
@@ -201,10 +232,12 @@ export default function LeavesPage() {
   };
 
   const createButton = (
-    <button onClick={() => setCreateModalOpen(true)} className="btn btn-primary flex items-center gap-2">
-      <LuPlus size={18} />
-      <span>إضافة إجازة</span>
-    </button>
+    <PermissionGate anyOf={[PERMISSIONS.HR_WRITE]}>
+      <button onClick={() => setCreateModalOpen(true)} className="btn btn-primary flex items-center gap-2">
+        <LuPlus size={18} />
+        <span>{supervisor ? 'طلب إجازة لي' : 'إضافة إجازة'}</span>
+      </button>
+    </PermissionGate>
   );
 
   const actionsColumn = {
@@ -213,14 +246,19 @@ export default function LeavesPage() {
     stopRowClick: true,
     render: (_, row) => (
       <div className="flex items-center gap-2">
-        <StatusSelect
-          id={row.id}
-          currentStatus={row.status}
-          apiUrl={`/leave-requests/${row.id}/review`}
-          options={statusOptions}
-          size="xs"
-          onSuccess={() => setReloadToken((t) => t + 1)}
-        />
+        {supervisor && row.userId !== user?.id && row.status === 'PENDING' && !row.supervisorApproved && (
+          <SupervisorReviewButtons row={row} onDone={() => setReloadToken((t) => t + 1)} />
+        )}
+        {canFinalReview && (
+          <StatusSelect
+            id={row.id}
+            currentStatus={row.status}
+            apiUrl={`/leave-requests/${row.id}/review`}
+            options={statusOptions}
+            size="xs"
+            onSuccess={() => setReloadToken((t) => t + 1)}
+          />
+        )}
         <button
           onClick={() => navigate(`/leaves/${row.id}`)}
           className="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:text-primary hover:bg-primary-light/10 transition-all"
@@ -258,6 +296,8 @@ export default function LeavesPage() {
         isOpen={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
         onSave={handleCreate}
+        selfMode={supervisor}
+        currentUserId={user?.id}
       />
       <LeaveModal
         isOpen={updateModalOpen}

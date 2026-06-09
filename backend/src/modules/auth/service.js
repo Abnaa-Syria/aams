@@ -56,14 +56,22 @@ function getClientMeta(req) {
 async function publicUserWithPermissions(user) {
   if (!user) return null;
   const { passwordHash, otpCode, otpExpiresAt, ...rest } = user;
-  
-  // Only inject permissions for ADMIN type users
+
   if (user.userType === 'ADMIN' && user.role) {
     rest.permissions = ROLE_PERMISSIONS[user.role] || [];
+  } else if (user.userType === 'APP_USER' && user.appUser?.appRole === 'SUPERVISOR') {
+    rest.role = 'SUPERVISOR';
+    rest.appRole = 'SUPERVISOR';
+    rest.appUserId = user.appUser.id;
+    rest.permissions = ROLE_PERMISSIONS.SUPERVISOR || [];
+  } else if (user.userType === 'APP_USER' && user.appUser?.appRole === 'DRIVER') {
+    rest.appRole = 'DRIVER';
+    rest.appUserId = user.appUser.id;
+    rest.permissions = [];
   } else {
     rest.permissions = [];
   }
-  
+
   return rest;
 }
 
@@ -407,7 +415,10 @@ class AuthService {
       throw new AuthenticationError('Invalid credentials');
     }
 
-    if (!ADMIN_ROLES.has(user.role)) {
+    const isSupervisorAppUser =
+      user.userType === 'APP_USER' && user.appUser?.appRole === 'SUPERVISOR';
+
+    if (!ADMIN_ROLES.has(user.role) && !isSupervisorAppUser) {
       throw new AuthenticationError('Invalid credentials');
     }
 
