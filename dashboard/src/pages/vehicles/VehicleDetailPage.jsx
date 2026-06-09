@@ -84,6 +84,8 @@ const STATUS_TRANSLATIONS = {
   OUT_OF_SERVICE: 'خارج الخدمة',
   RESERVED: 'محجوزة',
   DECOMMISSIONED: 'مستبعدة (خارج الخدمة)',
+  PENDING_VERIFICATION: 'بانتظار التحقق',
+  PENDING_REPLACEMENT: 'بانتظار الاستبدال',
   COMPANY_OWNED: 'ملك للشركة',
   DRIVER_OWNED: 'ملك للسائق',
   LEASED: 'منتهي بالتمليك',
@@ -91,7 +93,7 @@ const STATUS_TRANSLATIONS = {
 };
 
 const TAB_STATUS_MAPPINGS = {
-  overview: ['ACTIVE', 'IN_MAINTENANCE', 'OUT_OF_SERVICE', 'RESERVED', 'DECOMMISSIONED'],
+  overview: ['ACTIVE', 'IN_MAINTENANCE', 'OUT_OF_SERVICE', 'RESERVED', 'DECOMMISSIONED', 'PENDING_VERIFICATION', 'PENDING_REPLACEMENT'],
   documents: ['PENDING', 'APPROVED', 'REJECTED', 'EXPIRED'],
   fuel: ['PENDING', 'APPROVED', 'REJECTED'],
   violations: ['REPORTED', 'UNDER_REVIEW', 'CONFIRMED', 'DISMISSED', 'PENALIZED'],
@@ -286,6 +288,29 @@ export default function VehicleDetailPage() {
     }
   };
 
+  const handleApproveDriverSubmission = async () => {
+    if (!window.confirm('الموافقة على طلب مركبة السائق وتفعيلها؟')) return;
+    try {
+      await apiService.post(`/vehicles/${id}/approve-driver-submission`, {});
+      toast.success('تمت الموافقة على المركبة');
+      loadSummary();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'فشل الموافقة على الطلب');
+    }
+  };
+
+  const handleRejectDriverSubmission = async () => {
+    const reason = window.prompt('سبب الرفض (اختياري):');
+    if (reason === null) return;
+    try {
+      await apiService.post(`/vehicles/${id}/reject-driver-submission`, { reason: reason || undefined });
+      toast.success('تم رفض الطلب');
+      loadSummary();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'فشل رفض الطلب');
+    }
+  };
+
   if (loading || !summary) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -341,8 +366,24 @@ export default function VehicleDetailPage() {
             </p>
           </div>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap justify-end">
           <PermissionGate anyOf={[P.FLEET_WRITE]}>
+            {['PENDING_VERIFICATION', 'PENDING_REPLACEMENT'].includes(vehicle.status) && (
+              <>
+                <button
+                  className="px-6 py-3 rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700 font-black text-sm transition-all flex items-center gap-2 active:scale-95"
+                  onClick={handleApproveDriverSubmission}
+                >
+                  <LuCheck size={20} /> الموافقة على الطلب
+                </button>
+                <button
+                  className="px-6 py-3 rounded-2xl bg-red-50 text-red-600 hover:bg-red-100 font-black text-sm transition-all flex items-center gap-2"
+                  onClick={handleRejectDriverSubmission}
+                >
+                  رفض الطلب
+                </button>
+              </>
+            )}
             {activeDriver ? (
               <button 
                 className="px-6 py-3 rounded-2xl bg-red-50 text-red-600 hover:bg-red-100 font-black text-sm transition-all flex items-center gap-2 group" 

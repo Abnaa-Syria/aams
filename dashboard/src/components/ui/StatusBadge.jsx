@@ -36,6 +36,7 @@ const statusMap = {
   COMPLETED: { label: 'مكتمل', variant: 'success' },
   PENDING_RESPONSE: { label: 'بانتظار الرد', variant: 'info' },
   PENDING_VERIFICATION: { label: 'بانتظار التحقق', variant: 'info' },
+  PENDING_REPLACEMENT: { label: 'بانتظار الاستبدال', variant: 'warning' },
   INACTIVE: { label: 'غير نشط', variant: 'neutral' },
   SUSPENDED: { label: 'موقف', variant: 'danger' },
   IN_MAINTENANCE: { label: 'في الصيانة', variant: 'warning' },

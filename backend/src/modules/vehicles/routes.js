@@ -125,6 +125,8 @@ router.patch('/:id', ...sharedPerm(P.FLEET_WRITE), VehicleController.update);
  */
 router.post('/:id/assign', ...sharedPerm(P.FLEET_WRITE), VehicleController.assignDriver);
 router.post('/:id/assign-driver', ...sharedPerm(P.FLEET_WRITE), VehicleController.assignDriver);
+router.post('/:id/approve-driver-submission', ...sharedPerm(P.FLEET_WRITE), VehicleController.approveDriverSubmission);
+router.post('/:id/reject-driver-submission', ...sharedPerm(P.FLEET_WRITE), VehicleController.rejectDriverSubmission);
 
 /**
  * @openapi

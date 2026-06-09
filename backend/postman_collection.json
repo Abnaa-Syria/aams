@@ -1204,10 +1204,53 @@
 							"raw": "{\n    \"plateNumber\": \"أ ب ج 1234\",\n    \"manufacturer\": \"تويوتا\",\n    \"model\": \"كامري\",\n    \"year\": 2024,\n    \"color\": \"أبيض\",\n    \"odometerKm\": 12500,\n    \"insuranceCompany\": \"التعاونية للتأمين\",\n    \"insuranceExpiryDate\": \"2026-12-31\",\n    \"registrationExpiry\": \"2026-12-31\"\n}",
 							"options": { "raw": { "language": "json" } }
 						},
+						"description": "Creates PENDING_VERIFICATION when driver has no active vehicle, or PENDING_REPLACEMENT when replacing an active vehicle. Assignment stays inactive until admin approval.",
 						"url": {
 							"raw": "{{base_url}}/vehicles/driver",
 							"host": ["{{base_url}}"],
 							"path": ["vehicles", "driver"]
+						}
+					}
+				},
+				{
+					"name": "Approve Driver Vehicle Submission",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"notes\": \"تم التحقق من الاستمارة والتأمين\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/vehicles/:id/approve-driver-submission",
+							"host": ["{{base_url}}"],
+							"path": ["vehicles", ":id", "approve-driver-submission"],
+							"variable": [{ "key": "id", "value": "1" }]
+						}
+					}
+				},
+				{
+					"name": "Reject Driver Vehicle Submission",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{access_token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"reason\": \"بيانات الاستمارة غير مكتملة\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/vehicles/:id/reject-driver-submission",
+							"host": ["{{base_url}}"],
+							"path": ["vehicles", ":id", "reject-driver-submission"],
+							"variable": [{ "key": "id", "value": "1" }]
 						}
 					}
 				},

@@ -12,16 +12,25 @@ class VehicleService {
     const searchFilter = buildSearchFilter(query, ['plateNumber', 'manufacturer', 'model']);
     const driverNameFilter = buildDriverNameUserFilter(query);
 
-    // Operational scoping for DRIVER: restrict list to their active assigned vehicle(s)
+    // Operational scoping for DRIVER: active assignment + own pending submissions
     const appRole = currentUser?.appUser?.appRole;
     const isDriver = appRole === 'DRIVER';
     const scope = isDriver ? {
       assignments: {
         some: {
           userId: currentUser.id,
-          isActive: true,
-        }
-      }
+          OR: [
+            { isActive: true },
+            {
+              isActive: false,
+              releasedAt: null,
+              vehicle: {
+                status: { in: ['PENDING_VERIFICATION', 'PENDING_REPLACEMENT'] },
+              },
+            },
+          ],
+        },
+      },
     } : {};
 
     const where = {
@@ -91,31 +100,11 @@ class VehicleService {
     return date;
   }
 
-  static async createForDriver(currentUser, data) {
-    if (currentUser?.appRole !== 'DRIVER') {
-      throw new BusinessLogicError('Only drivers can add their own vehicles');
-    }
-
+  static buildDriverVehicleData(data) {
     const plateNumber = String(data.plateNumber || '').trim();
     if (!plateNumber) throw new ValidationError('plateNumber is required');
 
-    const existingVehicle = await prisma.vehicle.findFirst({
-      where: { plateNumber, deletedAt: null },
-      select: { id: true },
-    });
-    if (existingVehicle) {
-      throw new ConflictError('رقم اللوحة مسجل مسبقاً');
-    }
-
-    const activeAssignment = await prisma.vehicleAssignment.findFirst({
-      where: { userId: currentUser.id, isActive: true },
-      select: { id: true },
-    });
-    if (activeAssignment) {
-      throw new BusinessLogicError('لديك مركبة نشطة بالفعل');
-    }
-
-    const vehicleData = {
+    return {
       plateNumber,
       manufacturer: data.manufacturer || data.make || data.brand || undefined,
       model: data.model || undefined,
@@ -123,7 +112,6 @@ class VehicleService {
       color: data.color || undefined,
       odometerKm: VehicleService.parseOptionalInt(data.odometerKm ?? data.odometer),
       ownershipStatus: 'DRIVER_OWNED',
-      status: 'ACTIVE',
       insuranceCompany: data.insuranceCompany || undefined,
       insurancePolicyNo: data.insurancePolicyNo || data.insurancePolicyNumber || undefined,
       insuranceStartDate: VehicleService.parseOptionalDate(data.insuranceStartDate),
@@ -134,27 +122,230 @@ class VehicleService {
       fuelType: data.fuelType || undefined,
       notes: data.notes || undefined,
     };
+  }
+
+  static async findDriverPendingSubmission(userId) {
+    return prisma.vehicleAssignment.findFirst({
+      where: {
+        userId,
+        isActive: false,
+        releasedAt: null,
+        vehicle: {
+          deletedAt: null,
+          ownershipStatus: 'DRIVER_OWNED',
+          status: { in: ['PENDING_VERIFICATION', 'PENDING_REPLACEMENT'] },
+        },
+      },
+      include: {
+        vehicle: { select: { id: true, plateNumber: true, status: true } },
+      },
+    });
+  }
+
+  static async createForDriver(currentUser, data) {
+    if (currentUser?.appRole !== 'DRIVER') {
+      throw new BusinessLogicError('Only drivers can add their own vehicles');
+    }
+
+    const vehicleData = VehicleService.buildDriverVehicleData(data);
+
+    const existingVehicle = await prisma.vehicle.findFirst({
+      where: { plateNumber: vehicleData.plateNumber, deletedAt: null },
+      select: { id: true },
+    });
+    if (existingVehicle) {
+      throw new ConflictError('رقم اللوحة مسجل مسبقاً');
+    }
+
+    const pendingSubmission = await VehicleService.findDriverPendingSubmission(currentUser.id);
+    if (pendingSubmission) {
+      throw new BusinessLogicError('لديك طلب مركبة قيد المراجعة بالفعل');
+    }
+
+    const activeAssignment = await prisma.vehicleAssignment.findFirst({
+      where: { userId: currentUser.id, isActive: true },
+      select: { id: true, vehicleId: true },
+    });
+
+    const submissionType = activeAssignment ? 'PENDING_REPLACEMENT' : 'PENDING_VERIFICATION';
 
     const result = await prisma.$transaction(async (tx) => {
-      const vehicle = await tx.vehicle.create({ data: vehicleData });
+      const vehicle = await tx.vehicle.create({
+        data: {
+          ...vehicleData,
+          status: submissionType,
+        },
+      });
       const assignment = await tx.vehicleAssignment.create({
         data: {
           vehicleId: vehicle.id,
           userId: currentUser.id,
-          isActive: true,
-          notes: data.assignmentNotes || 'Driver added own vehicle',
+          isActive: false,
+          notes: data.assignmentNotes || (
+            submissionType === 'PENDING_REPLACEMENT'
+              ? `Replacement request while active vehicle #${activeAssignment.vehicleId}`
+              : 'Driver submitted vehicle for verification'
+          ),
         },
       });
 
-      return { vehicle, assignment };
+      return { vehicle, assignment, submissionType };
     });
 
     await logAudit({
       userId: currentUser.id,
-      action: 'DRIVER_CREATE_VEHICLE',
+      action: 'DRIVER_SUBMIT_VEHICLE',
       entity: 'Vehicle',
       entityId: String(result.vehicle.id),
-      newValue: { plateNumber, ownershipStatus: 'DRIVER_OWNED' },
+      newValue: {
+        plateNumber: vehicleData.plateNumber,
+        ownershipStatus: 'DRIVER_OWNED',
+        submissionType,
+      },
+    });
+
+    return result;
+  }
+
+  static async approveDriverSubmission(vehicleId, adminUser, data = {}) {
+    const vid = parseInt(vehicleId, 10);
+    if (Number.isNaN(vid)) throw new NotFoundError('Vehicle');
+
+    const vehicle = await prisma.vehicle.findFirst({
+      where: { id: vid, deletedAt: null },
+      include: {
+        assignments: {
+          where: { isActive: false, releasedAt: null },
+          orderBy: { assignedAt: 'desc' },
+          take: 1,
+          include: { user: { include: { appUser: true } } },
+        },
+      },
+    });
+    if (!vehicle) throw new NotFoundError('Vehicle');
+    if (!['PENDING_VERIFICATION', 'PENDING_REPLACEMENT'].includes(vehicle.status)) {
+      throw new BusinessLogicError('المركبة ليست في انتظار الموافقة');
+    }
+    if (vehicle.ownershipStatus !== 'DRIVER_OWNED') {
+      throw new BusinessLogicError('هذا الطلب ليس لمركبة مقدمة من سائق');
+    }
+
+    const pendingAssignment = vehicle.assignments[0];
+    if (!pendingAssignment) {
+      throw new BusinessLogicError('لا يوجد طلب تعيين مرتبط بهذه المركبة');
+    }
+
+    const driverId = pendingAssignment.userId;
+    const isDriver = pendingAssignment.user?.userType === 'APP_USER'
+      && pendingAssignment.user?.appUser?.appRole === 'DRIVER';
+    if (!isDriver) {
+      throw new BusinessLogicError('المستخدم المرتبط بالطلب ليس سائقاً');
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      if (vehicle.status === 'PENDING_REPLACEMENT') {
+        const activeAssignment = await tx.vehicleAssignment.findFirst({
+          where: { userId: driverId, isActive: true },
+        });
+        if (activeAssignment) {
+          await tx.vehicleAssignment.update({
+            where: { id: activeAssignment.id },
+            data: { isActive: false, releasedAt: new Date() },
+          });
+          await tx.vehicle.update({
+            where: { id: activeAssignment.vehicleId },
+            data: { status: 'RESERVED' },
+          });
+        }
+      } else {
+        const existingActive = await tx.vehicleAssignment.findFirst({
+          where: { userId: driverId, isActive: true },
+        });
+        if (existingActive) {
+          throw new BusinessLogicError('السائق لديه مركبة نشطة بالفعل');
+        }
+      }
+
+      await tx.vehicleAssignment.update({
+        where: { id: pendingAssignment.id },
+        data: {
+          isActive: true,
+          notes: data.notes || pendingAssignment.notes,
+        },
+      });
+
+      return tx.vehicle.update({
+        where: { id: vid },
+        data: { status: 'ACTIVE' },
+      });
+    });
+
+    await logAudit({
+      userId: adminUser.id,
+      action: 'APPROVE_DRIVER_VEHICLE',
+      entity: 'Vehicle',
+      entityId: String(vid),
+      newValue: { driverId, previousStatus: vehicle.status },
+    });
+
+    return result;
+  }
+
+  static async rejectDriverSubmission(vehicleId, adminUser, data = {}) {
+    const vid = parseInt(vehicleId, 10);
+    if (Number.isNaN(vid)) throw new NotFoundError('Vehicle');
+
+    const vehicle = await prisma.vehicle.findFirst({
+      where: { id: vid, deletedAt: null },
+      include: {
+        assignments: {
+          where: { isActive: false, releasedAt: null },
+          orderBy: { assignedAt: 'desc' },
+          take: 1,
+        },
+      },
+    });
+    if (!vehicle) throw new NotFoundError('Vehicle');
+    if (!['PENDING_VERIFICATION', 'PENDING_REPLACEMENT'].includes(vehicle.status)) {
+      throw new BusinessLogicError('المركبة ليست في انتظار الموافقة');
+    }
+    if (vehicle.ownershipStatus !== 'DRIVER_OWNED') {
+      throw new BusinessLogicError('هذا الطلب ليس لمركبة مقدمة من سائق');
+    }
+
+    const pendingAssignment = vehicle.assignments[0];
+    if (!pendingAssignment) {
+      throw new BusinessLogicError('لا يوجد طلب تعيين مرتبط بهذه المركبة');
+    }
+
+    const rejectionNote = data.reason || data.notes || 'Driver vehicle submission rejected';
+
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.vehicleAssignment.update({
+        where: { id: pendingAssignment.id },
+        data: {
+          releasedAt: new Date(),
+          notes: rejectionNote,
+        },
+      });
+
+      return tx.vehicle.update({
+        where: { id: vid },
+        data: {
+          status: 'DECOMMISSIONED',
+          notes: vehicle.notes
+            ? `${vehicle.notes}\n\nRejected: ${rejectionNote}`
+            : `Rejected: ${rejectionNote}`,
+        },
+      });
+    });
+
+    await logAudit({
+      userId: adminUser.id,
+      action: 'REJECT_DRIVER_VEHICLE',
+      entity: 'Vehicle',
+      entityId: String(vid),
+      newValue: { reason: rejectionNote },
     });
 
     return result;
@@ -179,7 +370,10 @@ class VehicleService {
     });
 
     // Normalize and validate status
-    const validStatuses = ['ACTIVE', 'IN_MAINTENANCE', 'OUT_OF_SERVICE', 'RESERVED', 'DECOMMISSIONED'];
+    const validStatuses = [
+      'ACTIVE', 'IN_MAINTENANCE', 'OUT_OF_SERVICE', 'RESERVED', 'DECOMMISSIONED',
+      'PENDING_VERIFICATION', 'PENDING_REPLACEMENT',
+    ];
     if (updateData.status) {
       if (!validStatuses.includes(updateData.status)) {
         // If legacy "APPROVED" or invalid, default to ACTIVE or current valid status
@@ -399,11 +593,22 @@ class VehicleService {
     });
     if (!vehicle) throw new NotFoundError('Vehicle');
 
-    // Operational scoping for DRIVER: restrict access to their active assigned vehicle
+    // Operational scoping for DRIVER: active assignment or own pending submission
     if (currentUser?.appUser?.appRole === 'DRIVER') {
       const isAssigned = await prisma.vehicleAssignment.findFirst({
-        where: { vehicleId: vid, userId: currentUser.id, isActive: true },
-        select: { id: true }
+        where: {
+          vehicleId: vid,
+          userId: currentUser.id,
+          OR: [
+            { isActive: true },
+            {
+              isActive: false,
+              releasedAt: null,
+              vehicle: { status: { in: ['PENDING_VERIFICATION', 'PENDING_REPLACEMENT'] } },
+            },
+          ],
+        },
+        select: { id: true },
       });
       if (!isAssigned) {
         throw new NotFoundError('Vehicle');

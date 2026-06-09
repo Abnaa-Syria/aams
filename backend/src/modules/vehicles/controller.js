@@ -24,7 +24,22 @@ class VehicleController {
   static async createForDriver(req, res, next) {
     try {
       const result = await VehicleService.createForDriver(req.user, req.body);
-      return ApiResponse.created(res, result, 'Driver vehicle created');
+      const message = result.submissionType === 'PENDING_REPLACEMENT'
+        ? 'تم إرسال طلب استبدال المركبة للمراجعة'
+        : 'تم إرسال طلب المركبة للمراجعة';
+      return ApiResponse.created(res, result, message);
+    } catch (err) { next(err); }
+  }
+  static async approveDriverSubmission(req, res, next) {
+    try {
+      const vehicle = await VehicleService.approveDriverSubmission(req.params.id, req.user, req.body);
+      return ApiResponse.success(res, vehicle, 'تمت الموافقة على مركبة السائق');
+    } catch (err) { next(err); }
+  }
+  static async rejectDriverSubmission(req, res, next) {
+    try {
+      const vehicle = await VehicleService.rejectDriverSubmission(req.params.id, req.user, req.body);
+      return ApiResponse.success(res, vehicle, 'تم رفض طلب مركبة السائق');
     } catch (err) { next(err); }
   }
   static async update(req, res, next) {
