@@ -506,7 +506,14 @@ class ShiftService {
     }
 
     if (!['REQUESTED', 'APPROVED'].includes(shift.status)) {
-      throw new BusinessLogicError('Cannot cancel this shift');
+      const statusTranslations = {
+        ACTIVE: 'نشط',
+        ENDED: 'منتهي',
+        CANCELLED: 'ملغي بالفعل',
+        REJECTED: 'مرفوض',
+      };
+      const statusAr = statusTranslations[shift.status] || shift.status;
+      throw new BusinessLogicError(`لا يمكن إلغاء هذا الشفت لأن حالته الحالية هي (${statusAr})، ويُسمح فقط بإلغاء الشفتات التي بحالة "مطلب شفت" أو "مقبول".`);
     }
 
     const updated = await prisma.shift.update({
