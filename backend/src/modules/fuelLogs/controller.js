@@ -57,6 +57,15 @@ class FuelLogController {
       next(err);
     }
   }
+
+  static async getDailySummary(req, res, next) {
+    try {
+      const result = await FuelLogService.getDailySummary(req.query, req.user);
+      return ApiResponse.success(res, result);
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 module.exports = FuelLogController;

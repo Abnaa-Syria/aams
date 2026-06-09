@@ -20,6 +20,36 @@ const { streamAttachmentDownload } = require('../../utils/streamAttachment');
  */
 router.get('/', ...sharedPerm(P.COMPLIANCE_READ), FuelLogController.listLogs);
 
+/**
+ * @openapi
+ * /fuel-logs/daily-summary:
+ *   get:
+ *     tags: [Fuel Logs]
+ *     summary: Get daily fuel logs summary (total cost, liters, count)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: date
+ *         schema: { type: string, format: date }
+ *       - in: query
+ *         name: dateFrom
+ *         schema: { type: string, format: date }
+ *       - in: query
+ *         name: dateTo
+ *         schema: { type: string, format: date }
+ *       - in: query
+ *         name: vehicleId
+ *         schema: { type: integer }
+ *       - in: query
+ *         name: userId
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Fuel log daily summary
+ */
+router.get('/daily-summary', ...sharedPerm(P.COMPLIANCE_READ), FuelLogController.getDailySummary);
+
 router.get('/:id/receipt/download', ...sharedPerm(P.COMPLIANCE_READ), async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);

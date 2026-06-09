@@ -202,6 +202,62 @@ class FuelLogService {
 
     return true;
   }
+
+  static async getDailySummary(query, currentUser) {
+    let where = {
+      ...(query.vehicleId && { vehicleId: parseInt(query.vehicleId) }),
+      ...(query.status && { status: query.status }),
+      ...(query.userId && { userId: parseInt(query.userId) }),
+    };
+    where = mergeAppUserIdFilter(where, query.appUserId);
+
+    if (query.dateFrom || query.dateTo) {
+      where.fuelDate = {};
+      if (query.dateFrom) where.fuelDate.gte = new Date(query.dateFrom);
+      if (query.dateTo) where.fuelDate.lte = new Date(query.dateTo);
+    }
+
+    const appRole = currentUser?.appUser?.appRole;
+    if (appRole === 'DRIVER') {
+      where.userId = currentUser.id;
+    } else if (appRole === 'SUPERVISOR') {
+      where.user = { appUser: { supervisorId: currentUser.appUserId } };
+    }
+
+    const logs = await prisma.fuelLog.findMany({
+      where,
+      select: {
+        amount: true,
+        liters: true,
+        fuelDate: true,
+      },
+    });
+
+    const summaryMap = {};
+    for (const log of logs) {
+      const dateStr = new Date(log.fuelDate).toISOString().split('T')[0];
+      if (!summaryMap[dateStr]) {
+        summaryMap[dateStr] = {
+          date: dateStr,
+          totalAmount: 0,
+          totalLiters: 0,
+          count: 0,
+        };
+      }
+      summaryMap[dateStr].totalAmount += parseFloat(log.amount || 0);
+      summaryMap[dateStr].totalLiters += parseFloat(log.liters || 0);
+      summaryMap[dateStr].count += 1;
+    }
+
+    const summaries = Object.values(summaryMap).sort((a, b) => b.date.localeCompare(a.date));
+
+    if (query.date) {
+      const targetDate = query.date.split('T')[0];
+      return summaryMap[targetDate] || { date: targetDate, totalAmount: 0, totalLiters: 0, count: 0 };
+    }
+
+    return summaries;
+  }
 }
 
 module.exports = FuelLogService;

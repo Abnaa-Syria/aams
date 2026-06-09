@@ -458,7 +458,17 @@ export default function DriverDetailPage() {
     shifts: [
       { key: 'id', label: '#' },
       { key: 'status', label: 'الحالة', render: (_, r) => <StatusDropdown record={r} currentTab="shifts" onUpdate={handleStatusUpdate} /> },
-      { key: 'vehicle', label: 'المركبة', render: (v) => v?.plateNumber || '—' },
+      { key: 'vehicle', label: 'المركبة', render: (v, r) => (
+        <div>
+          <div>{v?.plateNumber || '—'}</div>
+          {r.conflictingActiveShift && (
+            <div className="text-[0.7rem] font-bold text-rose-500 mt-1 flex items-center gap-1">
+              <LuTriangleAlert size={12} />
+              <span>مع {r.conflictingActiveShift.driverName} (لا يمكن البدء)</span>
+            </div>
+          )}
+        </div>
+      ) },
       { key: 'requestedAt', label: 'الطلب', render: (v) => (v ? new Date(v).toLocaleString('ar-SA') : '—') },
     ],
     platformAccounts: [
@@ -1276,8 +1286,16 @@ function StatusDropdown({ record, currentTab, onUpdate }) {
               </div>
               <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-brand-primary shadow-sm ring-1 ring-slate-100">
                 <LuActivity size={24} />
-              </div>
             </div>
+
+            {record.conflictingActiveShift && (
+              <div className="bg-rose-50 border border-rose-200 text-rose-700 p-4 rounded-2xl text-xs font-bold flex items-start gap-2">
+                <LuTriangleAlert size={16} className="mt-0.5 shrink-0" />
+                <div>
+                  تنبيه: هذه المركبة مستخدمة حالياً في شفت نشط مع السائق ({record.conflictingActiveShift.driverName}). لا يمكن تفعيل هذا الشفت كـ "نشط" حالياً.
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 gap-3">
               <div className="text-[0.65rem] font-black text-slate-400 uppercase tracking-widest px-2">اختر الحالة الجديدة</div>

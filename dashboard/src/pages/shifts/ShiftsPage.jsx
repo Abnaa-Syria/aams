@@ -5,7 +5,7 @@ import Modal from '../../components/ui/Modal';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { apiService } from '../../services/api';
-import { LuPlus, LuPencil } from 'react-icons/lu';
+import { LuPlus, LuPencil, LuTriangleAlert } from 'react-icons/lu';
 import toast from 'react-hot-toast';
 
 const statusOptions = [
@@ -20,7 +20,17 @@ const statusOptions = [
 const columns = [
   { key: 'id', label: '#' },
   { key: 'user', label: 'السائق', render: (v) => v?.fullNameAr || '—' },
-  { key: 'vehicle', label: 'المركبة', render: (v) => v?.plateNumber || '—' },
+  { key: 'vehicle', label: 'المركبة', render: (v, r) => (
+    <div>
+      <div>{v?.plateNumber || '—'}</div>
+      {r.conflictingActiveShift && (
+        <div className="text-[10px] font-bold text-red-500 mt-0.5 flex items-center gap-1">
+          <LuTriangleAlert size={10} />
+          <span>مع {r.conflictingActiveShift.driverName}</span>
+        </div>
+      )}
+    </div>
+  ) },
   { key: 'platformAccount', label: 'المنصة', render: (v) => v?.platform?.nameAr || '—' },
   { key: 'status', label: 'الحالة', render: (v) => <StatusBadge status={v} /> },
   { key: 'requestedAt', label: 'تاريخ الطلب', render: (v) => v ? new Date(v).toLocaleDateString('ar-SA') : '—' },

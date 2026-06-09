@@ -118,7 +118,7 @@ class ShiftController {
   }
   static async cancel(req, res, next) {
     try {
-      const shift = await ShiftService.cancel(req.params.id, req.body?.reason, req.user.id);
+      const shift = await ShiftService.cancel(req.params.id, req.body?.reason, req.user);
       return ApiResponse.success(res, shift, 'Shift cancelled');
     } catch (err) { next(err); }
   }

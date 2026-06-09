@@ -64,13 +64,40 @@ class ShiftService {
       prisma.shift.count({ where }),
     ]);
     
-    const transformedItems = items.map(item => ({
-      ...item,
-      user: item.user,
-      vehicle: item.vehicle,
-      appUser: item.user ? { user: item.user } : null,
-    }));
-
+    // Collect all vehicle IDs from requested/approved shifts
+    const pendingShifts = items.filter(s => ['REQUESTED', 'APPROVED'].includes(s.status));
+    const vehicleIds = [...new Set(pendingShifts.map(s => s.vehicleId))];
+    
+    // Fetch all active shifts for these vehicles
+    const activeVehicleShifts = vehicleIds.length > 0 ? await prisma.shift.findMany({
+      where: {
+        vehicleId: { in: vehicleIds },
+        status: 'ACTIVE'
+      },
+      include: {
+        user: { select: { id: true, fullNameAr: true } }
+      }
+    }) : [];
+    
+    const activeShiftsMap = {};
+    for (const s of activeVehicleShifts) {
+      activeShiftsMap[s.vehicleId] = s;
+    }
+    
+    const transformedItems = items.map(item => {
+      const activeShiftOnVehicle = activeShiftsMap[item.vehicleId];
+      return {
+        ...item,
+        user: item.user,
+        vehicle: item.vehicle,
+        appUser: item.user ? { user: item.user } : null,
+        conflictingActiveShift: (['REQUESTED', 'APPROVED'].includes(item.status) && activeShiftOnVehicle && activeShiftOnVehicle.userId !== item.userId) ? {
+          id: activeShiftOnVehicle.id,
+          driverName: activeShiftOnVehicle.user?.fullNameAr || 'سائق آخر',
+          driverId: activeShiftOnVehicle.user?.id
+        } : null
+      };
+    });
 
     return { items: transformedItems, meta: buildPaginationMeta(total, page, limit) };
   }
@@ -176,6 +203,17 @@ class ShiftService {
       }))
       .sort((a, b) => String(a.platformName).localeCompare(String(b.platformName), 'ar'));
 
+    const activeShiftOnVehicle = ['REQUESTED', 'APPROVED'].includes(shift.status) ? await prisma.shift.findFirst({
+      where: {
+        vehicleId: shift.vehicleId,
+        status: 'ACTIVE',
+        id: { not: shift.id }
+      },
+      include: {
+        user: { select: { id: true, fullNameAr: true } }
+      }
+    }) : null;
+
     return {
       ...shift,
       appUser: shift.user ? { user: shift.user } : null,
@@ -185,6 +223,11 @@ class ShiftService {
         totalOrders,
         totalHours,
       },
+      conflictingActiveShift: (activeShiftOnVehicle && activeShiftOnVehicle.userId !== shift.userId) ? {
+        id: activeShiftOnVehicle.id,
+        driverName: activeShiftOnVehicle.user?.fullNameAr || 'سائق آخر',
+        driverId: activeShiftOnVehicle.user?.id
+      } : null
     };
   }
 
@@ -239,9 +282,12 @@ class ShiftService {
 
     const activeVehicleShift = await prisma.shift.findFirst({
       where: { vehicleId, status: 'ACTIVE' },
-      select: { id: true },
+      include: { user: { select: { fullNameAr: true } } },
     });
-    if (activeVehicleShift) throw new BusinessLogicError('Vehicle already has an active shift');
+    if (activeVehicleShift) {
+      const driverName = activeVehicleShift.user?.fullNameAr || 'سائق آخر';
+      throw new BusinessLogicError(`المركبة مستخدمة حالياً في شفت نشط مع السائق (${driverName})`);
+    }
 
     const platformAccount = await prisma.platformAccount.findFirst({
       where: { id: platformAccountId, userId, status: 'ACTIVE', deletedAt: null },
@@ -323,9 +369,12 @@ class ShiftService {
 
     const activeVehicleShift = await prisma.shift.findFirst({
       where: { vehicleId: shift.vehicleId, status: 'ACTIVE', id: { not: shift.id } },
-      select: { id: true },
+      include: { user: { select: { fullNameAr: true } } },
     });
-    if (activeVehicleShift) throw new BusinessLogicError('Vehicle already has an active shift');
+    if (activeVehicleShift) {
+      const driverName = activeVehicleShift.user?.fullNameAr || 'سائق آخر';
+      throw new BusinessLogicError(`المركبة مستخدمة حالياً في شفت نشط مع السائق (${driverName})`);
+    }
 
     const updated = await prisma.shift.update({
       where: { id: parseInt(shiftId) },
@@ -438,23 +487,34 @@ class ShiftService {
           notes: reason || 'Ended by admin',
         }, true);
       case 'CANCELLED':
-        return await ShiftService.cancel(shiftId, reason || 'Cancelled by admin', adminUser.id);
+        return await ShiftService.cancel(shiftId, reason || 'Cancelled by admin', adminUser);
       default:
         throw new ValidationError(`Invalid shift status: ${status}`);
     }
   }
 
-  static async cancel(shiftId, reason, userId) {
+  static async cancel(shiftId, reason, userOrUserId) {
     const shift = await prisma.shift.findUnique({ where: { id: parseInt(shiftId) } });
     if (!shift) throw new NotFoundError('Shift');
-    if (!['REQUESTED', 'APPROVED'].includes(shift.status)) throw new BusinessLogicError('Cannot cancel this shift');
+
+    const isId = typeof userOrUserId === 'number' || typeof userOrUserId === 'string';
+    const performingUserId = isId ? parseInt(userOrUserId) : userOrUserId?.id;
+    const isDriver = !isId && userOrUserId?.appUser?.appRole === 'DRIVER';
+
+    if (isDriver && shift.userId !== performingUserId) {
+      throw new BusinessLogicError('Not your shift');
+    }
+
+    if (!['REQUESTED', 'APPROVED'].includes(shift.status)) {
+      throw new BusinessLogicError('Cannot cancel this shift');
+    }
 
     const updated = await prisma.shift.update({
       where: { id: parseInt(shiftId) },
       data: { status: 'CANCELLED', cancelledAt: new Date(), cancellationReason: reason },
     });
 
-    await prisma.shiftLog.create({ data: { shiftId: parseInt(shiftId), action: 'SHIFT_CANCELLED', performedBy: userId, notes: reason } });
+    await prisma.shiftLog.create({ data: { shiftId: parseInt(shiftId), action: 'SHIFT_CANCELLED', performedBy: performingUserId, notes: reason } });
     return updated;
   }
 }

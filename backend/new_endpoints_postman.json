@@ -1,0 +1,155 @@
+{
+	"info": {
+		"_postman_id": "aams-new-endpoints-v2",
+		"name": "AAMS New Endpoints (Report Details & Fuel Logs)",
+		"description": "Postman collection containing only the newly added/updated endpoints: Daily Report Details and Fuel Logs.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Daily Reports",
+			"item": [
+				{
+					"name": "Report Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/daily-reports/:id",
+							"host": ["{{base_url}}"],
+							"path": ["daily-reports", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Fuel Logs",
+			"item": [
+				{
+					"name": "List Fuel Logs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/fuel-logs?page=1&limit=10",
+							"host": ["{{base_url}}"],
+							"path": ["fuel-logs"],
+							"query": [
+								{ "key": "page", "value": "1" },
+								{ "key": "limit", "value": "10" }
+							]
+						}
+					}
+				},
+				{
+					"name": "Fuel Log Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/fuel-logs/:id",
+							"host": ["{{base_url}}"],
+							"path": ["fuel-logs", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Submit Fuel Log",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "vehicleId",
+									"value": "1",
+									"type": "text"
+								},
+								{
+									"key": "amount",
+									"value": "120.50",
+									"type": "text"
+								},
+								{
+									"key": "liters",
+									"value": "50",
+									"type": "text"
+								},
+								{
+									"key": "fuelDate",
+									"value": "2024-02-21T12:00:00.000Z",
+									"type": "text"
+								},
+								{
+									"key": "receipt",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/fuel-logs",
+							"host": ["{{base_url}}"],
+							"path": ["fuel-logs"]
+						}
+					}
+				},
+				{
+					"name": "Fuel Daily Summary",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/fuel-logs/daily-summary",
+							"host": ["{{base_url}}"],
+							"path": ["fuel-logs", "daily-summary"]
+						}
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{ "key": "base_url", "value": "http://localhost:5000/api/v1", "type": "string" },
+		{ "key": "access_token", "value": "", "type": "string" }
+	]
+}
