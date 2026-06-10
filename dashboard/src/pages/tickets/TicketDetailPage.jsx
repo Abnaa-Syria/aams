@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiService } from '../../services/api';
+import PermissionGate from '../../components/auth/PermissionGate';
+import { PERMISSIONS as P } from '../../utils/rolePermissions';
 import StatusBadge from '../../components/ui/StatusBadge';
 import { 
   LuArrowRight, LuSend, LuPaperclip, 
@@ -126,22 +128,24 @@ export default function TicketDetailPage() {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <select 
-            value={ticket.status}
-            onChange={(e) => handleStatusChange(e.target.value)}
-            className="select select-sm !bg-slate-50 border-slate-200 font-bold text-xs"
-          >
-            {STATUS_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-          </select>
-          <select 
-            value={ticket.priority}
-            onChange={(e) => handlePriorityChange(e.target.value)}
-            className="select select-sm !bg-slate-50 border-slate-200 font-bold text-xs"
-          >
-            {PRIORITY_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-          </select>
-        </div>
+        <PermissionGate anyOf={[P.COMPLIANCE_WRITE]}>
+          <div className="flex items-center gap-3">
+            <select
+              value={ticket.status}
+              onChange={(e) => handleStatusChange(e.target.value)}
+              className="select select-sm !bg-slate-50 border-slate-200 font-bold text-xs"
+            >
+              {STATUS_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+            </select>
+            <select
+              value={ticket.priority}
+              onChange={(e) => handlePriorityChange(e.target.value)}
+              className="select select-sm !bg-slate-50 border-slate-200 font-bold text-xs"
+            >
+              {PRIORITY_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+            </select>
+          </div>
+        </PermissionGate>
       </div>
 
       <div className="flex-1 flex overflow-hidden">
@@ -207,6 +211,7 @@ export default function TicketDetailPage() {
           </div>
 
           {/* Reply Area */}
+          <PermissionGate anyOf={[P.USERS_WRITE]}>
           <div className="p-6 border-t border-slate-200 bg-white">
             <form onSubmit={handleSendReply} className="space-y-4">
               <div className="relative">
@@ -261,6 +266,7 @@ export default function TicketDetailPage() {
               </div>
             </form>
           </div>
+          </PermissionGate>
         </div>
 
         {/* Info Sidebar */}

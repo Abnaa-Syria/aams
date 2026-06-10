@@ -59,10 +59,10 @@ export default api;
 
 export const apiService = {
   get: (url, params) => api.get(url, { params }),
-  post: (url, data) => api.post(url, data),
-  put: (url, data) => api.put(url, data),
-  patch: (url, data) => api.patch(url, data),
-  delete: (url) => api.delete(url),
+  post: (url, data, config) => api.post(url, data, config),
+  put: (url, data, config) => api.put(url, data, config),
+  patch: (url, data, config) => api.patch(url, data, config),
+  delete: (url, config) => api.delete(url, config),
   upload: (url, formData) => api.post(url, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   uploadPut: (url, formData) => api.put(url, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
 };

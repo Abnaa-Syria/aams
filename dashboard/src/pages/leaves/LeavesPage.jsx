@@ -28,14 +28,6 @@ const columns = [
   { key: 'endDate', label: 'إلى', render: (v) => v ? new Date(v).toLocaleDateString('ar-SA') : '—' },
   { key: 'totalDays', label: 'عدد الأيام' },
   { key: 'status', label: 'الحالة', render: (v) => <StatusBadge status={v} /> },
-  { key: 'actions', label: 'الإجراءات', render: (v, row) => (
-    <button 
-      onClick={(e) => { e.stopPropagation(); /* open update modal */ }} 
-      className="p-2 text-slate-400 hover:text-primary transition-colors"
-    >
-      <LuPencil size={16} />
-    </button>
-  ), stopRowClick: true },
 ];
 
 function LeaveModal({ isOpen, onClose, leave, onSave, selfMode = false, currentUserId = null }) {
@@ -260,6 +252,12 @@ export default function LeavesPage() {
           />
         )}
         <button
+          onClick={() => openUpdateModal(row)}
+          className="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:text-primary hover:bg-primary-light/10 transition-all"
+        >
+          <LuPencil size={16} />
+        </button>
+        <button
           onClick={() => navigate(`/leaves/${row.id}`)}
           className="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:text-primary hover:bg-primary-light/10 transition-all"
         >
@@ -274,14 +272,7 @@ export default function LeavesPage() {
       <GenericListPage
         title="طلبات الإجازة"
         apiUrl="/leave-requests"
-        columns={columns.map(col => col.key === 'actions' ? { ...col, render: (v, row) => (
-          <button 
-            onClick={(e) => { e.stopPropagation(); openUpdateModal(row); }} 
-            className="p-2 text-slate-400 hover:text-primary transition-colors"
-          >
-            <LuPencil size={16} />
-          </button>
-        ), stopRowClick: true } : col.key === 'actions' && col.stopRowClick ? col : col).length > 0 ? columns : [...columns.slice(0, -1), actionsColumn]}
+        columns={[...columns, actionsColumn]}
         onRowClick={(row) => navigate(`/leaves/${row.id}`)}
         createButton={createButton}
         reloadToken={reloadToken}

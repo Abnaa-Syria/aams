@@ -84,15 +84,15 @@ export default function App() {
             <Route path="platform-accounts/:id" element={<PermissionRoute anyOf={[P.FLEET_READ]}><PlatformAccountDetailPage /></PermissionRoute>} />
             <Route path="shifts" element={<PermissionRoute anyOf={[P.SHIFTS_READ]}><ShiftsPage /></PermissionRoute>} />
             <Route path="shifts/:id" element={<PermissionRoute anyOf={[P.SHIFTS_READ]}><ShiftDetailPage /></PermissionRoute>} />
-            <Route path="fuel" element={<PermissionRoute anyOf={[P.FLEET_READ]}><FuelLogsPage /></PermissionRoute>} />
-            <Route path="fuel/:id" element={<PermissionRoute anyOf={[P.FLEET_READ]}><FuelLogDetailPage /></PermissionRoute>} />
+            <Route path="fuel" element={<PermissionRoute anyOf={[P.FLEET_READ, P.COMPLIANCE_READ]}><FuelLogsPage /></PermissionRoute>} />
+            <Route path="fuel/:id" element={<PermissionRoute anyOf={[P.FLEET_READ, P.COMPLIANCE_READ]}><FuelLogDetailPage /></PermissionRoute>} />
             <Route path="violations" element={<PermissionRoute anyOf={[P.COMPLIANCE_READ]}><ViolationsPage /></PermissionRoute>} />
             <Route path="violations/:id" element={<PermissionRoute anyOf={[P.COMPLIANCE_READ]}><ViolationDetailPage /></PermissionRoute>} />
             <Route path="incidents" element={<PermissionRoute anyOf={[P.COMPLIANCE_READ]}><IncidentsPage /></PermissionRoute>} />
             <Route path="incidents/:id" element={<PermissionRoute anyOf={[P.COMPLIANCE_READ]}><IncidentDetailPage /></PermissionRoute>} />
-            <Route path="daily-reports" element={<PermissionRoute anyOf={[P.SHIFTS_READ]}><DailyReportsPage /></PermissionRoute>} />
-            <Route path="daily-reports/:id" element={<PermissionRoute anyOf={[P.SHIFTS_READ]}><DailyReportDetailPage /></PermissionRoute>} />
-            <Route path="notifications" element={<PermissionRoute anyOf={[P.USERS_READ]}><NotificationsPage /></PermissionRoute>} />
+            <Route path="daily-reports" element={<PermissionRoute anyOf={[P.SHIFTS_READ, P.DAILY_REPORTS_READ]}><DailyReportsPage /></PermissionRoute>} />
+            <Route path="daily-reports/:id" element={<PermissionRoute anyOf={[P.SHIFTS_READ, P.DAILY_REPORTS_READ]}><DailyReportDetailPage /></PermissionRoute>} />
+            <Route path="notifications" element={<PermissionRoute anyOf={[P.USERS_READ, P.COMPLIANCE_READ]}><NotificationsPage /></PermissionRoute>} />
             <Route path="tickets" element={<PermissionRoute anyOf={[P.USERS_READ]}><TicketsPage /></PermissionRoute>} />
             <Route path="tickets/:id" element={<PermissionRoute anyOf={[P.USERS_READ]}><TicketDetailPage /></PermissionRoute>} />
             <Route path="chat" element={<PermissionRoute anyOf={[P.USERS_READ]}><ChatPage /></PermissionRoute>} />
@@ -116,7 +116,7 @@ export default function App() {
             <Route path="admins" element={<PermissionRoute anyOf={[P.USERS_WRITE]}><AdminsPage /></PermissionRoute>} />
             <Route path="audit-logs" element={<PermissionRoute anyOf={[P.AUDIT_READ]}><AuditLogsPage /></PermissionRoute>} />
             <Route path="roles-permissions" element={<PermissionRoute anyOf={[P.ROLE_MANAGEMENT]}><RolesPermissionsPage /></PermissionRoute>} />
-            <Route path="socket-test" element={<SocketTestPage />} />
+            <Route path="socket-test" element={<PermissionRoute anyOf={[P.SETTINGS_READ]}><SocketTestPage /></PermissionRoute>} />
           </Route>
         </Routes>
       </BrowserRouter>

@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { apiService } from '../../services/api';
-import { hasAnyPermission, PERMISSIONS as P } from '../../utils/rolePermissions';
+import { hasAnyPermissionForUser, PERMISSIONS as P } from '../../utils/rolePermissions';
 import PermissionGate from '../../components/auth/PermissionGate';
 import DataTable from '../../components/ui/DataTable';
 import Pagination from '../../components/ui/Pagination';
@@ -13,7 +13,7 @@ import { LuPlus, LuSearch, LuFilter, LuUsers, LuRefreshCw, LuMessageSquare } fro
 
 export default function DriversPage() {
   const { user: authUser } = useSelector((s) => s.auth);
-  const canCreate = hasAnyPermission(authUser?.role, [P.USERS_WRITE]);
+  const canCreate = hasAnyPermissionForUser(authUser, [P.USERS_WRITE]);
   const [drivers, setDrivers] = useState([]);
   const [meta, setMeta] = useState(null);
   const [loading, setLoading] = useState(true);

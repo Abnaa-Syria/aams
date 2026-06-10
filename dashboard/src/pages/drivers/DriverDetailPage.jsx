@@ -13,7 +13,7 @@ import {
   LuMap, LuEye, LuPen, LuActivity, LuUserPlus, LuMessageSquare, LuCheck
 } from 'react-icons/lu';
 import { resolveUploadUrl } from '../../utils/apiOrigin';
-import { hasAnyPermission, PERMISSIONS as P } from '../../utils/rolePermissions';
+import { hasAnyPermissionForUser, PERMISSIONS as P } from '../../utils/rolePermissions';
 import PermissionGate from '../../components/auth/PermissionGate';
 import DriverLiveMap from './DriverLiveMap';
 
@@ -134,7 +134,7 @@ export default function DriverDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user: authUser } = useSelector((s) => s.auth);
-  const canWriteUser = hasAnyPermission(authUser?.role, [P.USERS_WRITE]);
+  const canWriteUser = hasAnyPermissionForUser(authUser, [P.USERS_WRITE]);
 
   const [tab, setTab] = useState('overview');
   const [driver, setDriver] = useState(null);
@@ -1286,6 +1286,7 @@ function StatusDropdown({ record, currentTab, onUpdate }) {
               </div>
               <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-brand-primary shadow-sm ring-1 ring-slate-100">
                 <LuActivity size={24} />
+              </div>
             </div>
 
             {record.conflictingActiveShift && (

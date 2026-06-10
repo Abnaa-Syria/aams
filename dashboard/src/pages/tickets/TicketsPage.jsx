@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../../services/api';
+import PermissionGate from '../../components/auth/PermissionGate';
 import GenericListPage from '../../components/ui/GenericListPage';
+import { PERMISSIONS as P } from '../../utils/rolePermissions';
 import StatusBadge from '../../components/ui/StatusBadge';
 import Modal from '../../components/ui/Modal';
 import { 
@@ -62,8 +64,8 @@ export default function TicketsPage() {
     if (!q || q.length < 2) return;
     setLoadingUsers(true);
     try {
-      const { data } = await apiService.get(`/users?search=${q}&limit=5`);
-      setUsers(data.data.users || []);
+      const { data } = await apiService.get('/users', { search: q, limit: 5 });
+      setUsers(data.data || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -164,14 +166,21 @@ export default function TicketsPage() {
         columns={columns}
         onRowClick={(item) => navigate(`/tickets/${item.id}`)}
         createButton={
-          <button 
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-brand-primary text-white rounded-2xl font-black text-sm shadow-orange hover:bg-brand-primary-hover transition-all"
-          >
-            <LuPlus size={18} />
-            تذكرة جديدة
-          </button>
+          <PermissionGate anyOf={[P.USERS_WRITE]}>
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="flex items-center gap-2 px-6 py-3 bg-brand-primary text-white rounded-2xl font-black text-sm shadow-orange hover:bg-brand-primary-hover transition-all"
+            >
+              <LuPlus size={18} />
+              تذكرة جديدة
+            </button>
+          </PermissionGate>
         }
+        filters={[
+          { key: 'status', type: 'select', placeholder: 'الحالة', options: Object.entries(STATUS_MAP).map(([value, { label }]) => ({ value, label })) },
+          { key: 'priority', type: 'select', placeholder: 'الأولوية', options: PRIORITIES },
+          { key: 'category', type: 'select', placeholder: 'التصنيف', options: CATEGORIES },
+        ]}
       />
 
       <Modal 

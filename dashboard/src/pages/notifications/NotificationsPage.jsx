@@ -4,9 +4,8 @@ import Modal from '../../components/ui/Modal';
 import { apiService } from '../../services/api';
 import toast from 'react-hot-toast';
 import { LuSend } from 'react-icons/lu';
-import { useSelector } from 'react-redux';
 import PermissionGate from '../../components/auth/PermissionGate';
-import { hasAnyPermission, PERMISSIONS as P } from '../../utils/rolePermissions';
+import { PERMISSIONS as P } from '../../utils/rolePermissions';
 
 const columns = [
   { key: 'user', label: 'المستخدم', render: (v) => v?.fullNameAr || '—' },
@@ -17,8 +16,6 @@ const columns = [
 ];
 
 export default function NotificationsPage() {
-  const authUser = useSelector((s) => s.auth.user);
-  const canSend = hasAnyPermission(authUser?.role, [P.COMPLIANCE_WRITE]);
   const [showSend, setShowSend] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
   const [form, setForm] = useState({ title: '', body: '', category: 'GENERAL', role: '' });
@@ -52,6 +49,17 @@ export default function NotificationsPage() {
             </button>
           </PermissionGate>
         )}
+        filters={[
+          { key: 'isRead', type: 'select', placeholder: 'القراءة', options: [{ value: 'true', label: 'مقروء' }, { value: 'false', label: 'غير مقروء' }] },
+          { key: 'category', type: 'select', placeholder: 'التصنيف', options: [
+            { value: 'GENERAL', label: 'عام' },
+            { value: 'SYSTEM', label: 'نظام' },
+            { value: 'SHIFT', label: 'شفتات' },
+            { value: 'DOCUMENT', label: 'مستندات' },
+            { value: 'COMPLIANCE', label: 'امتثال' },
+            { value: 'HR', label: 'موارد بشرية' },
+          ] },
+        ]}
       />
 
       {/* Broadcast Modal */}
@@ -88,7 +96,7 @@ export default function NotificationsPage() {
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
             <button type="button" className="px-6 py-3 border border-slate-200 text-slate-600 rounded-xl font-black text-sm hover:bg-slate-50 transition-all" onClick={() => setShowSend(false)}>إلغاء</button>
-            <button type="submit" className="px-8 py-3 bg-brand-primary text-white rounded-xl font-black text-sm shadow-orange hover:bg-brand-primary-hover transition-all" disabled={!canSend}>إرسال الآن</button>
+            <button type="submit" className="px-8 py-3 bg-brand-primary text-white rounded-xl font-black text-sm shadow-orange hover:bg-brand-primary-hover transition-all">إرسال الآن</button>
           </div>
         </form>
       </Modal>

@@ -224,7 +224,7 @@ export default function ShiftsPage() {
               <StatusSelect
                 id={row.id}
                 currentStatus={row.status}
-                apiUrl={`/shifts/${row.id}`}
+                apiUrl={`/shifts/${row.id}/status`}
                 options={statusOptions}
                 size="xs"
                 onSuccess={() => setReloadToken((t) => t + 1)}

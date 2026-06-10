@@ -11,7 +11,7 @@ import {
   LuBanknote, LuSmartphone, LuClock, LuFuel, LuTriangleAlert, LuCircleAlert,
   LuClipboardList, LuBell, LuMessageSquare, LuSearch, LuBan, LuStar,
   LuGift, LuCalendarOff, LuDollarSign, LuWrench, LuChartColumnIncreasing, LuSettings,
-  LuUserPlus, LuHistory, LuLogOut, LuMenu, LuX, LuChevronDown, LuTicket
+  LuUserPlus, LuHistory, LuLogOut, LuMenu, LuX, LuChevronDown, LuTicket, LuKey
 } from 'react-icons/lu';
 
 const ICON_MAP = {
@@ -40,6 +40,7 @@ const ICON_MAP = {
   analytics: LuChartColumnIncreasing,
   settings: LuSettings,
   admins: LuUserPlus,
+  roles: LuKey,
   audit: LuHistory,
   tickets: LuTicket,
 };

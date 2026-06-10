@@ -146,6 +146,243 @@
 					}
 				}
 			]
+		},
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Delete My Account (Soft Delete)",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"description": "Soft deletes the authenticated driver account: sets accountStatus to ARCHIVED, sets deletedAt, and revokes refresh/push tokens.",
+						"url": {
+							"raw": "{{base_url}}/auth/me",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "me"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Bank Accounts",
+			"item": [
+				{
+					"name": "Delete My Bank Account",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"description": "Driver-scoped soft delete. A driver can delete only their own bank account. Admin users with finance write permission can delete any bank account.",
+						"url": {
+							"raw": "{{base_url}}/bank-accounts/:id",
+							"host": ["{{base_url}}"],
+							"path": ["bank-accounts", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Penalties",
+			"item": [
+				{
+					"name": "My Penalties",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"description": "Driver-scoped list. Supports page, limit, status, and type.",
+						"url": {
+							"raw": "{{base_url}}/penalties?page=1&limit=20",
+							"host": ["{{base_url}}"],
+							"path": ["penalties"],
+							"query": [
+								{ "key": "page", "value": "1" },
+								{ "key": "limit", "value": "20" },
+								{ "key": "status", "value": "", "disabled": true },
+								{ "key": "type", "value": "", "disabled": true }
+							]
+						}
+					}
+				},
+				{
+					"name": "My Penalties Totals",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"description": "Driver-scoped APPLIED penalties aggregate.",
+						"url": {
+							"raw": "{{base_url}}/penalties/totals",
+							"host": ["{{base_url}}"],
+							"path": ["penalties", "totals"]
+						}
+					}
+				},
+				{
+					"name": "Get My Penalty By ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"description": "Returns the penalty only if it belongs to the authenticated driver.",
+						"url": {
+							"raw": "{{base_url}}/penalties/:id",
+							"host": ["{{base_url}}"],
+							"path": ["penalties", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Appeal My Penalty",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"reason\": \"أرغب في مراجعة الجزاء لأن البيانات غير صحيحة\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"description": "Driver can appeal own PENDING or APPLIED penalty. Status becomes APPEALED.",
+						"url": {
+							"raw": "{{base_url}}/penalties/:id/appeal",
+							"host": ["{{base_url}}"],
+							"path": ["penalties", ":id", "appeal"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Vehicles",
+			"item": [
+				{
+					"name": "Approve Driver Vehicle Submission",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"notes\": \"تم التحقق من الاستمارة والتأمين\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/vehicles/:id/approve-driver-submission",
+							"host": ["{{base_url}}"],
+							"path": ["vehicles", ":id", "approve-driver-submission"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Reject Driver Vehicle Submission",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"reason\": \"بيانات الاستمارة غير مكتملة\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/vehicles/:id/reject-driver-submission",
+							"host": ["{{base_url}}"],
+							"path": ["vehicles", ":id", "reject-driver-submission"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						}
+					}
+				}
+			]
 		}
 	],
 	"variable": [

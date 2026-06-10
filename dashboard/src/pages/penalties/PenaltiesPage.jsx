@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import PermissionGate from '../../components/auth/PermissionGate';
 import GenericListPage from '../../components/ui/GenericListPage';
+import { PERMISSIONS as P } from '../../utils/rolePermissions';
 import StatusBadge from '../../components/ui/StatusBadge';
 import StatusSelect from '../../components/ui/StatusSelect';
 import Modal from '../../components/ui/Modal';
@@ -17,14 +19,6 @@ const columns = [
   { key: 'reason', label: 'السبب', render: (v) => v?.substring(0, 60) || '—' },
   { key: 'status', label: 'الحالة', render: (v) => <StatusBadge status={v} /> },
   { key: 'penaltyDate', label: 'التاريخ', render: (v) => v ? new Date(v).toLocaleDateString('ar-SA') : '—' },
-  { key: 'actions', label: 'الإجراءات', render: (v, row) => (
-    <button 
-      onClick={(e) => { e.stopPropagation(); }} 
-      className="p-2 text-slate-400 hover:text-primary transition-colors"
-    >
-      <LuPencil size={16} />
-    </button>
-  ), stopRowClick: true },
 ];
 
 const statusOptions = [
@@ -184,10 +178,12 @@ export default function PenaltiesPage() {
   };
 
   const createButton = (
-    <button onClick={() => setCreateModalOpen(true)} className="btn btn-primary flex items-center gap-2">
-      <LuPlus size={18} />
-      <span>إضافة جزاء</span>
-    </button>
+    <PermissionGate anyOf={[P.COMPLIANCE_WRITE]}>
+      <button onClick={() => setCreateModalOpen(true)} className="btn btn-primary flex items-center gap-2">
+        <LuPlus size={18} />
+        <span>إضافة جزاء</span>
+      </button>
+    </PermissionGate>
   );
 
   const actionsColumn = {
@@ -196,14 +192,22 @@ export default function PenaltiesPage() {
     stopRowClick: true,
     render: (_, row) => (
       <div className="flex items-center gap-2">
-        <StatusSelect
-          id={row.id}
-          currentStatus={row.status}
-          apiUrl={`/penalties/${row.id}/status`}
-          options={statusOptions}
-          size="xs"
-          onSuccess={() => setReloadToken((t) => t + 1)}
-        />
+        <PermissionGate anyOf={[P.COMPLIANCE_WRITE]}>
+          <StatusSelect
+            id={row.id}
+            currentStatus={row.status}
+            apiUrl={`/penalties/${row.id}/status`}
+            options={statusOptions}
+            size="xs"
+            onSuccess={() => setReloadToken((t) => t + 1)}
+          />
+          <button
+            onClick={() => openEditModal(row)}
+            className="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:text-primary hover:bg-primary-light/10 transition-all"
+          >
+            <LuPencil size={16} />
+          </button>
+        </PermissionGate>
         <button
           onClick={() => navigate(`/penalties/${row.id}`)}
           className="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:text-primary hover:bg-primary-light/10 transition-all"
@@ -219,14 +223,7 @@ export default function PenaltiesPage() {
       <GenericListPage
         title="الجزاءات"
         apiUrl="/penalties"
-        columns={columns.map(col => col.key === 'actions' ? { ...col, render: (v, row) => (
-          <button 
-            onClick={(e) => { e.stopPropagation(); openEditModal(row); }} 
-            className="p-2 text-slate-400 hover:text-primary transition-colors"
-          >
-            <LuPencil size={16} />
-          </button>
-        ), stopRowClick: true } : col).length > 0 ? columns : [...columns.slice(0, -1), actionsColumn]}
+        columns={[...columns, actionsColumn]}
         onRowClick={(row) => navigate(`/penalties/${row.id}`)}
         createButton={createButton}
         reloadToken={reloadToken}

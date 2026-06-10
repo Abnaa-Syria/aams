@@ -9,7 +9,7 @@ import Modal from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import RowActions from '../../components/ui/RowActions';
 import PermissionGate from '../../components/auth/PermissionGate';
-import { PERMISSIONS as P, hasAnyPermission } from '../../utils/rolePermissions';
+import { PERMISSIONS as P, hasAnyPermissionForUser } from '../../utils/rolePermissions';
 import { LuPencil, LuPlus, LuTrash2, LuMessageSquare } from 'react-icons/lu';
 
 const statusOptions = [
@@ -25,7 +25,7 @@ const statusOptions = [
 export default function SupervisorsPage() {
   const navigate = useNavigate();
   const authUser = useSelector((s) => s.auth.user);
-  const canWrite = hasAnyPermission(authUser?.role, [P.USERS_WRITE]);
+  const canWrite = hasAnyPermissionForUser(authUser, [P.USERS_WRITE]);
 
   const [reloadToken, setReloadToken] = useState(0);
   const [showModal, setShowModal] = useState(false);

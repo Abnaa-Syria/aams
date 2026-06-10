@@ -166,7 +166,16 @@ export default function AdminsPage() {
 
   return (
     <>
-      <GenericListPage title="المستخدمين الإداريين" apiUrl="/admin-users" columns={columns} reloadToken={reloadToken} createButton={createButton} />
+      <GenericListPage
+        title="المستخدمين الإداريين"
+        apiUrl="/admin-users"
+        columns={columns}
+        reloadToken={reloadToken}
+        createButton={createButton}
+        filters={[
+          { key: 'role', type: 'select', placeholder: 'الصلاحية', options: ROLE_OPTIONS },
+        ]}
+      />
 
       <Modal isOpen={createOpen} onClose={() => setCreateOpen(false)} title="إضافة مستخدم إداري">
         <AdminForm initial={form} onSubmit={handleCreate} loading={loading} />

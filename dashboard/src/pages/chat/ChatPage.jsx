@@ -164,8 +164,8 @@ export default function ChatPage() {
     if (!q || q.length < 2) return;
     setSearchingUsers(true);
     try {
-      const { data } = await apiService.get(`/users?search=${q}&limit=5`);
-      setSearchResults(data.data.users || []);
+      const { data } = await apiService.get('/users', { search: q, limit: 5 });
+      setSearchResults(data.data || []);
     } catch (err) {
       console.error(err);
     } finally {

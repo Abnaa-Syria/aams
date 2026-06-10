@@ -29,7 +29,7 @@ router.get('/', ...adminPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, ne
       pendingShiftRequests, todayIncidents, pendingDocReviews,
       pendingLeaveRequests, pendingSalaryAdvances, pendingMaintenanceReqs,
       openInvestigations, expiringDocuments, expiringLicenses,
-      totalPenalties, totalRewards,
+      totalPenalties, totalRewards, pendingVehicleSubmissions,
     ] = await Promise.all([
       prisma.user.count({ where: { userType: 'APP_USER', appUser: { appRole: 'DRIVER' }, deletedAt: null } }),
       prisma.user.count({ where: { userType: 'APP_USER', appUser: { appRole: 'DRIVER' }, accountStatus: 'ACTIVE', deletedAt: null } }),
@@ -46,11 +46,25 @@ router.get('/', ...adminPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, ne
       prisma.license.count({ where: { deletedAt: null, expiryDate: { lte: thirtyDaysAhead, gte: today } } }),
       prisma.penalty.aggregate({ _sum: { amount: true }, _count: true, where: { status: 'APPLIED' } }),
       prisma.reward.aggregate({ _sum: { amount: true }, _count: true, where: { status: 'APPROVED' } }),
+      prisma.vehicle.count({
+        where: {
+          deletedAt: null,
+          ownershipStatus: 'DRIVER_OWNED',
+          status: { in: ['PENDING_VERIFICATION', 'PENDING_REPLACEMENT'] },
+        },
+      }),
     ]);
 
     const data = {
       overview: { totalDrivers, activeDrivers, totalVehicles, activeShifts },
-      pending: { pendingShiftRequests, pendingDocReviews, pendingLeaveRequests, pendingSalaryAdvances, pendingMaintenanceReqs },
+      pending: {
+        pendingShiftRequests,
+        pendingDocReviews,
+        pendingLeaveRequests,
+        pendingSalaryAdvances,
+        pendingMaintenanceReqs,
+        pendingVehicleSubmissions,
+      },
       alerts: { todayIncidents, openInvestigations, expiringDocuments, expiringLicenses },
       financials: {
         totalPenaltiesAmount: totalPenalties._sum.amount || 0,

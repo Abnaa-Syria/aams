@@ -288,7 +288,8 @@ export default function BankAccountsPage() {
               <StatusSelect
                 id={row.id}
                 currentStatus={row.verificationStatus}
-                apiUrl={`/bank-accounts/${row.id}`}
+                apiUrl={`/bank-accounts/${row.id}/verify`}
+                payloadKey="verificationStatus"
                 options={statusOptions}
                 size="xs"
                 onSuccess={() => setReloadToken((t) => t + 1)}

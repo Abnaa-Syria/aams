@@ -8,13 +8,13 @@ import Modal from '../../components/ui/Modal';
 import RowActions from '../../components/ui/RowActions';
 import toast from 'react-hot-toast';
 import { LuArrowRight, LuUser, LuUserPlus, LuPhone, LuMail, LuIdCard, LuUsers, LuCalendar, LuBriefcase, LuExternalLink, LuUserMinus, LuChevronLeft, LuMessageSquare } from 'react-icons/lu';
-import { hasAnyPermission, PERMISSIONS as P } from '../../utils/rolePermissions';
+import { hasAnyPermissionForUser, PERMISSIONS as P } from '../../utils/rolePermissions';
 
 export default function SupervisorDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user: authUser } = useSelector((s) => s.auth);
-  const canWrite = hasAnyPermission(authUser?.role, [P.USERS_WRITE]);
+  const canWrite = hasAnyPermissionForUser(authUser, [P.USERS_WRITE]);
 
   const [supervisor, setSupervisor] = useState(null);
   const [loading, setLoading] = useState(true);

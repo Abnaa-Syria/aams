@@ -53,7 +53,9 @@ const statusMap = {
   NEEDS_REVISION: { label: 'يحتاج مراجعة', variant: 'warning' },
 };
 
-export default function StatusSelect({ id, currentStatus, apiUrl, options, onSuccess, size = 'sm', label }) {
+export default function StatusSelect({
+  id, currentStatus, apiUrl, options, onSuccess, size = 'sm', label, payloadKey = 'status',
+}) {
   const [saving, setSaving] = useState(false);
   const [pendingStatus, setPendingStatus] = useState(null);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -70,7 +72,7 @@ export default function StatusSelect({ id, currentStatus, apiUrl, options, onSuc
     setSaving(true);
     setShowConfirm(false);
     try {
-      await apiService.patch(apiUrl, { status: pendingStatus });
+      await apiService.patch(apiUrl, { [payloadKey]: pendingStatus });
       toast.success('تم تحديث الحالة بن��اح');
       onSuccess?.();
     } catch (err) {

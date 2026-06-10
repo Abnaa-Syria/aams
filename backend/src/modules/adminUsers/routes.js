@@ -61,7 +61,12 @@ const ADMIN_SELECT = {
 router.get('/', ...adminPerm(P.USERS_READ), async (req, res, next) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query);
-    const where = { role: { in: ADMIN_ROLES }, deletedAt: null };
+    const where = {
+      role: req.query.role && ADMIN_ROLES.includes(req.query.role)
+        ? req.query.role
+        : { in: ADMIN_ROLES },
+      deletedAt: null,
+    };
     const [items, total] = await Promise.all([
       prisma.user.findMany({ where, select: ADMIN_SELECT, skip, take: limit, orderBy: { createdAt: 'desc' } }),
       prisma.user.count({ where }),

@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react';
+import PermissionGate from '../../components/auth/PermissionGate';
 import GenericListPage from '../../components/ui/GenericListPage';
+import { PERMISSIONS as P } from '../../utils/rolePermissions';
 import StatusBadge from '../../components/ui/StatusBadge';
 import StatusSelect from '../../components/ui/StatusSelect';
 import Modal from '../../components/ui/Modal';
@@ -71,13 +73,15 @@ export default function RewardsPage() {
   };
 
   const createButton = (
-    <button
-      onClick={() => setShowCreate(true)}
-      className="btn btn-primary flex items-center gap-2"
-    >
-      <LuPlus size={18} />
-      <span>إضافة مكافأة</span>
-    </button>
+    <PermissionGate anyOf={[P.HR_APPROVE]}>
+      <button
+        onClick={() => setShowCreate(true)}
+        className="btn btn-primary flex items-center gap-2"
+      >
+        <LuPlus size={18} />
+        <span>إضافة مكافأة</span>
+      </button>
+    </PermissionGate>
   );
 
   const actionsColumn = {
@@ -86,14 +90,16 @@ export default function RewardsPage() {
     stopRowClick: true,
     render: (_, row) => (
       <div className="flex items-center gap-2">
-        <StatusSelect
-          id={row.id}
-          currentStatus={row.status}
-          apiUrl={`/rewards/${row.id}/status`}
-          options={statusOptions}
-          size="xs"
-          onSuccess={() => setReloadToken((t) => t + 1)}
-        />
+        <PermissionGate anyOf={[P.HR_APPROVE]}>
+          <StatusSelect
+            id={row.id}
+            currentStatus={row.status}
+            apiUrl={`/rewards/${row.id}/status`}
+            options={statusOptions}
+            size="xs"
+            onSuccess={() => setReloadToken((t) => t + 1)}
+          />
+        </PermissionGate>
         <button
           onClick={() => navigate(`/rewards/${row.id}`)}
           className="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:text-primary hover:bg-primary-light/10 transition-all"

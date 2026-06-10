@@ -11,6 +11,11 @@ class VehicleService {
     const orderBy = buildOrderBy(query, ['createdAt', 'plateNumber', 'manufacturer']);
     const searchFilter = buildSearchFilter(query, ['plateNumber', 'manufacturer', 'model']);
     const driverNameFilter = buildDriverNameUserFilter(query);
+    const pendingDriverStatuses = ['PENDING_VERIFICATION', 'PENDING_REPLACEMENT'];
+    const statusIn = String(query.statusIn || '')
+      .split(',')
+      .map((status) => status.trim())
+      .filter(Boolean);
 
     // Operational scoping for DRIVER: active assignment + own pending submissions
     const appRole = currentUser?.appUser?.appRole;
@@ -37,12 +42,19 @@ class VehicleService {
       deletedAt: null,
       ...scope,
       ...searchFilter,
-      ...(query.status && { status: query.status }),
+      ...(query.status ? { status: query.status } : statusIn.length > 0 && { status: { in: statusIn } }),
       ...(query.ownershipStatus && { ownershipStatus: query.ownershipStatus }),
       ...(driverNameFilter && {
         assignments: {
           some: {
-            isActive: true,
+            OR: [
+              { isActive: true },
+              {
+                isActive: false,
+                releasedAt: null,
+                vehicle: { status: { in: pendingDriverStatuses } },
+              },
+            ],
             user: driverNameFilter,
           },
         },
@@ -54,7 +66,22 @@ class VehicleService {
         where, skip, take: limit, orderBy,
         include: {
           assignments: {
-            where: { isActive: true },
+            where: {
+              OR: [
+                { isActive: true },
+                {
+                  isActive: false,
+                  releasedAt: null,
+                  vehicle: { status: { in: pendingDriverStatuses } },
+                },
+              ],
+            },
+            include: { user: { select: { id: true, fullNameAr: true, fullNameEn: true } } },
+          },
+          shifts: {
+            where: { status: 'ACTIVE' },
+            orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
+            take: 1,
             include: { user: { select: { id: true, fullNameAr: true, fullNameEn: true } } },
           },
         },
@@ -615,10 +642,20 @@ class VehicleService {
       }
     }
 
-    const [activeAssignment, activeShift, fuelKPIs, violationKPIs, maintenanceCount, oilCount, latestOilLog, assignmentCount] = await Promise.all([
+    const [activeAssignment, pendingAssignment, activeShift, fuelKPIs, violationKPIs, maintenanceCount, oilCount, latestOilLog, assignmentCount] = await Promise.all([
       // 2. Current Long-term Assignee
       prisma.vehicleAssignment.findFirst({
         where: { vehicleId: vid, isActive: true },
+        include: { user: { select: { id: true, fullNameAr: true, mobileNumber: true } } },
+      }),
+      prisma.vehicleAssignment.findFirst({
+        where: {
+          vehicleId: vid,
+          isActive: false,
+          releasedAt: null,
+          vehicle: { status: { in: ['PENDING_VERIFICATION', 'PENDING_REPLACEMENT'] } },
+        },
+        orderBy: { assignedAt: 'desc' },
         include: { user: { select: { id: true, fullNameAr: true, mobileNumber: true } } },
       }),
       // 3. Current Active Driver (On Shift)
@@ -654,9 +691,13 @@ class VehicleService {
 
     return {
       vehicle,
-      // activeDriver prioritizes the on-shift driver, falls back to assignee
+      // Keep the old field for backwards compatibility, but expose custody and live operation separately.
       activeDriver: activeShift?.user || activeAssignment?.user || null,
       activeAssignment: activeAssignment || null,
+      pendingAssignment: pendingAssignment || null,
+      custodyDriver: activeAssignment?.user || pendingAssignment?.user || null,
+      activeShift: activeShift || null,
+      activeShiftDriver: activeShift?.user || null,
       activeShiftId: activeShift?.id || null,
       stats: {
         totalFuelCost: fuelKPIs._sum.amount || 0,

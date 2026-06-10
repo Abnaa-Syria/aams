@@ -104,7 +104,7 @@ router.get('/', ...sharedPerm(P.FINANCE_READ), async (req, res, next) => {
  *         description: Updated
  *   delete:
  *     tags: [Bank Accounts]
- *     summary: Soft-delete bank account (admin FINANCE_APPROVE)
+ *     summary: Soft-delete bank account (driver own account or admin FINANCE_WRITE)
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -284,9 +284,18 @@ router.patch('/:id/verify', ...adminPerm(P.FINANCE_APPROVE), async (req, res, ne
   } catch (err) { next(err); }
 });
 
-router.delete('/:id', ...adminPerm(P.FINANCE_WRITE), async (req, res, next) => {
+router.delete('/:id', ...sharedPerm(P.FINANCE_WRITE), async (req, res, next) => {
   try {
-    await prisma.bankAccount.update({ where: { id: parseInt(req.params.id) }, data: { deletedAt: new Date() } });
+    const id = parseInt(req.params.id, 10);
+    const existing = await prisma.bankAccount.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true, userId: true },
+    });
+    if (!existing) throw new NotFoundError('Bank Account');
+
+    await assertCanAccessDriverRecord(req, existing.userId);
+    await prisma.bankAccount.update({ where: { id }, data: { deletedAt: new Date() } });
+    await logAudit({ userId: req.user.id, action: 'DELETE_BANK_ACCOUNT', entity: 'BankAccount', entityId: String(id) });
     return ApiResponse.success(res, null, 'Bank account deleted');
   } catch (err) { next(err); }
 });

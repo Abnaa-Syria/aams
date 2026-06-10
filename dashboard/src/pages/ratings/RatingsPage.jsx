@@ -15,5 +15,15 @@ const columns = [
 export default function RatingsPage() {
   const navigate = useNavigate();
 
-  return <GenericListPage title="التقييمات" apiUrl="/ratings" columns={columns} onRowClick={(row) => navigate(`/ratings/${row.id}`)} />;
+  return (
+    <GenericListPage
+      title="التقييمات"
+      apiUrl="/ratings"
+      columns={columns}
+      onRowClick={(row) => navigate(`/ratings/${row.id}`)}
+      filters={[
+        { key: 'driverName', type: 'text', placeholder: 'اسم السائق' },
+      ]}
+    />
+  );
 }

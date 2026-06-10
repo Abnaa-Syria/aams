@@ -11,7 +11,7 @@ import {
   LuFuel, LuTriangleAlert, LuCircleAlert, LuWrench, LuMapPin, LuChevronLeft,
   LuMap, LuEye, LuPen, LuActivity, LuInfo, LuUserPlus, LuUserMinus, LuCheck
 } from 'react-icons/lu';
-import { hasAnyPermission, PERMISSIONS as P } from '../../utils/rolePermissions';
+import { hasAnyPermissionForUser, PERMISSIONS as P } from '../../utils/rolePermissions';
 import PermissionGate from '../../components/auth/PermissionGate';
 import VehicleLiveMap from './VehicleLiveMap';
 import AssignVehicleModal from './AssignVehicleModal';
@@ -107,14 +107,14 @@ const TABS = [
   { id: 'fuel', label: 'سجل الوقود', icon: LuFuel },
   { id: 'maintenance', label: 'الصيانة', icon: LuWrench },
   { id: 'violations', label: 'المخالفات', icon: LuTriangleAlert },
-  { id: 'assignments', label: 'تاريخ العهد', icon: LuActivity },
+  { id: 'assignments', label: 'سجل العهد', icon: LuActivity },
 ];
 
 export default function VehicleDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user: authUser } = useSelector((s) => s.auth);
-  const canWriteFleet = hasAnyPermission(authUser?.role, [P.FLEET_WRITE]);
+  const canWriteFleet = hasAnyPermissionForUser(authUser, [P.FLEET_WRITE]);
 
   const [tab, setTab] = useState('overview');
   const [summary, setSummary] = useState(null);
@@ -319,7 +319,21 @@ export default function VehicleDetailPage() {
     );
   }
 
-  const { vehicle, activeDriver, stats } = summary;
+  const {
+    vehicle,
+    activeDriver,
+    activeAssignment,
+    pendingAssignment,
+    custodyDriver,
+    activeShift,
+    activeShiftDriver,
+    activeShiftId,
+    stats,
+  } = summary;
+  const custodyHolder = custodyDriver || activeAssignment?.user || pendingAssignment?.user || null;
+  const isPendingCustody = !activeAssignment && !!pendingAssignment;
+  const liveDriver = activeShiftDriver || activeShift?.user || null;
+  const hasDifferentLiveDriver = custodyHolder?.id && liveDriver?.id && custodyHolder.id !== liveDriver.id;
 
   const tabColumns = {
     fuel: [
@@ -384,12 +398,12 @@ export default function VehicleDetailPage() {
                 </button>
               </>
             )}
-            {activeDriver ? (
+            {custodyHolder ? (
               <button 
                 className="px-6 py-3 rounded-2xl bg-red-50 text-red-600 hover:bg-red-100 font-black text-sm transition-all flex items-center gap-2 group" 
                 onClick={handleReleaseDriver}
               >
-                <LuUserMinus size={20} className="group-hover:scale-110 transition-transform" /> سحب المركبة
+                <LuUserMinus size={20} className="group-hover:scale-110 transition-transform" /> إنهاء العهدة
               </button>
             ) : (
               <button 
@@ -443,32 +457,34 @@ export default function VehicleDetailPage() {
                 <InfoCard icon={LuClock} label="العهد" value={stats.totalAssignments} sub="إجمالي الحركات" />
               </div>
 
-              {/* Active Driver Widget */}
-              <div className="bg-white rounded-3xl p-8 shadow-premium border border-slate-100 relative overflow-hidden group">
-                 <div className="absolute top-0 right-0 w-32 h-32 bg-brand-light/20 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-brand-primary/10 transition-colors" />
-                 <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
-                    <LuUser className="text-brand-primary" /> السائق الحالي
-                 </h3>
-                 {activeDriver ? (
-                   <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 font-black text-xl ring-1 ring-slate-200">
-                          {activeDriver.fullNameAr?.charAt(0)}
-                        </div>
-                        <div>
-                           <div className="text-xl font-black text-slate-800">{activeDriver.fullNameAr}</div>
-                           <div className="text-sm text-slate-500 font-bold">{activeDriver.mobileNumber || '—'}</div>
-                        </div>
-                      </div>
-                      <Link to={`/drivers/${activeDriver.id}`} className="btn-primary !py-3 !px-6 !rounded-xl flex items-center gap-2">
-                        ملف السائق <LuChevronLeft size={18} />
-                      </Link>
-                   </div>
-                 ) : (
-                   <div className="text-center py-6">
-                      <div className="text-slate-400 font-bold">المركبة غير مستخدمة حالياً</div>
-                   </div>
-                 )}
+              {hasDifferentLiveDriver && (
+                <div className="rounded-3xl border border-orange-200 bg-orange-50 px-6 py-4 text-sm font-bold text-orange-700">
+                  المركبة في عهدة <span className="font-black">{custodyHolder.fullNameAr}</span>، لكنها تعمل حالياً مع سائق آخر على شفت نشط: <span className="font-black">{liveDriver.fullNameAr}</span>.
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                <CustodyCard
+                  title={isPendingCustody ? 'مقدم طلب العهدة' : 'صاحب العهدة الحالي'}
+                  subtitle={isPendingCustody ? 'طلب عهدة بانتظار موافقة الإدارة' : 'السائق المسجل على المركبة في سجل العهد'}
+                  user={custodyHolder}
+                  emptyText="لا يوجد سائق في عهدة هذه المركبة حالياً"
+                  badge={
+                    isPendingCustody
+                      ? 'طلب عهدة معلق'
+                      : activeAssignment?.assignedAt
+                        ? `منذ ${new Date(activeAssignment.assignedAt).toLocaleDateString('ar-SA')}`
+                        : null
+                  }
+                />
+                <CustodyCard
+                  title="السائق النشط الآن"
+                  subtitle="من يقود المركبة حالياً على شفت نشط"
+                  user={liveDriver}
+                  emptyText="لا يوجد شفت نشط على هذه المركبة الآن"
+                  badge={activeShift?.startedAt ? `شفت نشط منذ ${new Date(activeShift.startedAt).toLocaleString('ar-SA')}` : null}
+                  accent="emerald"
+                />
               </div>
             </div>
 
@@ -491,11 +507,20 @@ export default function VehicleDetailPage() {
         )}
 
         {tab === 'tracking' && (
-          <VehicleLiveMap activeShiftId={summary.activeShiftId} vehicle={vehicle} activeDriver={activeDriver} />
+          <VehicleLiveMap
+            activeShiftId={activeShiftId}
+            vehicle={vehicle}
+            activeDriver={liveDriver || custodyHolder || activeDriver}
+          />
         )}
 
         {tab !== 'overview' && tab !== 'tracking' && (
           <div className="bg-white rounded-[2.5rem] shadow-premium border border-slate-100 overflow-hidden">
+              {tab === 'assignments' && (
+                <div className="px-8 py-5 border-b border-slate-100 bg-slate-50/70 text-sm font-bold text-slate-600">
+                  سجل العهد يوضح من استلم المركبة ومتى انتهت عهدته. السائق النشط حالياً على الشفت يظهر في نظرة عامة بشكل منفصل.
+                </div>
+              )}
               <DataTable 
                 columns={[...tabColumns[tab], { key: 'actions', label: 'إجراءات', render: (_, r) => (
                   <div className="flex gap-2">
@@ -670,6 +695,47 @@ function StatusDropdown({ record, currentTab, onUpdate }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function CustodyCard({ title, subtitle, user, emptyText, badge, accent = 'brand' }) {
+  const accentClasses = accent === 'emerald'
+    ? 'text-emerald-600 bg-emerald-50'
+    : 'text-brand-primary bg-brand-light';
+
+  return (
+    <div className="bg-white rounded-3xl p-8 shadow-premium border border-slate-100 relative overflow-hidden">
+      <div className={`absolute top-0 right-0 w-28 h-28 rounded-full -mr-14 -mt-14 blur-3xl ${accent === 'emerald' ? 'bg-emerald-100/60' : 'bg-brand-light/40'}`} />
+      <div className="relative">
+        <h3 className="text-lg font-black text-slate-800 mb-1 flex items-center gap-2">
+          <LuUser className={accent === 'emerald' ? 'text-emerald-600' : 'text-brand-primary'} />
+          {title}
+        </h3>
+        <p className="text-xs font-bold text-slate-400 mb-5">{subtitle}</p>
+
+        {user ? (
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4 min-w-0">
+              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center font-black text-xl ring-1 ring-slate-200 ${accentClasses}`}>
+                {user.fullNameAr?.charAt(0) || '؟'}
+              </div>
+              <div className="min-w-0">
+                <div className="text-xl font-black text-slate-800 truncate">{user.fullNameAr}</div>
+                <div className="text-sm text-slate-500 font-bold">{user.mobileNumber || '—'}</div>
+                {badge && <div className="text-[0.7rem] font-black text-slate-400 mt-1">{badge}</div>}
+              </div>
+            </div>
+            <Link to={`/drivers/${user.id}`} className="btn-primary !py-3 !px-5 !rounded-xl flex items-center gap-2 shrink-0">
+              ملف السائق <LuChevronLeft size={18} />
+            </Link>
+          </div>
+        ) : (
+          <div className="text-center py-8 rounded-2xl border border-dashed border-slate-200 text-slate-400 font-bold">
+            {emptyText}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

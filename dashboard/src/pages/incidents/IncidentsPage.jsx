@@ -241,7 +241,7 @@ export default function IncidentsPage() {
               <StatusSelect
                 id={row.id}
                 currentStatus={row.status}
-                apiUrl={`/incidents/${row.id}`}
+                apiUrl={`/incidents/${row.id}/status`}
                 options={statusOptions}
                 size="xs"
                 onSuccess={() => setReloadToken((t) => t + 1)}

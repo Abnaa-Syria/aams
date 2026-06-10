@@ -232,7 +232,7 @@ export default function DailyReportsPage() {
               <StatusSelect
                 id={row.id}
                 currentStatus={row.status}
-                apiUrl={`/daily-reports/${row.id}`}
+                apiUrl={`/daily-reports/${row.id}/review`}
                 options={statusOptions}
                 size="xs"
                 onSuccess={() => setReloadToken((t) => t + 1)}

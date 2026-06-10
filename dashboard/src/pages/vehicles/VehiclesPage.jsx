@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { apiService } from '../../services/api';
 import toast from 'react-hot-toast';
 import { useSelector } from 'react-redux';
@@ -9,7 +9,7 @@ import Modal from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import RowActions from '../../components/ui/RowActions';
 import PermissionGate from '../../components/auth/PermissionGate';
-import { PERMISSIONS as P, hasAnyPermission } from '../../utils/rolePermissions';
+import { PERMISSIONS as P, hasAnyPermissionForUser } from '../../utils/rolePermissions';
 import { LuPencil, LuPlus, LuTrash2, LuEye } from 'react-icons/lu';
 
 const statusFilter = {
@@ -18,13 +18,21 @@ const statusFilter = {
     { value: 'ACTIVE', label: 'نشطة' },
     { value: 'IN_MAINTENANCE', label: 'في الصيانة' },
     { value: 'OUT_OF_SERVICE', label: 'خارج الخدمة' },
+    { value: 'RESERVED', label: 'محجوزة' },
+    { value: 'DECOMMISSIONED', label: 'مستبعدة' },
+    { value: 'PENDING_VERIFICATION', label: 'بانتظار التحقق' },
+    { value: 'PENDING_REPLACEMENT', label: 'بانتظار الاستبدال' },
   ],
 };
 
+const getUserName = (user) => user?.fullNameAr || user?.fullNameEn || '—';
+const isPendingVehicleStatus = (status) => ['PENDING_VERIFICATION', 'PENDING_REPLACEMENT'].includes(status);
+
 export default function VehiclesPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const authUser = useSelector((s) => s.auth.user);
-  const canWrite = hasAnyPermission(authUser?.role, [P.FLEET_WRITE]);
+  const canWrite = hasAnyPermissionForUser(authUser, [P.FLEET_WRITE]);
 
   const [reloadToken, setReloadToken] = useState(0);
   const [showModal, setShowModal] = useState(false);
@@ -99,10 +107,40 @@ export default function VehiclesPage() {
     { key: 'status', label: 'الحالة', render: (v) => <StatusBadge status={v} /> },
     {
       key: 'assignments',
-      label: 'السائق المعين',
-      render: (v) => {
+      label: 'في عهدة',
+      render: (v, row) => {
         const active = v?.find((a) => a.isActive);
-        return active?.user?.fullNameAr || '—';
+        const pending = v?.find((a) => !a.isActive && !a.releasedAt);
+        if (active?.user) return getUserName(active.user);
+        if (pending?.user && isPendingVehicleStatus(row.status)) {
+          return (
+            <div className="flex flex-col">
+              <span>{getUserName(pending.user)}</span>
+              <span className="text-[0.65rem] font-black text-amber-600">طلب عهدة معلق</span>
+            </div>
+          );
+        }
+        return '—';
+      },
+    },
+    {
+      key: 'shifts',
+      label: 'نشطة حالياً مع',
+      render: (v, row) => {
+        const shift = v?.[0];
+        const shiftDriver = shift?.user;
+        const custody = row.assignments?.find((a) => a.isActive)?.user;
+        if (!shiftDriver) return '—';
+
+        const isDifferentDriver = custody?.id && custody.id !== shiftDriver.id;
+        return (
+          <div className="flex flex-col">
+            <span>{getUserName(shiftDriver)}</span>
+            {isDifferentDriver && (
+              <span className="text-[0.65rem] font-black text-orange-600">ليست نفس العهدة</span>
+            )}
+          </div>
+        );
       },
     },
     {
@@ -110,19 +148,19 @@ export default function VehiclesPage() {
       label: 'إجراءات',
       stopRowClick: true,
       render: (_, row) => (
-        <PermissionGate anyOf={[P.FLEET_WRITE]}>
-          <RowActions>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => navigate(`/vehicles/${row.id}`)}>
-              <LuEye size={16} />
-            </button>
+        <RowActions>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => navigate(`/vehicles/${row.id}`)}>
+            <LuEye size={16} />
+          </button>
+          <PermissionGate anyOf={[P.FLEET_WRITE]}>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEdit(row)}>
               <LuPencil size={16} />
             </button>
             <button type="button" className="btn btn-danger btn-sm" onClick={() => setConfirmDelete(row)}>
               <LuTrash2 size={16} />
             </button>
-          </RowActions>
-        </PermissionGate>
+          </PermissionGate>
+        </RowActions>
       ),
     },
   ]), []);
@@ -133,6 +171,10 @@ export default function VehiclesPage() {
         title="إدارة المركبات"
         apiUrl="/vehicles"
         columns={columns}
+        defaultParams={{
+          ...(searchParams.get('status') && { status: searchParams.get('status') }),
+          ...(searchParams.get('statusIn') && { statusIn: searchParams.get('statusIn') }),
+        }}
         reloadToken={reloadToken}
         onRowClick={(row) => navigate(`/vehicles/${row.id}`)}
         filters={[{ key: 'search', placeholder: 'بحث برقم اللوحة...' }, { key: 'driverName', type: 'text', placeholder: 'اسم السائق' }, statusFilter]}

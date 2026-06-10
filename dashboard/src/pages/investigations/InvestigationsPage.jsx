@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import PermissionGate from '../../components/auth/PermissionGate';
 import GenericListPage from '../../components/ui/GenericListPage';
+import { PERMISSIONS as P } from '../../utils/rolePermissions';
 import StatusBadge from '../../components/ui/StatusBadge';
 import StatusSelect from '../../components/ui/StatusSelect';
 import Modal from '../../components/ui/Modal';
@@ -130,10 +132,12 @@ export default function InvestigationsPage() {
   };
 
   const createButton = (
-    <button onClick={() => setShowCreate(true)} className="btn btn-primary flex items-center gap-2">
-      <LuPlus size={18} />
-      <span>فتح تحقيق</span>
-    </button>
+    <PermissionGate anyOf={[P.COMPLIANCE_WRITE]}>
+      <button onClick={() => setShowCreate(true)} className="btn btn-primary flex items-center gap-2">
+        <LuPlus size={18} />
+        <span>فتح تحقيق</span>
+      </button>
+    </PermissionGate>
   );
 
   return (
@@ -147,20 +151,22 @@ export default function InvestigationsPage() {
           stopRowClick: true,
           render: (_, row) => (
             <div className="flex items-center gap-2">
-              <StatusSelect
-                id={row.id}
-                currentStatus={row.status}
-                apiUrl={`/investigations/${row.id}`}
-                options={statusOptions}
-                size="xs"
-                onSuccess={() => setReloadToken((t) => t + 1)}
-              />
-              <button 
-                onClick={(e) => { e.stopPropagation(); openEditModal(row); }} 
-                className="p-2 text-slate-400 hover:text-primary transition-colors"
-              >
-                <LuPencil size={16} />
-              </button>
+              <PermissionGate anyOf={[P.COMPLIANCE_WRITE]}>
+                <StatusSelect
+                  id={row.id}
+                  currentStatus={row.status}
+                  apiUrl={`/investigations/${row.id}/status`}
+                  options={statusOptions}
+                  size="xs"
+                  onSuccess={() => setReloadToken((t) => t + 1)}
+                />
+                <button
+                  onClick={(e) => { e.stopPropagation(); openEditModal(row); }}
+                  className="p-2 text-slate-400 hover:text-primary transition-colors"
+                >
+                  <LuPencil size={16} />
+                </button>
+              </PermissionGate>
             </div>
           ),
         }]}
