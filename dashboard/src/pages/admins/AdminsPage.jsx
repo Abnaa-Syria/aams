@@ -1,12 +1,13 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { LuMessageSquare, LuPencil, LuTrash2, LuPlus, LuKey } from 'react-icons/lu';
+import { LuMessageSquare, LuPencil, LuTrash2, LuPlus, LuKey, LuRefreshCw } from 'react-icons/lu';
 import GenericListPage from '../../components/ui/GenericListPage';
 import StatusBadge from '../../components/ui/StatusBadge';
 import Modal from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { apiService } from '../../services/api';
+import { buildUserListParams } from '../../utils/userListParams';
 
 const ROLE_OPTIONS = [
   { value: 'SUPER_ADMIN', label: 'مدير عام' },
@@ -81,6 +82,7 @@ export default function AdminsPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [restoreOpen, setRestoreOpen] = useState(false);
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -94,6 +96,7 @@ export default function AdminsPage() {
   const openEdit = (row) => { setSelected(row); setForm({ identityNumber: row.identityNumber, password: '', fullNameAr: row.fullNameAr, fullNameEn: row.fullNameEn || '', email: row.email || '', mobileNumber: row.mobileNumber || '', role: row.role }); setEditOpen(true); };
   const openReset = (row) => { setSelected(row); setResetPassword(''); setResetOpen(true); };
   const openDelete = (row) => { setSelected(row); setDeleteOpen(true); };
+  const openRestore = (row) => { setSelected(row); setRestoreOpen(true); };
 
   const handleCreate = async () => {
     if (!form.identityNumber || !form.password || !form.fullNameAr || !form.role) { toast.error('الرجاء تعبئة الحقول المطلوبة'); return; }
@@ -137,6 +140,18 @@ export default function AdminsPage() {
     } catch { } finally { setLoading(false); }
   };
 
+  const handleRestore = async () => {
+    setLoading(true);
+    try {
+      await apiService.patch(`/admin-users/${selected.id}/restore`);
+      toast.success('تم استرجاع المستخدم');
+      setRestoreOpen(false);
+      reload();
+    } catch { } finally { setLoading(false); }
+  };
+
+  const isArchivedRow = (row) => row.deletedAt || row.accountStatus === 'ARCHIVED';
+
   const columns = [
     { key: 'identityNumber', label: 'رقم الهوية' },
     { key: 'fullNameAr', label: 'الاسم' },
@@ -149,10 +164,16 @@ export default function AdminsPage() {
       stopRowClick: true,
       render: (_, row) => (
         <div className="flex items-center gap-2">
-          <button onClick={(e) => { e.stopPropagation(); navigate(`/chat?userId=${row.id}`); }} className="btn-icon" title="مراسلة"><LuMessageSquare size={16} /></button>
-          <button onClick={(e) => { e.stopPropagation(); openEdit(row); }} className="btn-icon" title="تعديل"><LuPencil size={16} /></button>
-          <button onClick={(e) => { e.stopPropagation(); openReset(row); }} className="btn-icon" title="إعادة كلمة المرور"><LuKey size={16} /></button>
-          <button onClick={(e) => { e.stopPropagation(); openDelete(row); }} className="btn-icon !text-red-500" title="حذف"><LuTrash2 size={16} /></button>
+          {isArchivedRow(row) ? (
+            <button onClick={(e) => { e.stopPropagation(); openRestore(row); }} className="btn-icon !text-emerald-600" title="استرجاع"><LuRefreshCw size={16} /></button>
+          ) : (
+            <>
+              <button onClick={(e) => { e.stopPropagation(); navigate(`/chat?userId=${row.id}`); }} className="btn-icon" title="مراسلة"><LuMessageSquare size={16} /></button>
+              <button onClick={(e) => { e.stopPropagation(); openEdit(row); }} className="btn-icon" title="تعديل"><LuPencil size={16} /></button>
+              <button onClick={(e) => { e.stopPropagation(); openReset(row); }} className="btn-icon" title="إعادة كلمة المرور"><LuKey size={16} /></button>
+              <button onClick={(e) => { e.stopPropagation(); openDelete(row); }} className="btn-icon !text-red-500" title="حذف"><LuTrash2 size={16} /></button>
+            </>
+          )}
         </div>
       ),
     },
@@ -171,9 +192,11 @@ export default function AdminsPage() {
         apiUrl="/admin-users"
         columns={columns}
         reloadToken={reloadToken}
+        prepareParams={buildUserListParams}
         createButton={createButton}
         filters={[
           { key: 'role', type: 'select', placeholder: 'الصلاحية', options: ROLE_OPTIONS },
+          { key: 'deletedOnly', type: 'select', placeholder: 'حالة الحذف', options: [{ value: 'true', label: 'المؤرشفين فقط' }] },
         ]}
       />
 
@@ -203,6 +226,16 @@ export default function AdminsPage() {
         title="حذف مستخدم"
         message={`هل أنت متأكد من حذف "${selected?.fullNameAr}"؟ سيتم أرشفة الحساب.`}
         confirmLabel="حذف"
+        loading={loading}
+      />
+
+      <ConfirmDialog
+        isOpen={restoreOpen}
+        onClose={() => setRestoreOpen(false)}
+        onConfirm={handleRestore}
+        title="استرجاع مستخدم"
+        message={`هل تريد استرجاع "${selected?.fullNameAr}" وتفعيل الحساب؟`}
+        confirmText="استرجاع"
         loading={loading}
       />
     </>

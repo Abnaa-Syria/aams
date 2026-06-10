@@ -9,10 +9,17 @@ class SupervisorService {
     const searchFilter = buildSearchFilter(query, ['fullNameAr', 'fullNameEn', 'identityNumber', 'mobileNumber']);
 
     // Find users with SUPERVISOR appRole and their AppUser
+    const deletedFilter = query.deletedOnly === 'true' || query.accountStatus === 'ARCHIVED'
+      ? { deletedAt: { not: { equals: null } } }
+      : query.includeDeleted === 'true'
+        ? {}
+        : { deletedAt: null };
+
     const where = { 
       userType: 'APP_USER',
       appUser: { appRole: 'SUPERVISOR' },
-      deletedAt: null, 
+      ...deletedFilter,
+      ...(query.accountStatus && { accountStatus: query.accountStatus }),
       ...searchFilter 
     };
 
@@ -21,7 +28,7 @@ class SupervisorService {
         where,
         select: {
           id: true, identityNumber: true, fullNameAr: true, fullNameEn: true,
-          mobileNumber: true, email: true, accountStatus: true, createdAt: true,
+          mobileNumber: true, email: true, accountStatus: true, deletedAt: true, createdAt: true,
           appUser: { select: { id: true, _count: { select: { assignedDrivers: true } } } },
         },
         skip, take: limit, orderBy,

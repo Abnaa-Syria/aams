@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { apiService } from '../../services/api';
@@ -10,7 +10,8 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import RowActions from '../../components/ui/RowActions';
 import PermissionGate from '../../components/auth/PermissionGate';
 import { PERMISSIONS as P, hasAnyPermissionForUser } from '../../utils/rolePermissions';
-import { LuPencil, LuPlus, LuTrash2, LuMessageSquare } from 'react-icons/lu';
+import { LuPencil, LuPlus, LuTrash2, LuMessageSquare, LuRefreshCw } from 'react-icons/lu';
+import { buildUserListParams } from '../../utils/userListParams';
 
 const statusOptions = [
   { value: 'ACTIVE', label: 'نشط' },
@@ -31,6 +32,7 @@ export default function SupervisorsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [confirmRestore, setConfirmRestore] = useState(null);
   const [form, setForm] = useState({
     identityNumber: '',
     password: '',
@@ -116,6 +118,19 @@ export default function SupervisorsPage() {
     }
   };
 
+  const doRestore = async () => {
+    try {
+      await apiService.patch(`/users/${confirmRestore.id}/restore`);
+      toast.success('تم استرجاع المشرف');
+      setConfirmRestore(null);
+      setReloadToken((t) => t + 1);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'فشل استرجاع الحساب');
+    }
+  };
+
+  const isArchivedRow = useCallback((row) => row.deletedAt || row.accountStatus === 'ARCHIVED', []);
+
   const columns = useMemo(() => ([
     { key: 'identityNumber', label: 'رقم الهوية' },
     { key: 'fullNameAr', label: 'الاسم' },
@@ -133,17 +148,25 @@ export default function SupervisorsPage() {
             <LuMessageSquare size={16} />
           </button>
           <PermissionGate anyOf={[P.USERS_WRITE]}>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEdit(row)} title="تعديل">
-              <LuPencil size={16} />
-            </button>
-            <button type="button" className="btn btn-danger btn-sm" onClick={() => setConfirmDelete(row)} title="حذف">
-              <LuTrash2 size={16} />
-            </button>
+            {isArchivedRow(row) ? (
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setConfirmRestore(row)} title="استرجاع">
+                <LuRefreshCw size={16} />
+              </button>
+            ) : (
+              <>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEdit(row)} title="تعديل">
+                  <LuPencil size={16} />
+                </button>
+                <button type="button" className="btn btn-danger btn-sm" onClick={() => setConfirmDelete(row)} title="حذف">
+                  <LuTrash2 size={16} />
+                </button>
+              </>
+            )}
           </PermissionGate>
         </RowActions>
       ),
     },
-  ]), [navigate]);
+  ]), [isArchivedRow, navigate]);
 
   return (
     <>
@@ -152,8 +175,12 @@ export default function SupervisorsPage() {
         apiUrl="/supervisors"
         columns={columns}
         reloadToken={reloadToken}
-        filters={[{ key: 'search', placeholder: 'بحث...' }]}
-        onRowClick={(row) => navigate(`/supervisors/${row.id}`)}
+        prepareParams={buildUserListParams}
+        filters={[
+          { key: 'search', placeholder: 'بحث...' },
+          { key: 'deletedOnly', type: 'select', placeholder: 'حالة الحذف', options: [{ value: 'true', label: 'المؤرشفين فقط' }] },
+        ]}
+        onRowClick={(row) => !isArchivedRow(row) && navigate(`/supervisors/${row.id}`)}
         createButton={(
           <PermissionGate anyOf={[P.USERS_WRITE]}>
             <button type="button" className="btn btn-primary" onClick={openCreate}>
@@ -259,6 +286,15 @@ export default function SupervisorsPage() {
         message={`هل أنت متأكد من حذف المشرف (${confirmDelete?.fullNameAr || confirmDelete?.identityNumber || ''})؟`}
         confirmText="حذف"
         danger
+      />
+
+      <ConfirmDialog
+        isOpen={!!confirmRestore}
+        onClose={() => setConfirmRestore(null)}
+        onConfirm={doRestore}
+        title="استرجاع مشرف"
+        message={`هل تريد استرجاع حساب المشرف (${confirmRestore?.fullNameAr || confirmRestore?.identityNumber || ''})؟`}
+        confirmText="استرجاع"
       />
     </>
   );

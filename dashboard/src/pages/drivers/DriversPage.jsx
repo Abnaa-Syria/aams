@@ -8,8 +8,10 @@ import DataTable from '../../components/ui/DataTable';
 import Pagination from '../../components/ui/Pagination';
 import StatusBadge from '../../components/ui/StatusBadge';
 import Modal from '../../components/ui/Modal';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import toast from 'react-hot-toast';
 import { LuPlus, LuSearch, LuFilter, LuUsers, LuRefreshCw, LuMessageSquare } from 'react-icons/lu';
+import { buildUserListParams } from '../../utils/userListParams';
 
 export default function DriversPage() {
   const { user: authUser } = useSelector((s) => s.auth);
@@ -17,15 +19,18 @@ export default function DriversPage() {
   const [drivers, setDrivers] = useState([]);
   const [meta, setMeta] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ page: 1, search: '', accountStatus: '', role: 'DRIVER' });
+  const [filters, setFilters] = useState({ page: 1, search: '', accountStatus: '', deletedOnly: '', role: 'DRIVER' });
   const [showCreate, setShowCreate] = useState(false);
+  const [restoreUser, setRestoreUser] = useState(null);
   const [form, setForm] = useState({ identityNumber: '', fullNameAr: '', fullNameEn: '', mobileNumber: '', email: '', password: '' });
   const navigate = useNavigate();
+
+  const viewingArchived = filters.deletedOnly === 'true' || filters.accountStatus === 'ARCHIVED';
 
   const loadDrivers = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await apiService.get('/users', filters);
+      const { data } = await apiService.get('/users', buildUserListParams(filters));
       setDrivers(data.data);
       setMeta(data.meta);
     } catch { /* handled */ } finally { setLoading(false); }
@@ -46,6 +51,20 @@ export default function DriversPage() {
     }
   };
 
+  const handleRestore = async () => {
+    if (!restoreUser) return;
+    try {
+      await apiService.patch(`/users/${restoreUser.id}/restore`);
+      toast.success('تم استرجاع الحساب');
+      setRestoreUser(null);
+      loadDrivers();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'فشل استرجاع الحساب');
+    }
+  };
+
+  const isArchivedRow = (row) => row.deletedAt || row.accountStatus === 'ARCHIVED';
+
   const columns = [
     { key: 'employeeNumber', label: 'رقم الموظف' },
     { key: 'identityNumber', label: 'رقم الهوية' },
@@ -56,16 +75,30 @@ export default function DriversPage() {
     { key: 'supervisor', label: 'المشرف', render: (val) => val?.fullNameAr || '—' },
     { 
       key: 'actions', 
-      label: 'مراسلة', 
+      label: 'إجراءات', 
       stopRowClick: true,
       render: (_, row) => (
-        <button 
-          onClick={(e) => { e.stopPropagation(); navigate(`/chat?userId=${row.id}`); }}
-          className="w-10 h-10 rounded-xl bg-brand-light text-brand-primary flex items-center justify-center hover:bg-brand-primary hover:text-white transition-all shadow-sm"
-          title="بدء محادثة"
-        >
-          <LuMessageSquare size={18} />
-        </button>
+        <div className="flex items-center gap-2">
+          {isArchivedRow(row) ? (
+            <PermissionGate anyOf={[P.USERS_WRITE]}>
+              <button
+                onClick={(e) => { e.stopPropagation(); setRestoreUser(row); }}
+                className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                title="استرجاع الحساب"
+              >
+                <LuRefreshCw size={18} />
+              </button>
+            </PermissionGate>
+          ) : (
+            <button
+              onClick={(e) => { e.stopPropagation(); navigate(`/chat?userId=${row.id}`); }}
+              className="w-10 h-10 rounded-xl bg-brand-light text-brand-primary flex items-center justify-center hover:bg-brand-primary hover:text-white transition-all shadow-sm"
+              title="بدء محادثة"
+            >
+              <LuMessageSquare size={18} />
+            </button>
+          )}
+        </div>
       )
     },
   ];
@@ -126,7 +159,15 @@ export default function DriversPage() {
             <select
               className="form-input !pr-12 !bg-white/80 !rounded-2xl form-select"
               value={filters.accountStatus}
-              onChange={(e) => setFilters(f => ({ ...f, accountStatus: e.target.value, page: 1 }))}
+              onChange={(e) => {
+                const value = e.target.value;
+                setFilters(f => ({
+                  ...f,
+                  accountStatus: value,
+                  deletedOnly: value === 'ARCHIVED' ? 'true' : '',
+                  page: 1,
+                }));
+              }}
             >
               <option value="">جميع الحالات التشغيلية</option>
               <option value="ACTIVE">نشط (Active)</option>
@@ -139,7 +180,30 @@ export default function DriversPage() {
             </select>
           </div>
         </div>
+
+        <div className="w-full md:w-56">
+          <label className="block text-[0.7rem] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">حالة الحذف</label>
+          <select
+            className="form-input !bg-white/80 !rounded-2xl form-select"
+            value={filters.deletedOnly}
+            onChange={(e) => setFilters(f => ({
+              ...f,
+              deletedOnly: e.target.value,
+              page: 1,
+              accountStatus: e.target.value === 'true' ? '' : f.accountStatus,
+            }))}
+          >
+            <option value="">الحسابات غير المحذوفة</option>
+            <option value="true">الحسابات المؤرشفة فقط</option>
+          </select>
+        </div>
       </div>
+
+      {viewingArchived && (
+        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          يتم عرض الحسابات المحذوفة/المؤرشفة فقط. الحسابات النشطة لا تظهر في هذا العرض — غيّر فلتر «حالة الحذف» لعرض السائقين النشطين.
+        </div>
+      )}
 
       {/* Main Content Table */}
       <div className="card !p-0 overflow-hidden border-none ring-1 ring-slate-200/50">
@@ -147,7 +211,7 @@ export default function DriversPage() {
           columns={columns}
           data={drivers}
           loading={loading}
-          onRowClick={(row) => navigate(`/drivers/${row.id}`)}
+          onRowClick={(row) => !isArchivedRow(row) && navigate(`/drivers/${row.id}`)}
           emptyMessage="لا يوجد سائقين متطابقين مع معايير البحث"
         />
         <div className="bg-slate-50/30">
@@ -197,6 +261,15 @@ export default function DriversPage() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={!!restoreUser}
+        onClose={() => setRestoreUser(null)}
+        onConfirm={handleRestore}
+        title="استرجاع حساب"
+        message={`هل تريد استرجاع حساب "${restoreUser?.fullNameAr || restoreUser?.identityNumber || ''}" وتفعيله؟`}
+        confirmText="استرجاع"
+      />
     </div>
   );
 }

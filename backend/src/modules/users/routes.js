@@ -128,6 +128,8 @@ router.put('/:id', ...sharedPerm(P.USERS_WRITE), validate(updateUserSchema), Use
  */
 router.patch('/:id/status', ...sharedPerm(P.USERS_WRITE), validate(changeStatusSchema), UserController.changeStatus);
 
+router.patch('/:id/restore', ...sharedPerm(P.USERS_WRITE), validate(idParamSchema), UserController.restore);
+
 /**
  * @openapi
  * /users/{id}/assign-supervisor:

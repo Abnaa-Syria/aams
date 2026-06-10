@@ -51,6 +51,13 @@ class UserController {
       return ApiResponse.success(res, null, 'User deleted successfully');
     } catch (err) { next(err); }
   }
+
+  static async restore(req, res, next) {
+    try {
+      const user = await UserService.restore(req.params.id, req.user);
+      return ApiResponse.success(res, user, 'User restored successfully');
+    } catch (err) { next(err); }
+  }
 }
 
 module.exports = UserController;

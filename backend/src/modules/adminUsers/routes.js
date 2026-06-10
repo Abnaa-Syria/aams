@@ -12,7 +12,7 @@ const ADMIN_ROLES = ['SUPER_ADMIN', 'OPERATIONS_ADMIN', 'HR_ADMIN', 'FLEET_ADMIN
 const ADMIN_SELECT = {
   id: true, identityNumber: true, fullNameAr: true, fullNameEn: true,
   email: true, mobileNumber: true, role: true, accountStatus: true,
-  lastLoginAt: true, createdAt: true,
+  deletedAt: true, lastLoginAt: true, createdAt: true,
 };
 
 /**
@@ -61,11 +61,18 @@ const ADMIN_SELECT = {
 router.get('/', ...adminPerm(P.USERS_READ), async (req, res, next) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query);
+    const deletedFilter = req.query.deletedOnly === 'true' || req.query.accountStatus === 'ARCHIVED'
+      ? { deletedAt: { not: { equals: null } } }
+      : req.query.includeDeleted === 'true'
+        ? {}
+        : { deletedAt: null };
+
     const where = {
       role: req.query.role && ADMIN_ROLES.includes(req.query.role)
         ? req.query.role
         : { in: ADMIN_ROLES },
-      deletedAt: null,
+      ...deletedFilter,
+      ...(req.query.accountStatus && { accountStatus: req.query.accountStatus }),
     };
     const [items, total] = await Promise.all([
       prisma.user.findMany({ where, select: ADMIN_SELECT, skip, take: limit, orderBy: { createdAt: 'desc' } }),
@@ -183,6 +190,29 @@ router.patch('/:id/reset-password', ...adminPerm(P.USERS_WRITE), async (req, res
     await prisma.user.update({ where: { id: parseInt(req.params.id) }, data: { passwordHash } });
     await logAudit({ userId: req.user.id, action: 'RESET_ADMIN_PASSWORD', entity: 'User', entityId: req.params.id });
     return ApiResponse.success(res, null, 'Password reset successfully');
+  } catch (err) { next(err); }
+});
+
+router.patch('/:id/restore', ...adminPerm(P.USERS_WRITE), async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const user = await prisma.user.findFirst({ where: { id, role: { in: ADMIN_ROLES } } });
+    if (!user) return ApiResponse.notFound(res, 'Admin user not found');
+
+    const item = await prisma.user.update({
+      where: { id },
+      data: { deletedAt: null, accountStatus: 'ACTIVE' },
+      select: ADMIN_SELECT,
+    });
+    await logAudit({
+      userId: req.user.id,
+      action: 'RESTORE_ADMIN_USER',
+      entity: 'User',
+      entityId: req.params.id,
+      oldValue: { deletedAt: user.deletedAt, accountStatus: user.accountStatus },
+      newValue: { deletedAt: null, accountStatus: 'ACTIVE' },
+    });
+    return ApiResponse.success(res, item, 'Admin user restored');
   } catch (err) { next(err); }
 });
 

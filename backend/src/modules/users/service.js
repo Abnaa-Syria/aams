@@ -18,6 +18,7 @@ const USER_SELECT = {
   profileImageUrl: true,
   role: true,
   accountStatus: true,
+  deletedAt: true,
   lastLoginAt: true,
   createdAt: true,
   updatedAt: true,
@@ -86,8 +87,14 @@ class UserService {
     const orderBy = buildOrderBy(query, ['createdAt', 'fullNameAr', 'fullNameEn', 'identityNumber', 'employeeNumber']);
     const searchFilter = buildSearchFilter(query, ['fullNameAr', 'fullNameEn', 'identityNumber', 'mobileNumber', 'email', 'employeeNumber', 'sevenHundredNumber']);
 
+    const deletedFilter = query.deletedOnly === 'true' || query.accountStatus === 'ARCHIVED'
+      ? { deletedAt: { not: { equals: null } } }
+      : query.includeDeleted === 'true'
+        ? {}
+        : { deletedAt: null };
+
     const where = {
-      deletedAt: null,
+      ...deletedFilter,
       ...searchFilter,
       ...(query.accountStatus && { accountStatus: query.accountStatus }),
     };
@@ -475,6 +482,32 @@ class UserService {
       entity: 'User',
       entityId: id,
     });
+  }
+
+  static async restore(id, adminUser) {
+    const user = await prisma.user.findUnique({ where: { id: parseInt(id) } });
+    if (!user) throw new NotFoundError('User');
+
+    if (!user.deletedAt && user.accountStatus !== 'ARCHIVED') {
+      return prisma.user.findUnique({ where: { id: parseInt(id) }, select: USER_SELECT });
+    }
+
+    const restored = await prisma.user.update({
+      where: { id: parseInt(id) },
+      data: { deletedAt: null, accountStatus: 'ACTIVE' },
+      select: USER_SELECT,
+    });
+
+    await logAudit({
+      userId: adminUser.id,
+      action: 'RESTORE_USER',
+      entity: 'User',
+      entityId: id,
+      oldValue: { deletedAt: user.deletedAt, accountStatus: user.accountStatus },
+      newValue: { deletedAt: null, accountStatus: 'ACTIVE' },
+    });
+
+    return restored;
   }
 }
 

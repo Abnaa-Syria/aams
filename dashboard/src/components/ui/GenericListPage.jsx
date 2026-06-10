@@ -7,7 +7,7 @@ import { LuPlus, LuRefreshCw, LuFilter } from 'react-icons/lu';
 export default function GenericListPage({
   title, apiUrl, columns, filters: filterConfig = [],
   onRowClick, createButton, children, defaultParams = {},
-  reloadToken,
+  reloadToken, prepareParams,
 }) {
   const [data, setData] = useState([]);
   const [meta, setMeta] = useState(null);
@@ -17,7 +17,8 @@ export default function GenericListPage({
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const cleanParams = Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v != null));
+      const prepared = prepareParams ? prepareParams(params) : params;
+      const cleanParams = Object.fromEntries(Object.entries(prepared).filter(([, v]) => v !== '' && v != null));
       const res = await apiService.get(apiUrl, cleanParams);
       setData(res.data.data);
       if (res.data.meta) setMeta(res.data.meta);

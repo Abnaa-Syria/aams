@@ -1433,7 +1433,7 @@ model MaintenanceRequest {
   appUser         AppUser?            @relation(fields: [appUserId], references: [id])
   vehicleId       Int
   vehicle         Vehicle             @relation(fields: [vehicleId], references: [id])
-  issueType       String              @db.VarChar(100)
+  issueType        String              @db.VarChar(100)
   priority        MaintenancePriority @default(MEDIUM)
   description     String              @db.Text
   attachmentUrl   String?             @db.VarChar(500)

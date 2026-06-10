@@ -19,6 +19,8 @@ const listUsersSchema = z.object({
     hasBankAccount: z.enum(['true', 'false']).optional(),
     hasVehicle: z.enum(['true', 'false']).optional(),
     paymentMethod: z.enum(['BANK_TRANSFER', 'CASH']).optional(),
+    includeDeleted: z.enum(['true', 'false']).optional(),
+    deletedOnly: z.enum(['true', 'false']).optional(),
     sortBy: z.string().optional(),
     sortOrder: z.enum(['asc', 'desc']).optional(),
   }),
