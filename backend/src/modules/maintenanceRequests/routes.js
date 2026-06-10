@@ -86,6 +86,32 @@ router.post(
 );
 
 /**
+ * Mobile-friendly alias for reporting a vehicle fault.
+ */
+router.post(
+  '/faults',
+  ...sharedPerm(P.INVENTORY_WRITE),
+  upload.fields([
+    { name: 'attachments', maxCount: 10 },
+    { name: 'attachment', maxCount: 1 },
+  ]),
+  MaintenanceRequestController.createFaultReport,
+);
+
+/**
+ * Mobile-friendly alias for creating a maintenance service request.
+ */
+router.post(
+  '/service-requests',
+  ...sharedPerm(P.INVENTORY_WRITE),
+  upload.fields([
+    { name: 'attachments', maxCount: 10 },
+    { name: 'attachment', maxCount: 1 },
+  ]),
+  MaintenanceRequestController.createServiceRequest,
+);
+
+/**
  * @openapi
  * /maintenance-requests/{id}:
  *   patch:

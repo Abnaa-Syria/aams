@@ -374,6 +374,64 @@
 							"path": ["maintenance-requests"]
 						}
 					}
+				},
+				{
+					"name": "Report Fault",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "vehicleId", "value": "1", "type": "text" },
+								{ "key": "issueType", "value": "MECHANICAL", "type": "text" },
+								{ "key": "priority", "value": "HIGH", "type": "text" },
+								{ "key": "description", "value": "السيارة بها عطل في الفرامل", "type": "text" },
+								{ "key": "attachments", "type": "file", "src": [] },
+								{ "key": "attachment", "type": "file", "src": [] }
+							]
+						},
+						"description": "Mobile endpoint for the report-fault screen. Stores the record in maintenance_requests and supports attachment/attachments.",
+						"url": {
+							"raw": "{{base_url}}/maintenance-requests/faults",
+							"host": ["{{base_url}}"],
+							"path": ["maintenance-requests", "faults"]
+						}
+					}
+				},
+				{
+					"name": "Create Service Request",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "vehicleId", "value": "1", "type": "text" },
+								{ "key": "issueType", "value": "BODY", "type": "text" },
+								{ "key": "priority", "value": "MEDIUM", "type": "text" },
+								{ "key": "description", "value": "طلب صيانة دورية / فحص عام", "type": "text" },
+								{ "key": "attachments", "type": "file", "src": [] },
+								{ "key": "attachment", "type": "file", "src": [] }
+							]
+						},
+						"description": "Mobile endpoint for the maintenance-service screen. Same payload as maintenance requests, separated by URL for mobile UX.",
+						"url": {
+							"raw": "{{base_url}}/maintenance-requests/service-requests",
+							"host": ["{{base_url}}"],
+							"path": ["maintenance-requests", "service-requests"]
+						}
+					}
 				}
 			]
 		},

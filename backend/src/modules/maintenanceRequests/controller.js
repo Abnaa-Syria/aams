@@ -10,6 +10,16 @@ function collectUploadedFiles(req) {
   return [...a, ...b];
 }
 
+async function createMaintenanceRecord(req, res, next, message) {
+  try {
+    const files = collectUploadedFiles(req);
+    const request = await MaintenanceRequestService.create(req.user.id, req.body, files);
+    return ApiResponse.created(res, request, message);
+  } catch (err) {
+    next(err);
+  }
+}
+
 class MaintenanceRequestController {
   static async listRequests(req, res, next) {
     try {
@@ -31,13 +41,15 @@ class MaintenanceRequestController {
   }
 
   static async createRequest(req, res, next) {
-    try {
-      const files = collectUploadedFiles(req);
-      const request = await MaintenanceRequestService.create(req.user.id, req.body, files);
-      return ApiResponse.created(res, request, 'Maintenance request submitted successfully');
-    } catch (err) {
-      next(err);
-    }
+    return createMaintenanceRecord(req, res, next, 'Maintenance request submitted successfully');
+  }
+
+  static async createFaultReport(req, res, next) {
+    return createMaintenanceRecord(req, res, next, 'Fault report submitted successfully');
+  }
+
+  static async createServiceRequest(req, res, next) {
+    return createMaintenanceRecord(req, res, next, 'Service request submitted successfully');
   }
 
   static async updateStatus(req, res, next) {
