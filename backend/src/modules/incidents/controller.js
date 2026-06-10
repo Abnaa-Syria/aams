@@ -2,6 +2,14 @@ const IncidentService = require('./service');
 const ApiResponse = require('../../utils/response');
 const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
 
+function collectUploadedFiles(req) {
+  if (!req.files) return [];
+  if (Array.isArray(req.files)) return req.files;
+  const attachments = req.files.attachments || [];
+  const attachment = req.files.attachment || [];
+  return [...attachments, ...attachment];
+}
+
 class IncidentController {
   static async listIncidents(req, res, next) {
     try {
@@ -24,7 +32,7 @@ class IncidentController {
 
   static async createIncident(req, res, next) {
     try {
-      const incident = await IncidentService.create(req.user.id, req.body, req.files);
+      const incident = await IncidentService.create(req.user.id, req.body, collectUploadedFiles(req));
       return ApiResponse.created(res, incident, 'Incident reported successfully');
     } catch (err) {
       next(err);

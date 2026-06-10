@@ -57,7 +57,15 @@ router.get('/:id', ...sharedPerm(P.COMPLIANCE_READ), IncidentController.getIncid
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', ...sharedPerm(P.COMPLIANCE_WRITE), upload.array('attachments', 5), IncidentController.createIncident);
+router.post(
+  '/',
+  ...sharedPerm(P.COMPLIANCE_WRITE),
+  upload.fields([
+    { name: 'attachments', maxCount: 5 },
+    { name: 'attachment', maxCount: 1 },
+  ]),
+  IncidentController.createIncident,
+);
 
 /**
  * @openapi

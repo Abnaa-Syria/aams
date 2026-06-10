@@ -297,10 +297,11 @@
 								{ "key": "location", "value": "موقع السائق الحالي", "type": "text" },
 								{ "key": "latitude", "value": "24.7136", "type": "text" },
 								{ "key": "longitude", "value": "46.6753", "type": "text" },
-								{ "key": "attachments", "type": "file", "src": [] }
+								{ "key": "attachments", "type": "file", "src": [] },
+								{ "key": "attachment", "type": "file", "src": [] }
 							]
 						},
-						"description": "Driver-scoped medical incident. Authenticated driver is used as userId. Optional shiftId and attachments.",
+						"description": "Driver-scoped medical incident. Authenticated driver is used as userId. Optional shiftId and attachments/attachment.",
 						"url": {
 							"raw": "{{base_url}}/incidents",
 							"host": ["{{base_url}}"],
@@ -330,7 +331,8 @@
 								{ "key": "latitude", "value": "24.7136", "type": "text" },
 								{ "key": "longitude", "value": "46.6753", "type": "text" },
 								{ "key": "caseNumber", "value": "NAJM-12345", "type": "text" },
-								{ "key": "attachments", "type": "file", "src": [] }
+								{ "key": "attachments", "type": "file", "src": [] },
+								{ "key": "attachment", "type": "file", "src": [] }
 							]
 						},
 						"description": "Driver-scoped accident incident. If type is ACCIDENT and severity is HIGH or CRITICAL with shiftId, the backend locks the related vehicle OUT_OF_SERVICE.",
