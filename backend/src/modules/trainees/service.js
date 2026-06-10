@@ -6,18 +6,29 @@ class TraineeService {
   static async list(query) {
     const { page, limit, skip } = getPaginationParams(query);
     const where = {
-      ...(query.status && { status: query.status }),
+      ...(query.isCompleted !== undefined && { isCompleted: query.isCompleted === 'true' }),
       ...(query.search && {
         OR: [
-          { name: { contains: query.search } },
-          { iqamaNumber: { contains: query.search } },
-          { mobileNumber: { contains: query.search } },
+          { trainee: { fullNameAr: { contains: query.search } } },
+          { trainee: { fullNameEn: { contains: query.search } } },
+          { trainee: { identityNumber: { contains: query.search } } },
+          { trainer: { fullNameAr: { contains: query.search } } },
+          { trainer: { fullNameEn: { contains: query.search } } },
         ],
       }),
     };
 
     const [items, total] = await Promise.all([
-      prisma.trainee.findMany({ where, skip, take: limit, orderBy: { createdAt: 'desc' } }),
+      prisma.trainee.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          trainee: { select: { id: true, fullNameAr: true, fullNameEn: true, identityNumber: true } },
+          trainer: { select: { id: true, fullNameAr: true, fullNameEn: true, identityNumber: true } },
+        },
+      }),
       prisma.trainee.count({ where }),
     ]);
 
@@ -28,7 +39,8 @@ class TraineeService {
     const trainee = await prisma.trainee.findUnique({
       where: { id: parseInt(id) },
       include: {
-        licenseTests: { orderBy: { testDate: 'desc' } },
+        trainee: { select: { id: true, fullNameAr: true, fullNameEn: true, identityNumber: true, mobileNumber: true } },
+        trainer: { select: { id: true, fullNameAr: true, fullNameEn: true, identityNumber: true, mobileNumber: true } },
       },
     });
     if (!trainee) throw new NotFoundError('Trainee');
@@ -36,7 +48,13 @@ class TraineeService {
   }
 
   static async create(data) {
-    return prisma.trainee.create({ data });
+    return prisma.trainee.create({
+      data,
+      include: {
+        trainee: { select: { id: true, fullNameAr: true, fullNameEn: true, identityNumber: true } },
+        trainer: { select: { id: true, fullNameAr: true, fullNameEn: true, identityNumber: true } },
+      },
+    });
   }
 
   static async update(id, data) {
@@ -46,6 +64,10 @@ class TraineeService {
     return prisma.trainee.update({
       where: { id: parseInt(id) },
       data,
+      include: {
+        trainee: { select: { id: true, fullNameAr: true, fullNameEn: true, identityNumber: true } },
+        trainer: { select: { id: true, fullNameAr: true, fullNameEn: true, identityNumber: true } },
+      },
     });
   }
 

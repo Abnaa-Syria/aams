@@ -2,9 +2,12 @@ const { z } = require('zod');
 
 const createTraineeSchema = z.object({
   body: z.object({
-    name: z.string().min(3).max(150),
-    mobileNumber: z.string().min(9).max(15),
-    iqamaNumber: z.string().length(10),
+    traineeId: z.coerce.number().int().positive(),
+    trainerId: z.coerce.number().int().positive(),
+    startDate: z.coerce.date(),
+    endDate: z.coerce.date().optional(),
+    totalDays: z.coerce.number().int().positive().optional(),
+    rewardAmount: z.coerce.number().positive().optional(),
     notes: z.string().optional(),
   }),
 });
@@ -12,10 +15,15 @@ const createTraineeSchema = z.object({
 const updateTraineeSchema = z.object({
   params: z.object({ id: z.string() }),
   body: z.object({
-    name: z.string().min(3).max(150).optional(),
-    mobileNumber: z.string().min(9).max(15).optional(),
-    iqamaNumber: z.string().length(10).optional(),
-    status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'HIRED']).optional(),
+    traineeId: z.coerce.number().int().positive().optional(),
+    trainerId: z.coerce.number().int().positive().optional(),
+    startDate: z.coerce.date().optional(),
+    endDate: z.coerce.date().optional(),
+    totalDays: z.coerce.number().int().positive().optional(),
+    isCompleted: z.boolean().optional(),
+    completedAt: z.coerce.date().optional(),
+    rewardIssued: z.boolean().optional(),
+    rewardAmount: z.coerce.number().positive().optional(),
     notes: z.string().optional(),
   }),
 });
