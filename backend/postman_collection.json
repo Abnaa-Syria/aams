@@ -867,7 +867,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"vehicleId\": 1,\n    \"type\": \"MECHANICAL\",\n    \"priority\": \"HIGH\",\n    \"description\": \"تغيير الفرامل\",\n    \"odometer\": 55000\n}",
+							"raw": "{\n    \"vehicleId\": 1,\n    \"issueType\": \"MECHANICAL\",\n    \"priority\": \"HIGH\",\n    \"description\": \"تغيير الفرامل\"\n}",
 							"options": { "raw": { "language": "json" } }
 						},
 						"url": {

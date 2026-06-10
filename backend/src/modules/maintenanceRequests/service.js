@@ -1,12 +1,22 @@
 const prisma = require('../../config/database');
-const { NotFoundError } = require('../../utils/errors');
+const { NotFoundError, ValidationError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
 const { mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
 const { mergeAppUserIdFilter } = require('../../utils/driverIdentity');
 
+const DEFAULT_ISSUE_TYPE = 'MECHANICAL';
+
 class MaintenanceRequestService {
+  static resolveIssueType(data = {}) {
+    const raw = data.issueType ?? data.type;
+    if (raw === undefined || raw === null || String(raw).trim() === '') {
+      return DEFAULT_ISSUE_TYPE;
+    }
+    return String(raw).trim();
+  }
+
   static async list(query, currentUser) {
     const { page, limit, skip } = getPaginationParams(query);
 
@@ -75,18 +85,24 @@ class MaintenanceRequestService {
   }
 
   static async create(userId, data, files = []) {
-    const vehicleId = parseInt(data.vehicleId);
+    const vehicleId = parseInt(data.vehicleId, 10);
+    if (Number.isNaN(vehicleId)) throw new ValidationError('vehicleId is required');
+
+    const description = data.description != null ? String(data.description).trim() : '';
+    if (!description) throw new ValidationError('description is required');
+
     const vehicle = await prisma.vehicle.findUnique({ where: { id: vehicleId } });
     if (!vehicle) throw new NotFoundError('Vehicle');
 
+    const issueType = MaintenanceRequestService.resolveIssueType(data);
     const firstPath = files[0] ? normalizeStoredUploadPath(files[0].path) : undefined;
 
     const createData = {
       userId,
       vehicleId,
-      issueType: data.issueType,
+      issueType,
       priority: data.priority || 'MEDIUM',
-      description: data.description,
+      description,
       status: 'REQUESTED',
       attachmentUrl: firstPath,
     };
@@ -111,7 +127,7 @@ class MaintenanceRequestService {
       action: 'CREATE_MAINTENANCE_REQUEST',
       entity: 'MaintenanceRequest',
       entityId: String(request.id),
-      newValue: { issueType: data.issueType, vehicleId },
+      newValue: { issueType, vehicleId },
     });
 
     return request;
@@ -162,13 +178,17 @@ class MaintenanceRequestService {
     if (!existing) throw new NotFoundError('Maintenance Request');
 
     const updateData = {};
-    const allowedFields = ['issueType', 'description', 'priority', 'status', 'cost', 'odometerReading', 'internalNotes', 'workshopName', 'completionDate'];
-    
+    const allowedFields = ['description', 'priority', 'status', 'cost', 'odometerReading', 'internalNotes', 'workshopName', 'completionDate'];
+
     allowedFields.forEach(field => {
       if (data[field] !== undefined) {
         updateData[field] = data[field];
       }
     });
+
+    if (data.issueType !== undefined || data.type !== undefined) {
+      updateData.issueType = MaintenanceRequestService.resolveIssueType(data);
+    }
 
     if (updateData.odometerReading) updateData.odometerReading = parseInt(updateData.odometerReading);
     if (updateData.cost) updateData.cost = parseFloat(updateData.cost);
