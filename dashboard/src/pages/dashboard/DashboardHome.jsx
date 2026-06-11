@@ -56,7 +56,17 @@ export default function DashboardHome() {
     </div>
   );
 
-  if (supervisor && supervisorData) {
+  if (supervisor) {
+    if (!supervisorData) {
+      return (
+        <div className="page-container flex flex-col items-center justify-center min-h-[400px] text-center">
+          <LuActivity size={48} className="text-slate-300 mb-4 animate-pulse" />
+          <h3 className="text-xl font-bold text-slate-700 mb-2">فشل تحميل لوحة التحكم التشغيلية</h3>
+          <p className="text-slate-500 mb-6 text-sm">لم نتمكن من جلب بيانات المشرف الخاصة بك. يرجى التأكد من ارتباط حسابك التشغيلي بشكل صحيح.</p>
+          <button type="button" onClick={() => loadDashboard(true)} className="btn btn-primary">إعادة المحاولة</button>
+        </div>
+      );
+    }
     const s = supervisorData;
     return (
       <div className="page-container animate-in fade-in slide-in-from-bottom-4 duration-500">
