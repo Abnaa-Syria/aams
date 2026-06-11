@@ -141,7 +141,7 @@ export function getEffectivePermissions(user) {
   if (Array.isArray(user.permissions) && user.permissions.length > 0) {
     return new Set(user.permissions);
   }
-  return getGrantedPermissions(user.role);
+  return getGrantedPermissions(user.role || user.appRole || user.appUser?.appRole);
 }
 
 export function hasAnyPermission(role, permissionList) {

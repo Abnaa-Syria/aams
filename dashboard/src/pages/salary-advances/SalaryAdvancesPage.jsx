@@ -174,7 +174,7 @@ export default function SalaryAdvancesPage() {
       <GenericListPage
         title="طلبات السلف"
         apiUrl="/salary-advances"
-        columns={[...columns, actionsColumn]}
+        columns={[...columns.slice(0, -1), actionsColumn]}
         onRowClick={(row) => navigate(`/salary-advances/${row.id}`)}
         createButton={createButton}
         reloadToken={reloadToken}

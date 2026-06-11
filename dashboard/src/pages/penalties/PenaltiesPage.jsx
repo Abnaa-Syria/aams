@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import PermissionGate from '../../components/auth/PermissionGate';
 import GenericListPage from '../../components/ui/GenericListPage';
 import { PERMISSIONS as P } from '../../utils/rolePermissions';
@@ -69,21 +69,31 @@ function PenaltyModal({ isOpen, onClose, penalty, onSave }) {
     }
   };
 
-  if (isOpen) {
-    if (penalty && form.userId === '') {
-      setForm({
-        userId: penalty.userId || '',
-        type: penalty.type || '',
-        amount: penalty.amount || '',
-        reason: penalty.reason || '',
-        penaltyDate: penalty.penaltyDate ? new Date(penalty.penaltyDate).toISOString().split('T')[0] : '',
-        status: penalty.status || 'PENDING',
-        notes: penalty.notes || '',
-      });
-    } else if (!penalty && form.userId === '') {
-      setForm({ userId: '', type: '', amount: '', reason: '', penaltyDate: new Date().toISOString().split('T')[0], status: 'PENDING', notes: '' });
+  useEffect(() => {
+    if (isOpen) {
+      if (penalty) {
+        setForm({
+          userId: penalty.userId || '',
+          type: penalty.type || '',
+          amount: penalty.amount || '',
+          reason: penalty.reason || '',
+          penaltyDate: penalty.penaltyDate ? new Date(penalty.penaltyDate).toISOString().split('T')[0] : '',
+          status: penalty.status || 'PENDING',
+          notes: penalty.notes || '',
+        });
+      } else {
+        setForm({
+          userId: '',
+          type: '',
+          amount: '',
+          reason: '',
+          penaltyDate: new Date().toISOString().split('T')[0],
+          status: 'PENDING',
+          notes: '',
+        });
+      }
     }
-  }
+  }, [isOpen, penalty]);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={penalty ? 'تحديث الجزاء' : 'إضافة جزاء جديد'}>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import GenericListPage from '../../components/ui/GenericListPage';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -77,30 +77,24 @@ function LeaveModal({ isOpen, onClose, leave, onSave, selfMode = false, currentU
     }
   };
 
-  const openEdit = () => {
-    if (leave) {
-      setForm({
-        userId: leave.userId || '',
-        leaveType: leave.leaveType || '',
-        startDate: leave.startDate ? new Date(leave.startDate).toISOString().split('T')[0] : '',
-        endDate: leave.endDate ? new Date(leave.endDate).toISOString().split('T')[0] : '',
-        reason: leave.reason || '',
-        status: leave.status || 'PENDING',
-        reviewNotes: leave.reviewNotes || '',
-      });
-    } else {
-      setForm({ userId: '', leaveType: '', startDate: '', endDate: '', reason: '', status: 'PENDING', reviewNotes: '' });
+  useEffect(() => {
+    if (isOpen) {
+      if (leave) {
+        setForm({
+          userId: leave.userId || '',
+          leaveType: leave.leaveType || '',
+          startDate: leave.startDate ? new Date(leave.startDate).toISOString().split('T')[0] : '',
+          endDate: leave.endDate ? new Date(leave.endDate).toISOString().split('T')[0] : '',
+          reason: leave.reason || '',
+          status: leave.status || 'PENDING',
+          reviewNotes: leave.reviewNotes || '',
+        });
+      } else {
+        setForm({ userId: '', leaveType: '', startDate: '', endDate: '', reason: '', status: 'PENDING', reviewNotes: '' });
+      }
+      setAttachment(null);
     }
-    setAttachment(null);
-  };
-
-  if (isOpen) {
-    if (!leave && form.userId === '' && form.leaveType === '') {
-      openEdit();
-    } else if (leave && form.userId === '') {
-      openEdit();
-    }
-  }
+  }, [isOpen, leave]);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={leave ? 'تحديث طلب الإجازة' : 'إضافة طلب إجازة جديد'}>
