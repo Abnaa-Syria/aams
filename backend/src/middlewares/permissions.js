@@ -11,7 +11,8 @@ function requirePermission(...required) {
 
     if (req.user.role === 'SUPER_ADMIN') return next();
 
-    const granted = ROLE_PERMISSIONS[req.user.role] || [];
+    const role = req.user.role || req.user.appRole;
+    const granted = ROLE_PERMISSIONS[role] || [];
     const ok = required.some((p) => granted.includes(p));
     if (!ok) {
       return next(new AuthorizationError('ليس لديك صلاحية لتنفيذ هذا الإجراء', required));
