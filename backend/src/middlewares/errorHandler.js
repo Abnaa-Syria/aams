@@ -39,8 +39,21 @@ function errorHandler(err, req, res, _next) {
     return res.status(404).json({ success: false, message: 'Record not found' });
   }
 
-  if (err.code === 'LIMIT_FILE_SIZE') {
-    return res.status(400).json({ success: false, message: 'File too large' });
+  if (err.name === 'MulterError' || err.code === 'LIMIT_FILE_SIZE') {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ success: false, message: 'File too large' });
+    }
+    const fieldHint = err.field ? ` (${err.field})` : '';
+    return res.status(400).json({
+      success: false,
+      message: err.message === 'File type not allowed'
+        ? 'نوع الملف غير مدعوم'
+        : `خطأ في رفع الملف${fieldHint}: ${err.message}`,
+    });
+  }
+
+  if (err.message === 'File type not allowed') {
+    return res.status(400).json({ success: false, message: 'نوع الملف غير مدعوم' });
   }
 
   if (err.type === 'entity.parse.failed') {

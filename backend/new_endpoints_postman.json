@@ -301,7 +301,7 @@
 								{ "key": "attachment", "type": "file", "src": [] }
 							]
 						},
-						"description": "Driver-scoped medical incident. Authenticated driver is used as userId. Optional shiftId and attachments/attachment.",
+						"description": "Driver-scoped medical incident (type=MEDICAL). File field name is flexible: attachments, attachment, photos, photo, medicalReport, medical_report, report, file, etc. (max 5 files).",
 						"url": {
 							"raw": "{{base_url}}/incidents",
 							"host": ["{{base_url}}"],

@@ -65,7 +65,50 @@ const FIELD_TRANSLATIONS = {
   discountAmount: 'مبلغ الخصم',
   orderRef: 'رقم الطلب',
   platformName: 'اسم المنصة',
+  reviewedBy: 'تمت المراجعة بواسطة',
+  reviewedAt: 'تاريخ المراجعة',
+  reviewNotes: 'ملاحظات المراجعة',
+  rejectionReason: 'سبب الرفض',
+  cancellationReason: 'سبب الإلغاء',
+  outcome: 'النتيجة',
+  employeeResponse: 'رد الموظف',
+  internalNotes: 'ملاحظات داخلية',
 };
+
+const EDIT_FORM_IGNORED_KEYS = [
+  'id',
+  'userId',
+  'appUserId',
+  'vehicleId',
+  'shiftId',
+  'createdById',
+  'createdAt',
+  'updatedAt',
+  'deletedAt',
+  'platformAccountId',
+  'supervisorId',
+  'cityId',
+  'verifiedBy',
+  'verifiedAt',
+  'reviewedBy',
+  'reviewedById',
+  'reviewedAt',
+  'approvedBy',
+  'approvedAt',
+  'rejectedBy',
+  'rejectedAt',
+  'closedBy',
+  'closedAt',
+  'identityNumber',
+  'employeeNumber',
+  'supervisorReviewedBy',
+  'supervisorReviewedAt',
+  'supervisorApproved',
+  'creatorId',
+  'assignedAt',
+  'releasedAt',
+  'conflictingActiveShift'
+];
 
 const STATUS_TRANSLATIONS = {
   PENDING: 'قيد الانتظار',
@@ -109,6 +152,17 @@ const TAB_STATUS_MAPPINGS = {
   salary: ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'],
   maintenance: ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'],
   assignments: ['ACTIVE', 'ENDED'],
+};
+
+const formatDateForInput = (val) => {
+  if (!val) return '';
+  try {
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return '';
+    return d.toISOString().split('T')[0];
+  } catch {
+    return '';
+  }
 };
 
 const TABS = [
@@ -249,10 +303,9 @@ export default function DriverDetailPage() {
 
       // Robustly filter payload: exclude technical fields and relations (objects/arrays)
       const payload = {};
-      const IGNORED_KEYS = ['id', 'userId', 'vehicleId', 'shiftId', 'createdAt', 'updatedAt', 'deletedAt', 'verifiedBy', 'reviewedBy', 'approvedBy', 'createdById', 'closedBy', 'identityNumber', 'employeeNumber'];
       
       Object.entries(selectedRecord).forEach(([key, value]) => {
-        if (!IGNORED_KEYS.includes(key) && value !== null && typeof value !== 'object') {
+        if (!EDIT_FORM_IGNORED_KEYS.includes(key) && value !== null && typeof value !== 'object') {
           payload[key] = value;
         }
       });
@@ -938,33 +991,87 @@ export default function DriverDetailPage() {
         {selectedRecord && (
           <form onSubmit={handleEditSubmit} className="space-y-4">
             {Object.entries(selectedRecord).map(([key, value]) => {
-              // Hide Technical Keys
-              const IGNORED_KEYS = ['id', 'userId', 'vehicleId', 'shiftId', 'createdById', 'createdAt', 'updatedAt', 'deletedAt', 'platformAccountId', 'supervisorId', 'cityId'];
-              if (IGNORED_KEYS.includes(key) || (typeof value === 'object' && value !== null)) return null;
+              if (EDIT_FORM_IGNORED_KEYS.includes(key) || (typeof value === 'object' && value !== null)) return null;
+
+              // Determine input control type for high-quality UX
+              let inputControl;
+
+              if (key === 'status') {
+                inputControl = (
+                  <select
+                    className="form-input !rounded-xl bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:border-brand-primary outline-none transition-all w-full p-3"
+                    value={value || ''}
+                    onChange={(e) => setSelectedRecord({ ...selectedRecord, [key]: e.target.value })}
+                  >
+                    {(TAB_STATUS_MAPPINGS[tab] || ['PENDING', 'APPROVED', 'REJECTED']).map((statusOption) => (
+                      <option key={statusOption} value={statusOption}>
+                        {STATUS_TRANSLATIONS[statusOption] || statusOption}
+                      </option>
+                    ))}
+                  </select>
+                );
+              } 
+              else if (typeof value === 'boolean' || ['isDefault', 'isAlternate', 'isDuplicate', 'deductFromCurrent', 'insuranceClaimed'].includes(key)) {
+                inputControl = (
+                  <select
+                    className="form-input !rounded-xl bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:border-brand-primary outline-none transition-all w-full p-3"
+                    value={value !== undefined && value !== null ? String(value) : 'false'}
+                    onChange={(e) => setSelectedRecord({ ...selectedRecord, [key]: e.target.value === 'true' })}
+                  >
+                    <option value="true">نعم</option>
+                    <option value="false">لا</option>
+                  </select>
+                );
+              } 
+              else if (key.toLowerCase().endsWith('date') || key.toLowerCase().endsWith('at') || ['expiryDate', 'issueDate'].includes(key)) {
+                inputControl = (
+                  <input
+                    type="date"
+                    className="form-input !rounded-xl bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:border-brand-primary outline-none transition-all w-full p-3 text-right"
+                    value={formatDateForInput(value)}
+                    onChange={(e) => setSelectedRecord({ ...selectedRecord, [key]: e.target.value ? new Date(e.target.value).toISOString() : null })}
+                  />
+                );
+              } 
+              else if (['reason', 'details', 'description', 'notes', 'reviewNotes', 'adminNotes', 'technicianNotes', 'driverComment', 'rejectionReason', 'cancellationReason', 'outcome', 'employeeResponse', 'internalNotes'].includes(key)) {
+                inputControl = (
+                  <textarea
+                    rows={3}
+                    className="form-input !rounded-xl bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:border-brand-primary outline-none transition-all w-full p-3 min-h-[90px]"
+                    value={value || ''}
+                    onChange={(e) => setSelectedRecord({ ...selectedRecord, [key]: e.target.value })}
+                  />
+                );
+              } 
+              else if (['amount', 'liters', 'totalOrders', 'totalHours', 'cost', 'odometerKm', 'reading', 'points', 'discountAmount', 'year', 'numberOfMonths', 'installmentAmount'].includes(key) || typeof value === 'number') {
+                inputControl = (
+                  <input
+                    type="number"
+                    step="any"
+                    className="form-input !rounded-xl bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:border-brand-primary outline-none transition-all w-full p-3 text-right"
+                    value={value !== undefined && value !== null ? value : ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSelectedRecord({ ...selectedRecord, [key]: val === '' ? null : (val.includes('.') ? parseFloat(val) : parseInt(val, 10)) });
+                    }}
+                  />
+                );
+              } 
+              else {
+                inputControl = (
+                  <input
+                    type="text"
+                    className="form-input !rounded-xl bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:border-brand-primary outline-none transition-all w-full p-3 text-right"
+                    value={value || ''}
+                    onChange={(e) => setSelectedRecord({ ...selectedRecord, [key]: e.target.value })}
+                  />
+                );
+              }
 
               return (
-                <div key={key} className="space-y-2">
-                  <label className="text-[0.65rem] font-black text-slate-700 uppercase tracking-widest">{FIELD_TRANSLATIONS[key] || key}</label>
-                  
-                  {key === 'status' ? (
-                    <select
-                      className="bg-slate-50 border border-slate-200 text-slate-800 text-start w-full rounded-xl p-3 focus:ring-2 focus:ring-brand-primary outline-none transition-all"
-                      value={value}
-                      onChange={(e) => setSelectedRecord({ ...selectedRecord, [key]: e.target.value })}
-                    >
-                      {(TAB_STATUS_MAPPINGS[tab] || ['PENDING', 'APPROVED', 'REJECTED']).map((statusOption) => (
-                        <option key={statusOption} value={statusOption}>
-                          {STATUS_TRANSLATIONS[statusOption] || statusOption}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input 
-                      className="bg-slate-50 border border-slate-200 text-slate-800 text-start w-full rounded-xl p-3 focus:ring-2 focus:ring-brand-primary outline-none transition-all" 
-                      value={value || ''}
-                      onChange={(e) => setSelectedRecord({ ...selectedRecord, [key]: e.target.value })}
-                    />
-                  )}
+                <div key={key} className="space-y-1.5 text-right">
+                  <label className="text-xs font-bold text-slate-700 block mr-1">{FIELD_TRANSLATIONS[key] || key}</label>
+                  {inputControl}
                 </div>
               );
             })}

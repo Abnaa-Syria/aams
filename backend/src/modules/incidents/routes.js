@@ -2,8 +2,8 @@ const router = require('express').Router();
 const { authenticate } = require('../../middlewares/auth');
 const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
-const upload = require('../../utils/upload');
 const IncidentController = require('./controller');
+const { incidentUploadMiddleware } = require('../../utils/incidentUpload');
 const prisma = require('../../config/database');
 const { NotFoundError } = require('../../utils/errors');
 const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
@@ -60,10 +60,7 @@ router.get('/:id', ...sharedPerm(P.COMPLIANCE_READ), IncidentController.getIncid
 router.post(
   '/',
   ...sharedPerm(P.COMPLIANCE_WRITE),
-  upload.fields([
-    { name: 'attachments', maxCount: 5 },
-    { name: 'attachment', maxCount: 1 },
-  ]),
+  incidentUploadMiddleware,
   IncidentController.createIncident,
 );
 
