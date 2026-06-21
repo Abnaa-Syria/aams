@@ -2,17 +2,11 @@ const router = require('express').Router();
 const { authenticate } = require('../../middlewares/auth');
 const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
-const upload = require('../../utils/upload');
 const prisma = require('../../config/database');
-const ApiResponse = require('../../utils/response');
 const { NotFoundError } = require('../../utils/errors');
-const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
-const { logAudit } = require('../../utils/auditLogger');
-const { ADMIN_ROLES } = require('../../utils/listScope');
 const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
-const { AuthorizationError } = require('../../utils/errors');
-const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
 const { streamAttachmentDownload } = require('../../utils/streamAttachment');
+const { platformAccountUploadMiddleware } = require('../../utils/platformAccountUpload');
 const PlatformAccountController = require('./controller');
 
 /**
@@ -53,6 +47,21 @@ router.get('/:id/files/file/download', ...sharedPerm(P.FLEET_READ), async (req, 
   }
 });
 
+router.get('/:id/files/account-screenshot/download', ...sharedPerm(P.FLEET_READ), async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const platformAccount = await prisma.platformAccount.findFirst({
+      where: { id, deletedAt: null },
+      select: { userId: true, accountScreenshotUrl: true },
+    });
+    if (!platformAccount) throw new NotFoundError('Platform Account');
+    await assertCanAccessDriverRecord(req, platformAccount.userId);
+    await streamAttachmentDownload(res, platformAccount.accountScreenshotUrl, 'account-screenshot');
+  } catch (err) {
+    next(err);
+  }
+});
+
 /**
  * @openapi
  * /platform-accounts:
@@ -62,7 +71,7 @@ router.get('/:id/files/file/download', ...sharedPerm(P.FLEET_READ), async (req, 
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', ...sharedPerm(P.FLEET_WRITE), upload.single('file'), PlatformAccountController.create);
+router.post('/', ...sharedPerm(P.FLEET_WRITE), platformAccountUploadMiddleware, PlatformAccountController.create);
 
 /**
  * @openapi
@@ -73,7 +82,7 @@ router.post('/', ...sharedPerm(P.FLEET_WRITE), upload.single('file'), PlatformAc
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id', ...sharedPerm(P.FLEET_WRITE), upload.single('file'), PlatformAccountController.update);
+router.patch('/:id', ...sharedPerm(P.FLEET_WRITE), platformAccountUploadMiddleware, PlatformAccountController.update);
 
 /**
  * @openapi

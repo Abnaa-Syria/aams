@@ -4,6 +4,7 @@ const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagina
 const { logAudit } = require('../../utils/auditLogger');
 const { ADMIN_ROLES, mergeDriverNameIntoUserWhere, applyUserOwnedListScope } = require('../../utils/listScope');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
+const { isPlatformAccountScreenshotField } = require('../../utils/platformAccountUpload');
 const { resolveUserIdFromDriverInput, stripOperationalIdentityFields } = require('../../utils/driverIdentity');
 
 class PlatformAccountService {
@@ -101,10 +102,11 @@ class PlatformAccountService {
     };
 
     if (file) {
-      if (file.fieldname === 'account_screenshot') {
-        insertData.accountScreenshotUrl = normalizeStoredUploadPath(file.path);
+      const storedPath = normalizeStoredUploadPath(file.path);
+      if (isPlatformAccountScreenshotField(file.fieldname)) {
+        insertData.accountScreenshotUrl = storedPath;
       } else {
-        insertData.fileUrl = normalizeStoredUploadPath(file.path);
+        insertData.fileUrl = storedPath;
       }
     }
 
@@ -140,10 +142,11 @@ class PlatformAccountService {
     if (updateData.returnDate) updateData.returnDate = new Date(updateData.returnDate);
     if (updateData.startWorkDate) updateData.startWorkDate = new Date(updateData.startWorkDate);
     if (file) {
-      if (file.fieldname === 'account_screenshot') {
-        updateData.accountScreenshotUrl = normalizeStoredUploadPath(file.path);
+      const storedPath = normalizeStoredUploadPath(file.path);
+      if (isPlatformAccountScreenshotField(file.fieldname)) {
+        updateData.accountScreenshotUrl = storedPath;
       } else {
-        updateData.fileUrl = normalizeStoredUploadPath(file.path);
+        updateData.fileUrl = storedPath;
       }
     }
 

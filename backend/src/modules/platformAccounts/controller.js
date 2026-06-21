@@ -5,6 +5,7 @@ const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
 const prisma = require('../../config/database');
 const { NotFoundError, AuthorizationError } = require('../../utils/errors');
 const { resolveUserIdFromDriverInput } = require('../../utils/driverIdentity');
+const { pickPlatformAccountUploadFile } = require('../../utils/platformAccountUpload');
 
 class PlatformAccountController {
   static async list(req, res, next) {
@@ -30,7 +31,7 @@ class PlatformAccountController {
       const userId = req.user.appRole === 'DRIVER'
         ? req.user.id
         : await resolveUserIdFromDriverInput(req.body, req.user);
-      const item = await PlatformAccountService.create(userId, req.body, req.file, req.user.id);
+      const item = await PlatformAccountService.create(userId, req.body, pickPlatformAccountUploadFile(req), req.user.id);
       return ApiResponse.created(res, item, 'Platform account created');
     } catch (err) {
       next(err);
@@ -39,7 +40,7 @@ class PlatformAccountController {
 
   static async update(req, res, next) {
     try {
-      const item = await PlatformAccountService.update(req.params.id, req.user.id, req.body, req.file, req.user);
+      const item = await PlatformAccountService.update(req.params.id, req.user.id, req.body, pickPlatformAccountUploadFile(req), req.user);
       return ApiResponse.success(res, item, 'Platform account updated');
     } catch (err) {
       next(err);
