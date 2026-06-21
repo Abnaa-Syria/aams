@@ -4,7 +4,22 @@ const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagina
 const { logAudit } = require('../../utils/auditLogger');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
 const { mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
-const { mergeAppUserIdFilter } = require('../../utils/driverIdentity');
+const { resolvePeriodStartDate } = require('../../utils/periodFilter');
+
+function findPlatformScreenshotFile(files, platformName) {
+  const base = String(platformName || '').trim();
+  const candidates = new Set([
+    `screenshot_${base}`,
+    `screenshot_${base.replace(/\s+/g, '')}`,
+    `screenshot_${base.replace(/\s+/g, '_')}`,
+  ]);
+  return files.find((f) => {
+    const field = f.fieldname || '';
+    if (candidates.has(field)) return true;
+    return field.toLowerCase().startsWith('screenshot_')
+      && field.toLowerCase().includes(base.toLowerCase().replace(/\s+/g, ''));
+  });
+}
 
 class DailyReportService {
   static async list(query, currentUser) {
@@ -31,7 +46,9 @@ class DailyReportService {
     }
     where = mergeAppUserIdFilter(where, query.appUserId);
 
-    if (query.dateFrom || query.dateTo) {
+    if (query.period && !query.dateFrom && !query.dateTo) {
+      where.reportDate = { gte: resolvePeriodStartDate(query.period) };
+    } else if (query.dateFrom || query.dateTo) {
       where.reportDate = {};
       if (query.dateFrom) where.reportDate.gte = new Date(query.dateFrom);
       if (query.dateTo) where.reportDate.lte = new Date(query.dateTo);
@@ -242,7 +259,7 @@ class DailyReportService {
         status: 'SUBMITTED',
         appBreakdowns: {
           create: appBreakdowns.map(b => {
-            const platformFile = files.find(f => f.fieldname === `screenshot_${b.platformName}`);
+            const platformFile = findPlatformScreenshotFile(files, b.platformName);
             return {
               platformName: b.platformName,
               orders: b.orders ? parseInt(b.orders) : undefined,

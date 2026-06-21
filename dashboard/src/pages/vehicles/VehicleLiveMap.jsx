@@ -2,8 +2,8 @@ import { useEffect, useState, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
-import { LuMapPin, LuClock, LuWifiOff } from 'react-icons/lu';
+import { apiService } from '../../services/api';
+import { LuMapPin, LuClock } from 'react-icons/lu';
 
 import { vehicleIcon } from '../../utils/mapIcons';
 
@@ -62,7 +62,25 @@ export default function VehicleLiveMap({ activeShiftId, vehicle, activeDriver })
       }
     });
 
+    const pollLocation = async () => {
+      try {
+        const { data } = await apiService.get('/dashboard/live-tracking');
+        const row = data.data?.find((r) => r.shiftId === activeShiftId);
+        if (row?.lat != null && row?.lng != null) {
+          setPosition({
+            lat: row.lat,
+            lng: row.lng,
+            timestamp: row.timestamp || new Date().toISOString(),
+          });
+        }
+      } catch { /* REST fallback — socket may still be primary */ }
+    };
+
+    pollLocation();
+    const pollTimer = setInterval(pollLocation, 30000);
+
     return () => {
+      clearInterval(pollTimer);
       socket.emit('leave_admin_dashboard');
       socket.disconnect();
     };

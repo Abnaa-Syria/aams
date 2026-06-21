@@ -2,7 +2,7 @@ const router = require('express').Router();
 const { authenticate } = require('../../middlewares/auth');
 const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
-const upload = require('../../utils/upload');
+const { dailyReportUploadMiddleware } = require('../../utils/dailyReportUpload');
 const DailyReportController = require('./controller');
 const prisma = require('../../config/database');
 const { NotFoundError } = require('../../utils/errors');
@@ -57,7 +57,7 @@ router.get('/:id', ...sharedPerm(P.SHIFTS_READ), DailyReportController.getReport
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', ...sharedPerm(P.SHIFTS_WRITE), upload.array('screenshots', 10), DailyReportController.createReport);
+router.post('/', ...sharedPerm(P.SHIFTS_WRITE), dailyReportUploadMiddleware, DailyReportController.createReport);
 
 /**
  * @openapi

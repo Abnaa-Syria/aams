@@ -4,22 +4,39 @@ const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const config = require('../config');
 
-const fileFilter = (req, file, cb) => {
-  const allowedTypes = [
-    'image/jpeg',
-    'image/png',
-    'image/gif',
-    'image/webp',
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  ];
+const ALLOWED_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+  'image/heic-sequence',
+  'image/heif-sequence',
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/octet-stream',
+]);
 
-  if (allowedTypes.includes(file.mimetype)) {
+const ALLOWED_EXTENSIONS = new Set([
+  '.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif', '.pdf', '.doc', '.docx',
+]);
+
+const fileFilter = (req, file, cb) => {
+  const mime = String(file.mimetype || '').toLowerCase();
+  const ext = path.extname(file.originalname || '').toLowerCase();
+
+  if (ALLOWED_MIME_TYPES.has(mime) && (mime !== 'application/octet-stream' || ALLOWED_EXTENSIONS.has(ext))) {
     cb(null, true);
-  } else {
-    cb(new Error('File type not allowed'), false);
+    return;
   }
+  if (ALLOWED_EXTENSIONS.has(ext)) {
+    cb(null, true);
+    return;
+  }
+  cb(new Error('File type not allowed'), false);
 };
 
 function buildStorage() {

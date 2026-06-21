@@ -4,6 +4,7 @@ const { adminPerm } = require('../../middlewares/adminGuard');
 const { DASHBOARD_VIEW_PERMISSIONS } = require('../../constants/permissions');
 const prisma = require('../../config/database');
 const ApiResponse = require('../../utils/response');
+const { resolvePeriodStartDate } = require('../../utils/periodFilter');
 
 /**
  * @openapi
@@ -133,16 +134,7 @@ router.get('/driver', authenticate, async (req, res, next) => {
     weekStart.setDate(weekStart.getDate() - 7);
 
     const period = req.query.period || 'month';
-    const nowTime = new Date();
-    let startDate = new Date(nowTime.getFullYear(), nowTime.getMonth(), 1); // default month
-    
-    if (period === 'week') {
-      startDate = new Date();
-      startDate.setDate(startDate.getDate() - 7);
-      startDate.setHours(0, 0, 0, 0);
-    } else if (period === 'year') {
-      startDate = new Date(nowTime.getFullYear(), 0, 1);
-    }
+    const startDate = resolvePeriodStartDate(period);
 
     // 1. Current Active Shift
     const currentShift = await prisma.shift.findFirst({
@@ -165,7 +157,10 @@ router.get('/driver', authenticate, async (req, res, next) => {
       dailyReportsPeriod,
       shiftsPeriodCount,
       violationsPeriodCount,
-      fuelLogsPeriodCount
+      fuelLogsPeriodCount,
+      recentReports,
+      endedShiftsPeriodCount,
+      reportsPeriodCount,
     ] = await Promise.all([
       prisma.shift.findMany({
         where: { userId, OR: [{ startedAt: { gte: today } }, { status: 'ACTIVE' }] },
@@ -207,7 +202,27 @@ router.get('/driver', authenticate, async (req, res, next) => {
       }),
       prisma.fuelLog.count({
         where: { userId, fuelDate: { gte: startDate } }
-      })
+      }),
+      prisma.dailyReport.findMany({
+        where: { userId, reportDate: { gte: startDate } },
+        orderBy: { reportDate: 'desc' },
+        take: 10,
+        select: {
+          id: true,
+          reportDate: true,
+          status: true,
+          totalHours: true,
+          totalOrders: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+      prisma.shift.count({
+        where: { userId, startedAt: { gte: startDate }, status: 'ENDED' },
+      }),
+      prisma.dailyReport.count({
+        where: { userId, reportDate: { gte: startDate } },
+      }),
     ]);
 
     // Calculate daily hours from shifts (real-time)
@@ -243,9 +258,12 @@ router.get('/driver', authenticate, async (req, res, next) => {
     }
 
     const ratingVal = userRating._avg.overallScore ? Number(userRating._avg.overallScore.toFixed(1)) : 0;
-    const achievementRate = ratingVal ? Math.round((ratingVal / 5) * 100) : 100;
+    const achievementRate = endedShiftsPeriodCount > 0
+      ? Math.min(100, Math.round((reportsPeriodCount / endedShiftsPeriodCount) * 100))
+      : (ratingVal ? Math.round((ratingVal / 5) * 100) : 100);
 
     const data = {
+      period,
       stats: {
         today: {
           hours: Number(hoursToday.toFixed(1)),
@@ -279,9 +297,48 @@ router.get('/driver', authenticate, async (req, res, next) => {
       },
       tasks,
       currentShift,
+      recentReports,
     };
 
     return ApiResponse.success(res, data, 'Driver dashboard loaded');
+  } catch (err) { next(err); }
+});
+
+/**
+ * REST fallback for live map — active shifts with last known coordinates.
+ * Mobile keeps using socket driver_location_update; dashboard can poll this if needed.
+ */
+router.get('/live-tracking', ...adminPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
+  try {
+    const shifts = await prisma.shift.findMany({
+      where: {
+        status: 'ACTIVE',
+        lastLat: { not: null },
+        lastLng: { not: null },
+      },
+      select: {
+        id: true,
+        lastLat: true,
+        lastLng: true,
+        lastLocationAt: true,
+        startedAt: true,
+        user: { select: { id: true, fullNameAr: true, fullNameEn: true, identityNumber: true } },
+        vehicle: { select: { id: true, plateNumber: true, model: true } },
+      },
+      orderBy: { lastLocationAt: 'desc' },
+      take: 200,
+    });
+
+    const data = shifts.map((s) => ({
+      shiftId: s.id,
+      lat: s.lastLat ? Number(s.lastLat) : null,
+      lng: s.lastLng ? Number(s.lastLng) : null,
+      timestamp: s.lastLocationAt?.toISOString() || null,
+      driver: s.user,
+      vehicle: s.vehicle,
+    }));
+
+    return ApiResponse.success(res, data, 'Live tracking loaded');
   } catch (err) { next(err); }
 });
 

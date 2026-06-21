@@ -1,6 +1,7 @@
 const DailyReportService = require('./service');
 const ApiResponse = require('../../utils/response');
 const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
+const { collectDailyReportUploadFiles } = require('../../utils/dailyReportUpload');
 
 class DailyReportController {
   static async listReports(req, res, next) {
@@ -24,7 +25,7 @@ class DailyReportController {
 
   static async createReport(req, res, next) {
     try {
-      const report = await DailyReportService.create(req.user, req.body, req.files);
+      const report = await DailyReportService.create(req.user, req.body, collectDailyReportUploadFiles(req));
       return ApiResponse.created(res, report, 'Daily report submitted successfully');
     } catch (err) {
       next(err);
