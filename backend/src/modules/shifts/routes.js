@@ -2,7 +2,7 @@ const router = require('express').Router();
 const ShiftController = require('./controller');
 const SHIFT_START_UPLOAD_FIELDS = ShiftController.SHIFT_START_UPLOAD_FIELDS;
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm, adminMutationPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const upload = require('../../utils/upload');
 
@@ -191,7 +191,7 @@ router.post('/:id/cancel', ...sharedPerm(P.SHIFTS_WRITE), ShiftController.cancel
  *       200:
  *         description: Shift APPROVED
  */
-router.post('/:id/approve', ...sharedPerm(P.SHIFTS_APPROVE), ShiftController.approve);
+router.post('/:id/approve', ...adminMutationPerm(P.SHIFTS_APPROVE), ShiftController.approve);
 
 /**
  * @openapi
@@ -217,7 +217,7 @@ router.post('/:id/approve', ...sharedPerm(P.SHIFTS_APPROVE), ShiftController.app
  *       200:
  *         description: Shift REJECTED
  */
-router.post('/:id/reject', ...sharedPerm(P.SHIFTS_APPROVE), ShiftController.reject);
+router.post('/:id/reject', ...adminMutationPerm(P.SHIFTS_APPROVE), ShiftController.reject);
 
 /**
  * @openapi
@@ -236,9 +236,9 @@ router.post('/:id/reject', ...sharedPerm(P.SHIFTS_APPROVE), ShiftController.reje
  *       200:
  *         description: Shift closure APPROVED
  */
-router.post('/:id/approve-closure', ...sharedPerm(P.SHIFTS_APPROVE), ShiftController.approveClosure);
+router.post('/:id/approve-closure', ...adminMutationPerm(P.SHIFTS_APPROVE), ShiftController.approveClosure);
 
-router.post('/:id/force-end', ...sharedPerm(P.SHIFTS_APPROVE), ShiftController.forceEnd);
+router.post('/:id/force-end', ...adminMutationPerm(P.SHIFTS_APPROVE), ShiftController.forceEnd);
 
 /**
  * @openapi
@@ -267,6 +267,7 @@ router.post('/:id/force-end', ...sharedPerm(P.SHIFTS_APPROVE), ShiftController.f
  *       200:
  *         description: Shift status updated successfully
  */
-router.patch('/:id/status', ...sharedPerm(P.SHIFTS_APPROVE), ShiftController.updateStatus);
+router.patch('/:id/status', ...adminMutationPerm(P.SHIFTS_APPROVE), ShiftController.updateStatus);
+router.patch('/:id', ...sharedPerm(P.SHIFTS_WRITE), ShiftController.update);
 
 module.exports = router;

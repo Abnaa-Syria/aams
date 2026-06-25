@@ -62,6 +62,18 @@ const USER_SELECT = {
 
 const USER_DETAIL_SELECT = {
   ...USER_SELECT,
+  vehicleAssignment: {
+    where: { isActive: true },
+    orderBy: { assignedAt: 'desc' },
+    take: 1,
+    select: {
+      id: true,
+      vehicleId: true,
+      isActive: true,
+      assignedAt: true,
+      vehicle: { select: { id: true, plateNumber: true, model: true } },
+    },
+  },
   _count: {
     select: {
       documents: true,
@@ -103,7 +115,6 @@ class UserService {
       where.userType = 'APP_USER';
       where.appUser = {
         ...(where.appUser || {}),
-        supervisorId: currentUser.appUserId,
         appRole: 'DRIVER',
       };
     }
@@ -124,7 +135,7 @@ class UserService {
     }
 
     // Operational fields are now on appUser
-    if (query.employmentStatus || query.transportType || query.supervisorId || query.sevenHundredNumber || query.roomNumber) {
+    if (query.employmentStatus || query.transportType || query.supervisorId || query.sevenHundredNumber || query.roomNumber || query.availabilityStatus) {
       where.appUser = {
         ...(where.appUser || {}),
         ...(query.employmentStatus && { employmentStatus: query.employmentStatus }),
@@ -132,7 +143,14 @@ class UserService {
         ...(query.supervisorId && { supervisorId: parseInt(query.supervisorId) }),
         ...(query.sevenHundredNumber && { sevenHundredNumber: query.sevenHundredNumber }),
         ...(query.roomNumber && { roomNumber: query.roomNumber }),
+        ...(query.availabilityStatus && { availabilityStatus: query.availabilityStatus }),
       };
+    }
+
+    if (query.onShift === 'true') {
+      where.shifts = { some: { status: 'ACTIVE' } };
+    } else if (query.onShift === 'false') {
+      where.shifts = { none: { status: 'ACTIVE' } };
     }
 
     // Filter by bank account existence or payment method

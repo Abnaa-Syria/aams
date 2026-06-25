@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm, adminMutationPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const upload = require('../../utils/upload');
 const ViolationController = require('./controller');
@@ -87,7 +87,7 @@ router.post(
  *     security:
  *       - bearerAuth: []
  */
-router.put('/:id', ...sharedPerm(P.COMPLIANCE_WRITE), ViolationController.updateViolation);
+router.put('/:id', ...adminMutationPerm(P.COMPLIANCE_WRITE), ViolationController.updateViolation);
 
 /**
  * @openapi
@@ -98,7 +98,7 @@ router.put('/:id', ...sharedPerm(P.COMPLIANCE_WRITE), ViolationController.update
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id', ...sharedPerm(P.COMPLIANCE_WRITE), ViolationController.updateViolation);
+router.patch('/:id', ...adminMutationPerm(P.COMPLIANCE_WRITE), ViolationController.updateViolation);
 
 /**
  * @openapi
@@ -109,7 +109,7 @@ router.patch('/:id', ...sharedPerm(P.COMPLIANCE_WRITE), ViolationController.upda
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id/review', ...sharedPerm(P.COMPLIANCE_WRITE), ViolationController.reviewViolation);
+router.patch('/:id/review', ...adminMutationPerm(P.COMPLIANCE_WRITE), ViolationController.reviewViolation);
 
 /**
  * @openapi
@@ -120,6 +120,6 @@ router.patch('/:id/review', ...sharedPerm(P.COMPLIANCE_WRITE), ViolationControll
  *     security:
  *       - bearerAuth: []
  */
-router.delete('/:id', ...sharedPerm(P.COMPLIANCE_WRITE), ViolationController.deleteViolation);
+router.delete('/:id', ...adminMutationPerm(P.COMPLIANCE_WRITE), ViolationController.deleteViolation);
 
 module.exports = router;

@@ -3,14 +3,60 @@ const { NotFoundError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
 const { mergeAppUserIdFilter } = require('../../utils/driverIdentity');
+const { isInsideBoundary } = require('../../utils/pointInPolygon');
+const { dispatchNotification, notifyAdminsAndSupervisors } = require('../../services/notificationDispatcher');
+
+/** userId -> zoneId last known inside */
+const userZoneState = new Map();
 
 class GeofencingService {
-  // --- LOCATIONS ---
+  static async checkZoneBreaches(userId, latitude, longitude) {
+    const zones = await prisma.zone.findMany({ where: { isActive: true } });
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+    const prevZoneId = userZoneState.get(userId);
+    let currentRestrictedZone = null;
+
+    for (const zone of zones) {
+      const inside = isInsideBoundary(lat, lng, zone.boundary);
+      if (!inside) continue;
+      if (zone.isRestricted) currentRestrictedZone = zone;
+    }
+
+    const currentKey = currentRestrictedZone?.id || null;
+    if (prevZoneId !== currentKey) {
+      userZoneState.set(userId, currentKey);
+      if (currentRestrictedZone) {
+        const title = 'تنبيه منطقة محظورة';
+        const body = currentRestrictedZone.alertMessage
+          || `دخلت منطقة محظورة: ${currentRestrictedZone.nameAr}`;
+        await dispatchNotification({
+          userId,
+          title,
+          body,
+          category: 'ALERT',
+          metadata: { zoneId: currentRestrictedZone.id, lat, lng },
+        });
+        await notifyAdminsAndSupervisors({
+          title: `خروج سائق عن المنطقة — ${currentRestrictedZone.nameAr}`,
+          body,
+          category: 'ALERT',
+          metadata: { userId, zoneId: currentRestrictedZone.id },
+        });
+      }
+    }
+  }
 
   static async logLocation(userId, data) {
-    return prisma.locationHistory.create({
+    const uid = parseInt(userId, 10);
+    const activeShift = await prisma.shift.findFirst({
+      where: { userId: uid, status: 'ACTIVE' },
+      select: { id: true },
+    });
+
+    const record = await prisma.locationHistory.create({
       data: {
-        userId: parseInt(userId),
+        userId: uid,
         latitude: data.latitude,
         longitude: data.longitude,
         accuracy: data.accuracy,
@@ -19,6 +65,20 @@ class GeofencingService {
         recordedAt: data.recordedAt ? new Date(data.recordedAt) : new Date(),
       },
     });
+
+    if (activeShift) {
+      await prisma.shift.update({
+        where: { id: activeShift.id },
+        data: {
+          lastLat: data.latitude,
+          lastLng: data.longitude,
+          lastLocationAt: new Date(),
+        },
+      });
+    }
+
+    await GeofencingService.checkZoneBreaches(uid, data.latitude, data.longitude);
+    return record;
   }
 
   static async bulkLogLocations(userId, locations) {

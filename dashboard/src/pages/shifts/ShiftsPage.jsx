@@ -5,6 +5,7 @@ import Modal from '../../components/ui/Modal';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { apiService } from '../../services/api';
+import { formDataToObject } from '../../utils/formData';
 import { LuPlus, LuPencil, LuTriangleAlert } from 'react-icons/lu';
 import toast from 'react-hot-toast';
 
@@ -191,7 +192,7 @@ export default function ShiftsPage() {
   };
 
   const handleUpdate = async (formData) => {
-    await apiService.upload(`/shifts/${selectedShift.id}`, formData);
+    await apiService.patch(`/shifts/${selectedShift.id}`, formDataToObject(formData));
     setReloadToken(t => t + 1);
   };
 

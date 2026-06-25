@@ -5,6 +5,7 @@ const { logAudit } = require('../../utils/auditLogger');
 const { buildDriverNameUserFilter } = require('../../utils/listScope');
 const { parsePositiveInt } = require('../../utils/driverIdentity');
 const { assertSupervisorOwnsShiftDriver, isSupervisor } = require('../../utils/recordAccess');
+const { dispatchNotification } = require('../../services/notificationDispatcher');
 
 const BLOCKED_STATUSES = ['TEMPORARILY_SUSPENDED', 'RESTRICTED', 'ARCHIVED'];
 
@@ -23,7 +24,7 @@ class ShiftService {
       appRole === 'DRIVER'
         ? { userId: currentUser.id }
         : isSupervisor
-          ? { user: { appUser: { supervisorId: currentUser.appUserId } } }
+          ? { user: { appUser: { appRole: 'DRIVER' } } }
           : {};
 
     const nameFilter = buildDriverNameUserFilter(query);
@@ -50,6 +51,9 @@ class ShiftService {
       ...(query.vehicleId && { vehicleId: parseInt(query.vehicleId) }),
       ...(query.dateFrom && { requestedAt: { gte: new Date(query.dateFrom) } }),
       ...(query.dateTo && { requestedAt: { ...((query.dateFrom && { gte: new Date(query.dateFrom) }) || {}), lte: new Date(query.dateTo) } }),
+      ...((query.period && !query.dateFrom && !query.dateTo) && {
+        requestedAt: { gte: require('../../utils/periodFilter').resolvePeriodStartDate(query.period) },
+      }),
       ...((queryAppUserId || nameFilter) && { user: userFilter }),
     };
 
@@ -130,14 +134,11 @@ class ShiftService {
     }
     
     if (appRole === 'SUPERVISOR') {
-      const isAssigned = await prisma.appUser.findFirst({
-        where: { 
-          user: { id: shift.userId }, 
-          supervisorId: currentUser.appUserId
-        },
+      const isDriver = await prisma.appUser.findFirst({
+        where: { userId: shift.userId, appRole: 'DRIVER' },
         select: { id: true },
       });
-      if (!isAssigned) throw new NotFoundError('Shift');
+      if (!isDriver) throw new NotFoundError('Shift');
     }
 
     const kilometersDriven =
@@ -291,9 +292,16 @@ class ShiftService {
     }
 
     const platformAccount = await prisma.platformAccount.findFirst({
-      where: { id: platformAccountId, userId, status: 'ACTIVE', deletedAt: null },
+      where: {
+        id: platformAccountId,
+        userId,
+        deletedAt: null,
+        status: { notIn: ['INACTIVE', 'SUSPENDED'] },
+      },
     });
-    if (!platformAccount) throw new BusinessLogicError('Platform account not found or inactive');
+    if (!platformAccount) {
+      throw new BusinessLogicError('حساب المنصة غير موجود أو غير متاح لهذا السائق');
+    }
 
     // Odometer validation: must not be less than vehicle's last recorded odometer
     if (startOdometer < (vehicle.odometerKm || 0)) {
@@ -352,6 +360,13 @@ class ShiftService {
 
     await prisma.shiftLog.create({ data: { shiftId: parseInt(shiftId), action: 'SHIFT_APPROVED', performedBy: adminUser.id } });
     await logAudit({ userId: adminUser.id, action: 'APPROVE_SHIFT', entity: 'Shift', entityId: String(shiftId) });
+    await dispatchNotification({
+      userId: shift.userId,
+      title: 'تمت الموافقة على الشفت',
+      body: 'يمكنك الآن بدء الشفت من التطبيق',
+      category: 'SHIFT',
+      metadata: { shiftId: shift.id, type: 'SHIFT_APPROVED' },
+    });
     return updated;
   }
 
@@ -367,6 +382,13 @@ class ShiftService {
     });
 
     await prisma.shiftLog.create({ data: { shiftId: parseInt(shiftId), action: 'SHIFT_REJECTED', performedBy: adminUser.id, notes: reason } });
+    await dispatchNotification({
+      userId: shift.userId,
+      title: 'تم رفض طلب الشفت',
+      body: reason || 'تم رفض طلب بدء الشفت',
+      category: 'SHIFT',
+      metadata: { shiftId: shift.id, type: 'SHIFT_REJECTED' },
+    });
     return updated;
   }
 
@@ -524,6 +546,18 @@ class ShiftService {
       default:
         throw new ValidationError(`Invalid shift status: ${status}`);
     }
+  }
+
+  static async updateNotes(shiftId, data, actor) {
+    const id = parseInt(shiftId, 10);
+    const shift = await prisma.shift.findUnique({ where: { id } });
+    if (!shift) throw new NotFoundError('Shift');
+    if (actor?.appUser?.appRole === 'DRIVER' && shift.userId !== actor.id) {
+      throw new NotFoundError('Shift');
+    }
+    const updateData = {};
+    if (data.notes !== undefined) updateData.notes = data.notes;
+    return prisma.shift.update({ where: { id }, data: updateData });
   }
 
   static async cancel(shiftId, reason, userOrUserId) {

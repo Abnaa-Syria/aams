@@ -99,6 +99,11 @@ const settingsData = [
   { key: 'feature.maintenance', value: 'true', labelAr: 'الصيانة', descriptionAr: 'تفعيل إدارة صيانة المركبات', type: 'boolean', category: 'features', sortOrder: 13 },
 
   // =====================
+  // Fuel efficiency (#15)
+  // =====================
+  { key: 'FUEL_LITERS_PER_100KM', value: '10', labelAr: 'استهلاك الوقود المتوقع (لتر/100كم)', descriptionAr: 'يُستخدم لحساب الفرق بين الوقود الفعلي والمتوقع للمركبات', type: 'number', category: 'fuel', sortOrder: 1 },
+
+  // =====================
   // Company Info
   // =====================
   { key: 'company.name', value: 'AAMS Logistics', labelAr: 'اسم الشركة', descriptionAr: 'اسم الشركة المُعرَّفة في النظام', type: 'text', category: 'company', sortOrder: 1 },

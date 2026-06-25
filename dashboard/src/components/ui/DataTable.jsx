@@ -1,6 +1,23 @@
 import React from 'react';
 
-export default function DataTable({ columns, data, loading, onRowClick, emptyMessage = 'لا توجد بيانات' }) {
+export default function DataTable({
+  columns, data, loading, onRowClick, emptyMessage = 'لا توجد بيانات',
+  selectable = false, selectedIds = [], onSelectionChange,
+}) {
+  const toggleRow = (id) => {
+    if (!onSelectionChange) return;
+    const set = new Set(selectedIds);
+    if (set.has(id)) set.delete(id); else set.add(id);
+    onSelectionChange([...set]);
+  };
+
+  const toggleAll = () => {
+    if (!onSelectionChange) return;
+    const ids = data.map((r) => r.id).filter(Boolean);
+    const allSelected = ids.length && ids.every((id) => selectedIds.includes(id));
+    onSelectionChange(allSelected ? [] : ids);
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 animate-in fade-in duration-500 bg-white rounded-2xl shadow-premium border border-slate-100">
@@ -25,6 +42,11 @@ export default function DataTable({ columns, data, loading, onRowClick, emptyMes
         <table className="min-w-full text-start border-collapse">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-100">
+              {selectable && (
+                <th className="px-4 py-4 w-10">
+                  <input type="checkbox" onChange={toggleAll} checked={data.length > 0 && data.every((r) => selectedIds.includes(r.id))} />
+                </th>
+              )}
               {columns.map((col) => (
                 <th 
                   key={col.key} 
@@ -43,10 +65,15 @@ export default function DataTable({ columns, data, loading, onRowClick, emptyMes
                 onClick={() => onRowClick?.(row)} 
                 className={`
                   group transition-colors duration-200 bg-white
-                  /* إضافة لمسة احترافية بتلوين الخلفية بلون البراند الخفيف عند المرور */
                   ${onRowClick ? 'cursor-pointer hover:bg-brand-light/30' : ''}
+                  ${selectable && selectedIds.includes(row.id) ? 'bg-brand-light/20' : ''}
                 `}
               >
+                {selectable && (
+                  <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                    <input type="checkbox" checked={selectedIds.includes(row.id)} onChange={() => toggleRow(row.id)} />
+                  </td>
+                )}
                 {columns.map((col) => (
                   <td key={col.key} className="px-6 py-4 whitespace-nowrap">
                     <span

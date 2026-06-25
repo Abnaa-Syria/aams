@@ -31,6 +31,8 @@ class FuelLogService {
       where.user = { appUser: { supervisorId: currentUser.appUserId } };
     }
 
+    where = mergeDriverNameIntoUserWhere(where, query);
+
     const [items, total] = await Promise.all([
       prisma.fuelLog.findMany({
         where,

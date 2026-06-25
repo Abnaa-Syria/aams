@@ -233,7 +233,7 @@ export default function PlatformAccountsPage() {
   };
 
   const handleUpdate = async (formData) => {
-    await apiService.upload(`/platform-accounts/${selectedAccount.id}`, formData);
+    await apiService.uploadPatch(`/platform-accounts/${selectedAccount.id}`, formData);
     setReloadToken(t => t + 1);
   };
 

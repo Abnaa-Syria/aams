@@ -12,6 +12,7 @@ const {
   buildSupervisorTeamOrSelfFilter,
   isSupervisor,
 } = require('../../utils/recordAccess');
+const { dispatchNotification } = require('../../services/notificationDispatcher');
 
 class LeaveRequestService {
   static async list(query, currentUser) {
@@ -22,10 +23,32 @@ class LeaveRequestService {
       ...(query.userId && { userId: parseInt(query.userId) }),
     };
 
+    if (query.from || query.to || query.date || query.dateFrom || query.dateTo) {
+      const from = query.dateFrom || query.from;
+      const to = query.dateTo || query.to;
+      if (query.date) {
+        const day = new Date(query.date);
+        const next = new Date(day);
+        next.setDate(next.getDate() + 1);
+        where.AND = [
+          { startDate: { lt: next } },
+          { endDate: { gte: day } },
+        ];
+      } else if (from || to) {
+        const dateFilter = {};
+        if (from) dateFilter.gte = new Date(from);
+        if (to) dateFilter.lte = new Date(to);
+        if (Object.keys(dateFilter).length) where.startDate = dateFilter;
+      }
+    }
+
     if (currentUser.appRole === 'DRIVER') {
       where.userId = currentUser.id;
     } else if (currentUser.appRole === 'SUPERVISOR') {
-      where = { ...where, ...buildSupervisorTeamOrSelfFilter(currentUser) };
+      // Supervisors see all drivers (#16)
+      if (!where.userId) {
+        where.user = { appUser: { appRole: 'DRIVER' } };
+      }
     } else if (!ADMIN_ROLES.has(currentUser.role)) {
       where.userId = -1;
     }
@@ -196,6 +219,13 @@ class LeaveRequestService {
     });
 
     await logAudit({ userId: adminId, action: 'REVIEW_LEAVE_REQUEST', entity: 'LeaveRequest', entityId: String(id), newValue: { status: data.status } });
+    await dispatchNotification({
+      userId: leaveReq.userId,
+      title: data.status === 'APPROVED' ? 'تمت الموافقة على الإجازة' : 'تم رفض طلب الإجازة',
+      body: data.reviewNotes || '',
+      category: 'HR',
+      metadata: { leaveRequestId: parseInt(id), status: data.status },
+    });
     return result;
   }
 

@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm, adminMutationPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const prisma = require('../../config/database');
 const { NotFoundError } = require('../../utils/errors');
@@ -93,8 +93,8 @@ router.patch('/:id', ...sharedPerm(P.FLEET_WRITE), platformAccountUploadMiddlewa
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id/verify', ...sharedPerm(P.FLEET_WRITE), PlatformAccountController.verify);
-router.patch('/:id/status', ...sharedPerm(P.FLEET_WRITE), PlatformAccountController.verify);
+router.patch('/:id/verify', ...adminMutationPerm(P.FLEET_WRITE), PlatformAccountController.verify);
+router.patch('/:id/status', ...adminMutationPerm(P.FLEET_WRITE), PlatformAccountController.verify);
 
 /**
  * @openapi

@@ -51,12 +51,16 @@ import PlatformAccountDetailPage from './pages/platform-accounts/PlatformAccount
 import BankAccountDetailPage from './pages/bank-accounts/BankAccountDetailPage';
 import MaintenancePage from './pages/maintenance/MaintenancePage';
 import MaintenanceRequestDetailPage from './pages/maintenance/MaintenanceRequestDetailPage';
+import OperationalReportsPage from './pages/operational-reports/OperationalReportsPage';
 import AnalyticsPage from './pages/analytics/AnalyticsPage';
 import SettingsPage from './pages/settings/SettingsPage';
+import SocketTestPage from './pages/settings/SocketTestPage';
 import AdminsPage from './pages/admins/AdminsPage';
 import AuditLogsPage from './pages/audit-logs/AuditLogsPage';
 import RolesPermissionsPage from './pages/roles-permissions/RolesPermissionsPage';
-import SocketTestPage from './pages/settings/SocketTestPage';
+import PermissionRequestsPage from './pages/permission-requests/PermissionRequestsPage';
+import FleetLiveMapPage from './pages/fleet/FleetLiveMapPage';
+import AssetsPage from './pages/assets/AssetsPage';
 
 export default function App() {
   return (
@@ -111,11 +115,15 @@ export default function App() {
             <Route path="maintenance" element={<Navigate to="/maintenance-requests" replace />} />
             <Route path="maintenance-requests" element={<PermissionRoute anyOf={[P.INVENTORY_READ]}><MaintenancePage /></PermissionRoute>} />
             <Route path="maintenance-requests/:id" element={<PermissionRoute anyOf={[P.INVENTORY_READ]}><MaintenanceRequestDetailPage /></PermissionRoute>} />
+            <Route path="operational-reports" element={<PermissionRoute anyOf={[P.SHIFTS_READ, P.DAILY_REPORTS_READ]}><OperationalReportsPage /></PermissionRoute>} />
             <Route path="analytics" element={<PermissionRoute anyOf={DASHBOARD_VIEW_PERMISSIONS}><AnalyticsPage /></PermissionRoute>} />
             <Route path="settings" element={<PermissionRoute anyOf={[P.SETTINGS_READ]}><SettingsPage /></PermissionRoute>} />
             <Route path="admins" element={<PermissionRoute anyOf={[P.USERS_WRITE]}><AdminsPage /></PermissionRoute>} />
             <Route path="audit-logs" element={<PermissionRoute anyOf={[P.AUDIT_READ]}><AuditLogsPage /></PermissionRoute>} />
             <Route path="roles-permissions" element={<PermissionRoute anyOf={[P.ROLE_MANAGEMENT]}><RolesPermissionsPage /></PermissionRoute>} />
+            <Route path="permission-requests" element={<PermissionRoute anyOf={[P.HR_READ]}><PermissionRequestsPage /></PermissionRoute>} />
+            <Route path="fleet-map" element={<PermissionRoute anyOf={[P.FLEET_READ]}><FleetLiveMapPage /></PermissionRoute>} />
+            <Route path="assets" element={<PermissionRoute anyOf={[P.INVENTORY_READ]}><AssetsPage /></PermissionRoute>} />
             <Route path="socket-test" element={<PermissionRoute anyOf={[P.SETTINGS_READ]}><SocketTestPage /></PermissionRoute>} />
           </Route>
         </Routes>

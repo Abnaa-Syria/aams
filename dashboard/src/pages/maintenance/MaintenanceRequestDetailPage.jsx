@@ -134,19 +134,12 @@ export default function MaintenanceRequestDetailPage() {
     e.preventDefault();
     setEditLoading(true);
     try {
-      const formData = new FormData();
-      formData.append('status', editForm.status);
-      formData.append('priority', editForm.priority);
-      formData.append('technicianNotes', editForm.technicianNotes);
-      formData.append('adminNotes', editForm.adminNotes);
-      
-      if (newAttachments.length > 0) {
-        newAttachments.forEach(file => {
-          formData.append('attachments', file);
-        });
-      }
-      
-      await apiService.upload(`/maintenance-requests/${id}`, formData);
+      await apiService.patch(`/maintenance-requests/${id}`, {
+        status: editForm.status,
+        priority: editForm.priority,
+        technicianNotes: editForm.technicianNotes,
+        adminNotes: editForm.adminNotes,
+      });
       toast.success('تم تحديث الطلب بنجاح');
       setEditModalOpen(false);
       load();

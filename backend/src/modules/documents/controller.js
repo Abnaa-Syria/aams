@@ -9,13 +9,14 @@ const { resolveUserIdFromDriverInput, stripOperationalIdentityFields } = require
 class DocumentController {
   static async list(req, res, next) {
     try {
-      const { items, meta } = await DocumentService.list(req.query);
+      const { items, meta } = await DocumentService.list(req.query, req);
       return ApiResponse.paginated(res, items, meta);
     } catch (err) { next(err); }
   }
   static async getById(req, res, next) {
     try {
       const doc = await DocumentService.getById(req.params.id);
+      await assertCanAccessDriverRecord(req, doc.userId);
       return ApiResponse.success(res, doc);
     } catch (err) { next(err); }
   }
@@ -61,7 +62,7 @@ class DocumentController {
   static async getExpiring(req, res, next) {
     try {
       const days = parseInt(req.query.days) || 30;
-      const docs = await DocumentService.getExpiringDocuments(days);
+      const docs = await DocumentService.getExpiringDocuments(days, req);
       return ApiResponse.success(res, docs);
     } catch (err) { next(err); }
   }

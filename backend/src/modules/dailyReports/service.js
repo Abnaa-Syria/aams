@@ -4,6 +4,7 @@ const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagina
 const { logAudit } = require('../../utils/auditLogger');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
 const { mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
+const { mergeAppUserIdFilter } = require('../../utils/driverIdentity');
 const { resolvePeriodStartDate } = require('../../utils/periodFilter');
 
 function findPlatformScreenshotFile(files, platformName) {

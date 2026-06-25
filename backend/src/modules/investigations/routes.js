@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm, adminMutationPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const upload = require('../../utils/upload');
 const prisma = require('../../config/database');
@@ -70,7 +70,7 @@ router.get('/:id/attachments/:attachmentId/download', ...sharedPerm(P.COMPLIANCE
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', ...sharedPerm(P.COMPLIANCE_WRITE), upload.array('attachments', 5), InvestigationController.create);
+router.post('/', ...adminMutationPerm(P.COMPLIANCE_WRITE), upload.array('attachments', 5), InvestigationController.create);
 
 /**
  * @openapi
@@ -81,7 +81,7 @@ router.post('/', ...sharedPerm(P.COMPLIANCE_WRITE), upload.array('attachments', 
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id', ...sharedPerm(P.COMPLIANCE_WRITE), InvestigationController.update);
+router.patch('/:id', ...adminMutationPerm(P.COMPLIANCE_WRITE), InvestigationController.update);
 
 /**
  * @openapi
@@ -103,6 +103,6 @@ router.post('/:id/respond', ...sharedPerm(P.COMPLIANCE_WRITE), upload.array('att
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id/status', ...sharedPerm(P.COMPLIANCE_WRITE), InvestigationController.updateStatus);
+router.patch('/:id/status', ...adminMutationPerm(P.COMPLIANCE_WRITE), InvestigationController.updateStatus);
 
 module.exports = router;

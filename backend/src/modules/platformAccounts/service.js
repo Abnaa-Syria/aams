@@ -3,6 +3,7 @@ const { NotFoundError, AuthorizationError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
 const { ADMIN_ROLES, mergeDriverNameIntoUserWhere, applyUserOwnedListScope } = require('../../utils/listScope');
+const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
 const { isPlatformAccountScreenshotField } = require('../../utils/platformAccountUpload');
 const { resolveUserIdFromDriverInput, stripOperationalIdentityFields } = require('../../utils/driverIdentity');
@@ -48,13 +49,12 @@ class PlatformAccountService {
       },
     });
     if (!item) throw new NotFoundError('Platform Account');
-    
-    // Access check
-    if (!ADMIN_ROLES.has(currentUser.role) && item.userId !== currentUser.id) {
-       throw new NotFoundError('Platform Account');
-    }
+    await assertCanAccessDriverRecord(currentUser, item.userId);
 
-    // Fetch Shifts (Orders)
+    const workHistory = await prisma.platformAccountWorkHistory.findMany({
+      where: { platformAccountId: accountId },
+      orderBy: { startDate: 'desc' },
+    });
     const shifts = await prisma.shift.findMany({
       where: { platformAccountId: accountId },
       include: {
@@ -79,6 +79,7 @@ class PlatformAccountService {
 
     return {
       ...item,
+      workHistory,
       shifts: shifts.map(s => ({
         ...s,
         totalOrders: s.dailyReports.reduce((sum, r) => sum + (r.totalOrders || 0), 0)
@@ -111,6 +112,16 @@ class PlatformAccountService {
     }
 
     const item = await prisma.platformAccount.create({ data: insertData });
+    if (insertData.startWorkDate) {
+      await prisma.platformAccountWorkHistory.create({
+        data: {
+          platformAccountId: item.id,
+          startDate: insertData.startWorkDate,
+          assignedBy: adminId,
+          notes: 'بدء العمل على الحساب',
+        },
+      });
+    }
     await logAudit({ userId: adminId, action: 'CREATE_PLATFORM_ACCOUNT', entity: 'PlatformAccount', entityId: String(item.id) });
     return item;
   }
@@ -120,7 +131,7 @@ class PlatformAccountService {
     if (!existing || existing.deletedAt) throw new NotFoundError('Platform Account');
 
     const updateData = {};
-    const allowedFields = ['username', 'status', 'isAlternate', 'receiptDate', 'returnDate', 'startWorkDate', 'notes'];
+    const allowedFields = ['username', 'accountId', 'status', 'isAlternate', 'alternateUsername', 'receiptDate', 'returnDate', 'startWorkDate', 'notes'];
     
     allowedFields.forEach(field => {
       if (data[field] !== undefined) {
@@ -147,6 +158,21 @@ class PlatformAccountService {
         updateData.accountScreenshotUrl = storedPath;
       } else {
         updateData.fileUrl = storedPath;
+      }
+    }
+
+    if (updateData.startWorkDate) {
+      const newStart = new Date(updateData.startWorkDate);
+      const prevStart = existing.startWorkDate ? new Date(existing.startWorkDate).getTime() : null;
+      if (!prevStart || prevStart !== newStart.getTime()) {
+        await prisma.platformAccountWorkHistory.create({
+          data: {
+            platformAccountId: parseInt(id, 10),
+            startDate: newStart,
+            assignedBy: adminId,
+            notes: data.workHistoryNotes || 'تحديث تاريخ بدء العمل',
+          },
+        });
       }
     }
 

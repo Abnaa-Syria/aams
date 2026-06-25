@@ -6,6 +6,7 @@ import Modal from '../../components/ui/Modal';
 import FileUploadField from '../../components/ui/FileUploadField';
 import { useState, useEffect } from 'react';
 import { apiService } from '../../services/api';
+import { formDataToObject } from '../../utils/formData';
 import { LuPlus, LuPencil } from 'react-icons/lu';
 import toast from 'react-hot-toast';
 
@@ -280,13 +281,13 @@ export default function MaintenancePage() {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [reloadToken, setReloadToken] = useState(0);
 
-  const handleCreate = async (form) => {
-    await apiService.upload('/maintenance-requests', form);
-    setReloadToken(t => t + 1);
+  const handleCreate = async (formData) => {
+    await apiService.upload('/maintenance-requests', formData);
+    setReloadToken((t) => t + 1);
   };
 
   const handleUpdate = async (form) => {
-    await apiService.upload(`/maintenance-requests/${selectedRequest.id}`, form);
+    await apiService.patch(`/maintenance-requests/${selectedRequest.id}`, formDataToObject(form));
     setReloadToken(t => t + 1);
   };
 
@@ -319,7 +320,7 @@ export default function MaintenancePage() {
               <StatusSelect
                 id={row.id}
                 currentStatus={row.status}
-                apiUrl={`/maintenance-requests/${row.id}`}
+                apiUrl={`/maintenance-requests/${row.id}/status`}
                 options={statusOptions}
                 size="xs"
                 onSuccess={() => setReloadToken((t) => t + 1)}
@@ -337,10 +338,10 @@ export default function MaintenancePage() {
         createButton={createButton}
         reloadToken={reloadToken}
         filters={[
-          { key: 'driverName', type: 'text', placeholder: 'اسم السائق' },
-          { key: 'status', type: 'select', placeholder: 'الحالة', options: statusOptions },
-          { key: 'priority', type: 'select', placeholder: 'الأولوية', options: priorityOptions },
-        ]} 
+          { key: 'driverName', type: 'text', label: 'اسم السائق', placeholder: 'اسم السائق' },
+          { key: 'status', type: 'select', label: 'الحالة', placeholder: 'الحالة', options: statusOptions },
+          { key: 'priority', type: 'select', label: 'الأولوية', placeholder: 'الأولوية', options: priorityOptions },
+        ]}
       />
       <MaintenanceModal 
         isOpen={createModalOpen} 

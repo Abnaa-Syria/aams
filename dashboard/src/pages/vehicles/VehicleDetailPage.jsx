@@ -329,6 +329,7 @@ export default function VehicleDetailPage() {
     activeShiftDriver,
     activeShiftId,
     stats,
+    financial,
   } = summary;
   const custodyHolder = custodyDriver || activeAssignment?.user || pendingAssignment?.user || null;
   const isPendingCustody = !activeAssignment && !!pendingAssignment;
@@ -456,6 +457,18 @@ export default function VehicleDetailPage() {
                 <InfoCard icon={LuActivity} label="تغيير الزيت" value={`${stats.nextOilChangeAt || '—'} كم`} sub="الموعد القادم" />
                 <InfoCard icon={LuClock} label="العهد" value={stats.totalAssignments} sub="إجمالي الحركات" />
               </div>
+
+              {financial && (
+                <div className="bg-gradient-to-br from-emerald-50 to-white rounded-3xl p-8 border border-emerald-100 shadow-sm">
+                  <h3 className="text-lg font-black text-slate-800 mb-6">الملخص المالي للمركبة</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <InfoCard icon={LuFileText} label="إجمالي الأرباح" value={`${financial.totalEarnings?.toFixed?.(2) ?? financial.totalEarnings} ر.س`} sub={`${financial.totalOrders || 0} طلب`} />
+                    <InfoCard icon={LuFuel} label="تكلفة الوقود" value={`${financial.totalFuelCost?.toFixed?.(2) ?? financial.totalFuelCost} ر.س`} sub="معتمد" />
+                    <InfoCard icon={LuWrench} label="طلبات صيانة مكتملة" value={financial.maintenanceCompletedCount ?? 0} sub="بدون تكلفة مسجّلة بعد" />
+                    <InfoCard icon={LuCircleAlert} label="صافي تقديري" value={`${financial.netEstimate?.toFixed?.(2) ?? financial.netEstimate} ر.س`} sub="أرباح − وقود − صيانة" />
+                  </div>
+                </div>
+              )}
 
               {hasDifferentLiveDriver && (
                 <div className="rounded-3xl border border-orange-200 bg-orange-50 px-6 py-4 text-sm font-bold text-orange-700">

@@ -8,6 +8,7 @@ import Modal from '../../components/ui/Modal';
 import FileUploadField from '../../components/ui/FileUploadField';
 import UserSelect from '../../components/ui/UserSelect';
 import { apiService } from '../../services/api';
+import { formDataToObject } from '../../utils/formData';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { LuPlus, LuPencil } from 'react-icons/lu';
@@ -98,14 +99,8 @@ export default function InvestigationsPage() {
       formData.append('status', form.status);
       formData.append('internalNotes', form.internalNotes);
       formData.append('details', form.details);
-      
-      if (attachments.length > 0) {
-        attachments.forEach(file => {
-          formData.append('attachments', file);
-        });
-      }
-      
-      await apiService.upload(`/investigations/${selectedInvestigation.id}`, formData);
+
+      await apiService.patch(`/investigations/${selectedInvestigation.id}`, formDataToObject(formData));
       toast.success('تم تحديث التحقيق بنجاح');
       setEditModalOpen(false);
       setAttachments([]);

@@ -9,8 +9,11 @@ import Pagination from '../../components/ui/Pagination';
 import StatusBadge from '../../components/ui/StatusBadge';
 import Modal from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import ImportCsvModal from '../../components/ui/ImportCsvModal';
+import CsvTemplateButton from '../../components/ui/CsvTemplateButton';
+import { DRIVER_FILTER_PRESETS } from '../../config/listModules';
 import toast from 'react-hot-toast';
-import { LuPlus, LuSearch, LuFilter, LuUsers, LuRefreshCw, LuMessageSquare } from 'react-icons/lu';
+import { LuPlus, LuSearch, LuFilter, LuUsers, LuRefreshCw, LuMessageSquare, LuDownload, LuUpload } from 'react-icons/lu';
 import { buildUserListParams } from '../../utils/userListParams';
 
 export default function DriversPage() {
@@ -19,7 +22,12 @@ export default function DriversPage() {
   const [drivers, setDrivers] = useState([]);
   const [meta, setMeta] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ page: 1, search: '', accountStatus: '', deletedOnly: '', role: 'DRIVER' });
+  const [filters, setFilters] = useState({
+    page: 1, search: '', accountStatus: '', deletedOnly: '', role: 'DRIVER',
+    employmentStatus: '', availabilityStatus: '', onShift: '', hasVehicle: '', hasBankAccount: '',
+  });
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [importOpen, setImportOpen] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [restoreUser, setRestoreUser] = useState(null);
   const [form, setForm] = useState({ identityNumber: '', fullNameAr: '', fullNameEn: '', mobileNumber: '', email: '', password: '' });
@@ -33,6 +41,7 @@ export default function DriversPage() {
       const { data } = await apiService.get('/users', buildUserListParams(filters));
       setDrivers(data.data);
       setMeta(data.meta);
+      setSelectedIds([]);
     } catch { /* handled */ } finally { setLoading(false); }
   }, [filters]);
 
@@ -63,6 +72,38 @@ export default function DriversPage() {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      const payload = {
+        module: 'users',
+        format: 'csv',
+        filters: buildUserListParams({ ...filters, role: 'DRIVER' }),
+      };
+      if (selectedIds.length) {
+        payload.ids = selectedIds;
+        delete payload.filters;
+      }
+      const res = await apiService.exportBlob('/export/selected', payload);
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'drivers-export.csv';
+      a.click();
+      toast.success('تم التصدير');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'فشل التصدير');
+    }
+  };
+
+  const applyPreset = (preset) => {
+    setFilters((f) => {
+      const next = { ...f, page: 1, role: 'DRIVER' };
+      ['onShift', 'availabilityStatus', 'hasVehicle', 'hasBankAccount', 'accountStatus', 'employmentStatus'].forEach((k) => delete next[k]);
+      next[preset.key] = preset.value;
+      return next;
+    });
+  };
+
   const isArchivedRow = (row) => row.deletedAt || row.accountStatus === 'ARCHIVED';
 
   const columns = [
@@ -70,7 +111,9 @@ export default function DriversPage() {
     { key: 'identityNumber', label: 'رقم الهوية' },
     { key: 'fullNameAr', label: 'الاسم الكامل' },
     { key: 'mobileNumber', label: 'رقم الجوال' },
-    { key: 'accountStatus', label: 'الحالة', render: (val) => <StatusBadge status={val} /> },
+    { key: 'accountStatus', label: 'حالة الحساب', render: (val) => <StatusBadge status={val} /> },
+    { key: 'availabilityStatus', label: 'التوفر', render: (val) => val ? <StatusBadge status={val} /> : '—' },
+    { key: 'employmentStatus', label: 'التوظيف', render: (val) => val ? <StatusBadge status={val} /> : '—' },
     { key: 'city', label: 'المدينة', render: (val) => val?.nameAr || '—' },
     { key: 'supervisor', label: 'المشرف', render: (val) => val?.fullNameAr || '—' },
     { 
@@ -117,7 +160,15 @@ export default function DriversPage() {
               <p className="text-slate-500 text-sm font-medium">متابعة بيانات السائقين، حالات الحسابات، وتوزيع المهام اللوجستية.</p>
            </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <CsvTemplateButton url="/import/template/users" filename="users-import-template.csv" />
+          <button type="button" onClick={() => setImportOpen(true)} className="btn btn-secondary flex items-center gap-2">
+            <LuUpload size={18} /> استيراد CSV
+          </button>
+          <CsvTemplateButton url="/export/template/users" filename="users-template.csv" />
+          <button type="button" onClick={handleExport} className="btn btn-secondary flex items-center gap-2">
+            <LuDownload size={18} /> تصدير {selectedIds.length ? `(${selectedIds.length})` : '(الفلتر)'}
+          </button>
           <button 
             onClick={() => loadDrivers()} 
             className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white border border-slate-100 text-slate-400 hover:text-brand-primary hover:border-brand-primary/20 transition-all shadow-sm"
@@ -137,8 +188,21 @@ export default function DriversPage() {
         </div>
       </div>
 
+      <div className="flex flex-wrap gap-2 mb-4">
+        {DRIVER_FILTER_PRESETS.map((preset) => (
+          <button
+            key={`${preset.key}-${preset.value}`}
+            type="button"
+            onClick={() => applyPreset(preset)}
+            className="text-xs font-bold px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 hover:bg-brand-light hover:text-brand-primary transition-colors"
+          >
+            {preset.label}
+          </button>
+        ))}
+      </div>
+
       {/* Modern Filter Bar */}
-      <div className="bg-white/60 backdrop-blur-md rounded-[2rem] p-6 border border-white/60 shadow-premium mb-8 flex flex-col md:flex-row items-end gap-6">
+      <div className="bg-white/60 backdrop-blur-md rounded-[2rem] p-6 border border-white/60 shadow-premium mb-8 flex flex-col md:flex-row flex-wrap items-end gap-6">
         <div className="w-full md:flex-1">
           <label className="block text-[0.7rem] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">بحث متقدم</label>
           <div className="relative group">
@@ -182,6 +246,56 @@ export default function DriversPage() {
         </div>
 
         <div className="w-full md:w-56">
+          <label className="block text-[0.7rem] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">حالة التوفر</label>
+          <select className="form-input !bg-white/80 !rounded-2xl form-select" value={filters.availabilityStatus} onChange={(e) => setFilters(f => ({ ...f, availabilityStatus: e.target.value, page: 1 }))}>
+            <option value="">الكل</option>
+            <option value="ON_SHIFT">على شفت</option>
+            <option value="AVAILABLE">متاح</option>
+            <option value="OFF_DUTY">خارج الخدمة</option>
+            <option value="ON_LEAVE">في إجازة</option>
+          </select>
+        </div>
+
+        <div className="w-full md:w-48">
+          <label className="block text-[0.7rem] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">شفت نشط</label>
+          <select className="form-input !bg-white/80 !rounded-2xl form-select" value={filters.onShift} onChange={(e) => setFilters(f => ({ ...f, onShift: e.target.value, page: 1 }))}>
+            <option value="">الكل</option>
+            <option value="true">شغال الآن</option>
+            <option value="false">غير شغال</option>
+          </select>
+        </div>
+
+        <div className="w-full md:w-48">
+          <label className="block text-[0.7rem] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">عهدة مركبة</label>
+          <select className="form-input !bg-white/80 !rounded-2xl form-select" value={filters.hasVehicle} onChange={(e) => setFilters(f => ({ ...f, hasVehicle: e.target.value, page: 1 }))}>
+            <option value="">الكل</option>
+            <option value="true">لديه مركبة</option>
+            <option value="false">بدون مركبة</option>
+          </select>
+        </div>
+
+        <div className="w-full md:w-48">
+          <label className="block text-[0.7rem] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">حساب بنكي</label>
+          <select className="form-input !bg-white/80 !rounded-2xl form-select" value={filters.hasBankAccount} onChange={(e) => setFilters(f => ({ ...f, hasBankAccount: e.target.value, page: 1 }))}>
+            <option value="">الكل</option>
+            <option value="true">لديه حساب</option>
+            <option value="false">بدون حساب</option>
+          </select>
+        </div>
+
+        <div className="w-full md:w-56">
+          <label className="block text-[0.7rem] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">حالة التوظيف</label>
+          <select className="form-input !bg-white/80 !rounded-2xl form-select" value={filters.employmentStatus} onChange={(e) => setFilters(f => ({ ...f, employmentStatus: e.target.value, page: 1 }))}>
+            <option value="">الكل</option>
+            <option value="ON_DUTY">على رأس العمل</option>
+            <option value="ON_LEAVE">إجازة</option>
+            <option value="SUSPENDED">موقوف</option>
+            <option value="RUNAWAY">متغيب</option>
+            <option value="FINAL_EXIT">خروج نهائي</option>
+          </select>
+        </div>
+
+        <div className="w-full md:w-56">
           <label className="block text-[0.7rem] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">حالة الحذف</label>
           <select
             className="form-input !bg-white/80 !rounded-2xl form-select"
@@ -211,6 +325,9 @@ export default function DriversPage() {
           columns={columns}
           data={drivers}
           loading={loading}
+          selectable
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
           onRowClick={(row) => !isArchivedRow(row) && navigate(`/drivers/${row.id}`)}
           emptyMessage="لا يوجد سائقين متطابقين مع معايير البحث"
         />
@@ -261,6 +378,8 @@ export default function DriversPage() {
           </div>
         </form>
       </Modal>
+
+      <ImportCsvModal isOpen={importOpen} onClose={() => setImportOpen(false)} module="users" title="استيراد سائقين من CSV" onSuccess={loadDrivers} />
 
       <ConfirmDialog
         isOpen={!!restoreUser}

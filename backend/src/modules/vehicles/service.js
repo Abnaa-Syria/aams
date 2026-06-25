@@ -642,7 +642,7 @@ class VehicleService {
       }
     }
 
-    const [activeAssignment, pendingAssignment, activeShift, fuelKPIs, violationKPIs, maintenanceCount, oilCount, latestOilLog, assignmentCount] = await Promise.all([
+    const [activeAssignment, pendingAssignment, activeShift, fuelKPIs, violationKPIs, maintenanceCount, oilCount, latestOilLog, assignmentCount, earningsAgg, completedMaintenanceCount] = await Promise.all([
       // 2. Current Long-term Assignee
       prisma.vehicleAssignment.findFirst({
         where: { vehicleId: vid, isActive: true },
@@ -686,8 +686,17 @@ class VehicleService {
         select: { nextDueOdometer: true }
       }),
       // 7. Assignment History Count
-      prisma.vehicleAssignment.count({ where: { vehicleId: vid } })
+      prisma.vehicleAssignment.count({ where: { vehicleId: vid } }),
+      prisma.reportAppBreakdown.aggregate({
+        where: { report: { shift: { vehicleId: vid }, status: 'APPROVED' } },
+        _sum: { earnings: true, orders: true },
+      }),
+      prisma.maintenanceRequest.count({ where: { vehicleId: vid, status: 'COMPLETED' } }),
     ]);
+
+    const totalEarnings = Number(earningsAgg._sum.earnings || 0);
+    const totalFuelCost = Number(fuelKPIs._sum.amount || 0);
+    const totalMaintenanceCost = 0;
 
     return {
       vehicle,
@@ -707,7 +716,15 @@ class VehicleService {
         maintenanceLogsCount: maintenanceCount + oilCount,
         nextOilChangeAt: latestOilLog?.nextDueOdometer || null,
         totalAssignments: assignmentCount
-      }
+      },
+      financial: {
+        totalEarnings,
+        totalFuelCost,
+        totalMaintenanceCost,
+        maintenanceCompletedCount: completedMaintenanceCount,
+        netEstimate: totalEarnings - totalFuelCost - totalMaintenanceCost,
+        totalOrders: Number(earningsAgg._sum.orders || 0),
+      },
     };
   }
 

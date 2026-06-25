@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm, adminMutationPerm, fleetReportPerm } = require('../../middlewares/adminGuard');
 const { DASHBOARD_VIEW_PERMISSIONS } = require('../../constants/permissions');
 const prisma = require('../../config/database');
 const ApiResponse = require('../../utils/response');
@@ -29,7 +29,7 @@ const ReportController = require('./controller');
  *         description: Composite summary JSON object
  */
 router.get('/driver-summary/:userId', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), ReportController.getDriverSummary);
-router.get('/dashboard-overview', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), ReportController.getDashboardOverview);
+router.get('/dashboard-overview', ...fleetReportPerm(...DASHBOARD_VIEW_PERMISSIONS), ReportController.getDashboardOverview);
 
 
 /**
@@ -56,7 +56,7 @@ router.get('/dashboard-overview', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), 
  */
 
 // Driver productivity report
-router.get('/driver-productivity', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
+router.get('/driver-productivity', ...fleetReportPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
   try {
     const { dateFrom, dateTo, userId } = req.query;
     const where = {};
@@ -104,7 +104,7 @@ router.get('/driver-productivity', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS),
  *       200:
  *         description: "{ total, byVehicle }"
  */
-router.get('/fuel-summary', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
+router.get('/fuel-summary', ...fleetReportPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
   try {
     const { dateFrom, dateTo } = req.query;
     const where = { status: 'APPROVED' };
@@ -131,7 +131,7 @@ router.get('/fuel-summary', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), async 
  *       200:
  *         description: "{ byType, bySeverity, byStatus }"
  */
-router.get('/incidents-summary', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
+router.get('/incidents-summary', ...fleetReportPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
   try {
     const byType = await prisma.incident.groupBy({ by: ['type'], _count: true });
     const bySeverity = await prisma.incident.groupBy({ by: ['severity'], _count: true });
@@ -152,7 +152,7 @@ router.get('/incidents-summary', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), a
  *       200:
  *         description: "{ byType }"
  */
-router.get('/penalties-summary', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
+router.get('/penalties-summary', ...fleetReportPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
   try {
     const byType = await prisma.penalty.groupBy({ by: ['type'], _sum: { amount: true }, _count: true, where: { status: 'APPLIED' } });
     return ApiResponse.success(res, { byType });
@@ -175,7 +175,7 @@ router.get('/penalties-summary', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), a
  *       200:
  *         description: "{ documents, licenses }"
  */
-router.get('/expiring-documents', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
+router.get('/expiring-documents', ...fleetReportPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
   try {
     const days = parseInt(req.query.days) || 30;
     const futureDate = new Date(); futureDate.setDate(futureDate.getDate() + days);
@@ -207,7 +207,7 @@ router.get('/expiring-documents', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), 
  *       200:
  *         description: "{ byType, byStatus }"
  */
-router.get('/leaves-summary', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
+router.get('/leaves-summary', ...fleetReportPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
   try {
     const byType = await prisma.leaveRequest.groupBy({ by: ['leaveType'], _count: true, _sum: { totalDays: true } });
     const byStatus = await prisma.leaveRequest.groupBy({ by: ['status'], _count: true });
@@ -227,7 +227,7 @@ router.get('/leaves-summary', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), asyn
  *       200:
  *         description: groupBy platformName
  */
-router.get('/platform-performance', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
+router.get('/platform-performance', ...fleetReportPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
   try {
     const breakdowns = await prisma.reportAppBreakdown.groupBy({
       by: ['platformName'],
@@ -235,6 +235,48 @@ router.get('/platform-performance', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS)
       _count: true,
     });
     return ApiResponse.success(res, breakdowns);
+  } catch (err) { next(err); }
+});
+
+router.get('/fuel-efficiency', ...fleetReportPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
+  try {
+    const setting = await prisma.systemSetting.findUnique({ where: { key: 'FUEL_LITERS_PER_100KM' } });
+    const litersPer100 = parseFloat(setting?.value || '10');
+    const { vehicleId, userId, dateFrom, dateTo } = req.query;
+    const fuelWhere = { status: 'APPROVED' };
+    if (vehicleId) fuelWhere.vehicleId = parseInt(vehicleId, 10);
+    if (userId) fuelWhere.userId = parseInt(userId, 10);
+    if (dateFrom || dateTo) {
+      fuelWhere.fuelDate = {};
+      if (dateFrom) fuelWhere.fuelDate.gte = new Date(dateFrom);
+      if (dateTo) fuelWhere.fuelDate.lte = new Date(dateTo);
+    }
+    const fuelAgg = await prisma.fuelLog.aggregate({
+      where: fuelWhere,
+      _sum: { liters: true },
+    });
+    const shiftWhere = { status: 'ENDED', startOdometer: { not: null }, endOdometer: { not: null } };
+    if (vehicleId) shiftWhere.vehicleId = parseInt(vehicleId, 10);
+    if (userId) shiftWhere.userId = parseInt(userId, 10);
+    if (dateFrom || dateTo) {
+      shiftWhere.endedAt = {};
+      if (dateFrom) shiftWhere.endedAt.gte = new Date(dateFrom);
+      if (dateTo) shiftWhere.endedAt.lte = new Date(dateTo);
+    }
+    const shifts = await prisma.shift.findMany({
+      where: shiftWhere,
+      select: { startOdometer: true, endOdometer: true },
+    });
+    const totalKm = shifts.reduce((sum, s) => sum + Math.max(0, (s.endOdometer || 0) - (s.startOdometer || 0)), 0);
+    const actualLiters = Number(fuelAgg._sum.liters || 0);
+    const expectedLiters = totalKm > 0 ? (totalKm / 100) * litersPer100 : 0;
+    return ApiResponse.success(res, {
+      litersPer100KmConfig: litersPer100,
+      totalKm,
+      actualLiters,
+      expectedLiters: Number(expectedLiters.toFixed(2)),
+      varianceLiters: Number((actualLiters - expectedLiters).toFixed(2)),
+    });
   } catch (err) { next(err); }
 });
 

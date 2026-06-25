@@ -276,7 +276,7 @@ export default function LicensesPage() {
   };
 
   const handleUpdate = async (form) => {
-    await apiService.upload(`/licenses/${selectedLicense.id}`, form);
+    await apiService.uploadPatch(`/licenses/${selectedLicense.id}`, form);
     setReloadToken(t => t + 1);
   };
 

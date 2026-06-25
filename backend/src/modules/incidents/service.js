@@ -5,6 +5,7 @@ const { logAudit } = require('../../utils/auditLogger');
 const { mergeAppUserIdFilter } = require('../../utils/driverIdentity');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
 const { mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
+const { resolvePeriodStartDate } = require('../../utils/periodFilter');
 
 class IncidentService {
   static async list(query, currentUser) {
@@ -16,17 +17,26 @@ class IncidentService {
       ...(query.status && { status: query.status }),
       ...(query.userId && { userId: parseInt(query.userId) }),
     };
+    if (query.types) {
+      const types = String(query.types).split(',').map((t) => t.trim()).filter(Boolean);
+      if (types.length) where.type = { in: types };
+    }
     where = mergeAppUserIdFilter(where, query.appUserId);
 
     const appRole = currentUser?.appUser?.appRole;
     if (appRole === 'DRIVER') {
       where.userId = currentUser.id;
-    } else if (appRole === 'SUPERVISOR') {
-      where.user = { appUser: { supervisorId: currentUser.appUserId } };
     }
     
     where = mergeDriverNameIntoUserWhere(where, query);
 
+    if (query.period && !query.dateFrom && !query.dateTo) {
+      where.createdAt = { gte: resolvePeriodStartDate(query.period) };
+    } else if (query.dateFrom || query.dateTo) {
+      where.createdAt = {};
+      if (query.dateFrom) where.createdAt.gte = new Date(query.dateFrom);
+      if (query.dateTo) where.createdAt.lte = new Date(query.dateTo);
+    }
 
     const [items, total] = await Promise.all([
       prisma.incident.findMany({
@@ -212,6 +222,32 @@ class IncidentService {
       newValue: { status },
     });
 
+    return updated;
+  }
+
+  static async update(id, adminId, data) {
+    const incidentId = parseInt(id, 10);
+    const incident = await prisma.incident.findUnique({ where: { id: incidentId } });
+    if (!incident) throw new NotFoundError('Incident');
+
+    const updateData = {};
+    const allowed = ['type', 'title', 'description', 'severity', 'location', 'status', 'resolutionNotes', 'customType'];
+    allowed.forEach((field) => {
+      if (data[field] !== undefined) updateData[field] = data[field];
+    });
+
+    const updated = await prisma.incident.update({
+      where: { id: incidentId },
+      data: updateData,
+    });
+
+    await logAudit({
+      userId: adminId,
+      action: 'UPDATE_INCIDENT',
+      entity: 'Incident',
+      entityId: String(incidentId),
+      newValue: updateData,
+    });
     return updated;
   }
 

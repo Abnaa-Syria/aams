@@ -1,121 +1,99 @@
 /**
- * Migration Script: Populate AppUser from existing Users
- * 
- * This script creates AppUser records for all existing users with role DRIVER or SUPERVISOR.
- * It moves operational fields from User to AppUser and handles the supervisor relationship.
- * 
+ * Populate AppUser from users with legacy DRIVER/SUPERVISOR role or userType=APP_USER.
  * Run: node prisma/migrate-app-users.js
  */
-
 require('dotenv').config();
-const { PrismaClient } = require('@prisma/client');
-const { PrismaMariaDb } = require('@prisma/adapter-mariadb');
+const prisma = require('../src/config/database');
 
-function parseMysqlUrl(url) {
-  if (!url) throw new Error('DATABASE_URL is required for Prisma Client');
-  const u = new URL(url);
-  const database = decodeURIComponent((u.pathname || '').replace(/^\//, '').split('?')[0] || '');
-  return {
-    host: u.hostname,
-    port: u.port ? parseInt(u.port, 10) : 3306,
-    user: decodeURIComponent(u.username),
-    password: decodeURIComponent(u.password || ''),
-    database,
-  };
+const ADMIN_ROLES = new Set(['SUPER_ADMIN', 'OPERATIONS_ADMIN', 'HR_ADMIN', 'FLEET_ADMIN', 'FINANCE_ADMIN']);
+
+async function findOperationalUsers() {
+  const hasUserType = await prisma.$queryRawUnsafe(`SHOW COLUMNS FROM users LIKE 'userType'`);
+  if (hasUserType.length) {
+    return prisma.user.findMany({
+      where: { userType: 'APP_USER', deletedAt: null },
+      include: { appUser: true },
+    });
+  }
+  return prisma.$queryRawUnsafe(`
+    SELECT * FROM users WHERE deletedAt IS NULL AND role IN ('DRIVER', 'SUPERVISOR')
+  `);
 }
 
-const adapter = new PrismaMariaDb(parseMysqlUrl(process.env.DATABASE_URL));
-
-const prisma = new PrismaClient({
-  adapter,
-  log: ['error', 'warn'],
-});
+function resolveAppRole(user) {
+  if (user.appUser?.appRole) return user.appUser.appRole;
+  if (user.role === 'DRIVER' || user.role === 'SUPERVISOR') return user.role;
+  return 'DRIVER';
+}
 
 async function migrateAppUsers() {
   console.log('Starting AppUser migration...\n');
 
-  // Get all users with DRIVER or SUPERVISOR role
-  const operationalUsers = await prisma.user.findMany({
-    where: {
-      role: { in: ['DRIVER', 'SUPERVISOR'] },
-      deletedAt: null,
-    },
-  });
+  const operationalUsers = await findOperationalUsers();
+  console.log(`Found ${operationalUsers.length} operational users\n`);
 
-  console.log(`Found ${operationalUsers.length} users with role DRIVER or SUPERVISOR\n`);
-
-  // First pass: Create AppUser records (without supervisor relationship initially)
-  const appUserMap = new Map(); // Maps userId to appUserId
+  const appUserMap = new Map();
 
   for (const user of operationalUsers) {
+    if (user.appUser) {
+      appUserMap.set(user.id, user.appUser.id);
+      continue;
+    }
     try {
+      const appRole = resolveAppRole(user);
       const appUser = await prisma.appUser.create({
         data: {
           userId: user.id,
-          appRole: user.role, // DRIVER or SUPERVISOR
+          appRole,
           availabilityStatus: user.availabilityStatus || 'OFF_DUTY',
           employmentStatus: user.employmentStatus || 'ON_DUTY',
-          transportType: user.transportType,
+          transportType: user.transportType || null,
           sevenHundredNumber: user.sevenHundredNumber,
           roomNumber: user.roomNumber,
           tags: user.tags,
           notes: user.notes,
         },
       });
-      
       appUserMap.set(user.id, appUser.id);
-      console.log(`✓ Created AppUser for user ${user.id} (${user.fullNameAr}) - ${user.role}`);
+      console.log(`✓ AppUser for user ${user.id} (${user.fullNameAr}) — ${appRole}`);
     } catch (error) {
-      console.error(`✗ Failed to create AppUser for user ${user.id}:`, error.message);
+      console.error(`✗ user ${user.id}:`, error.message);
     }
   }
 
-  console.log(`\nCreated ${appUserMap.size} AppUser records\n`);
-
-  // Second pass: Update supervisor relationships
-  // This requires mapping old user.supervisorId to new appUser.supervisorId
   const supervisorUpdates = [];
-
   for (const user of operationalUsers) {
-    if (user.supervisorId && appUserMap.has(user.supervisorId)) {
-      const appUserId = appUserMap.get(user.id);
-      const supervisorAppUserId = appUserMap.get(user.supervisorId);
-      
-      supervisorUpdates.push(
-        prisma.appUser.update({
-          where: { id: appUserId },
-          data: { supervisorId: supervisorAppUserId },
-        })
-      );
-      
-      console.log(`✓ Linked user ${user.id} to supervisor ${user.supervisorId}`);
-    }
+    if (!user.supervisorId || !appUserMap.has(user.supervisorId)) continue;
+    const appUserId = appUserMap.get(user.id);
+    const supervisorAppUserId = appUserMap.get(user.supervisorId);
+    if (!appUserId || !supervisorAppUserId) continue;
+    supervisorUpdates.push(
+      prisma.appUser.update({
+        where: { id: appUserId },
+        data: { supervisorId: supervisorAppUserId },
+      }),
+    );
   }
-
-  if (supervisorUpdates.length > 0) {
+  if (supervisorUpdates.length) {
     await prisma.$transaction(supervisorUpdates);
-    console.log(`\nUpdated ${supervisorUpdates.length} supervisor relationships\n`);
+    console.log(`\nUpdated ${supervisorUpdates.length} supervisor links`);
   }
 
-  // Summary
-  const appUserCount = await prisma.appUser.count();
-  console.log('--- Migration Summary ---');
-  console.log(`Total AppUsers created: ${appUserCount}`);
-  console.log(`Operational users migrated: ${operationalUsers.length}`);
-  
-  const driversCount = await prisma.appUser.count({ where: { appRole: 'DRIVER' } });
-  const supervisorsCount = await prisma.appUser.count({ where: { appRole: 'SUPERVISOR' } });
-  console.log(`  - Drivers: ${driversCount}`);
-  console.log(`  - Supervisors: ${supervisorsCount}`);
+  const hasUserType = await prisma.$queryRawUnsafe(`SHOW COLUMNS FROM users LIKE 'userType'`);
+  if (hasUserType.length) {
+    await prisma.$executeRawUnsafe(`
+      UPDATE users SET userType = 'APP_USER', role = NULL
+      WHERE id IN (SELECT userId FROM app_users) AND (userType != 'APP_USER' OR role IS NOT NULL)
+    `);
+  }
 
-  console.log('\n✓ AppUser migration completed!');
+  console.log('\n--- Summary ---');
+  console.log('app_users:', await prisma.appUser.count());
+  console.log('drivers:', await prisma.appUser.count({ where: { appRole: 'DRIVER' } }));
+  console.log('supervisors:', await prisma.appUser.count({ where: { appRole: 'SUPERVISOR' } }));
+  console.log('\n✓ Done');
 }
 
 migrateAppUsers()
-  .catch((error) => {
-    console.error('Migration failed:', error);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+  .catch((e) => { console.error('Migration failed:', e); process.exit(1); })
+  .finally(() => prisma.$disconnect());

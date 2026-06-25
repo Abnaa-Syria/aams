@@ -57,8 +57,13 @@ setInterval(() => {
  * @param {import('socket.io').Socket} socket
  */
 function registerTrackingHandlers(io, socket) {
+  const user = socket.user || {};
+
   // ── Dashboard joins the admin room ──
   socket.on('join_admin_dashboard', () => {
+    if (user.appRole === 'DRIVER') {
+      return socket.emit('tracking_error', { message: 'غير مصرح بالانضمام لغرفة التتبع الإدارية' });
+    }
     socket.join('admin_dashboard');
     console.log(`[Tracking] Socket ${socket.id} joined admin_dashboard room`);
     socket.emit('joined', { room: 'admin_dashboard', message: 'مرحبًا — أنت متصل بغرفة التتبع اللحظي' });
@@ -90,6 +95,16 @@ function registerTrackingHandlers(io, socket) {
         return socket.emit('tracking_error', {
           message: 'shiftId, lat and lng must be valid numbers',
         });
+      }
+
+      if (user.appRole === 'DRIVER') {
+        const shift = await prisma.shift.findFirst({
+          where: { id: numericShiftId, userId: user.id, status: 'ACTIVE' },
+          select: { id: true },
+        });
+        if (!shift) {
+          return socket.emit('tracking_error', { message: 'شفت غير نشط أو غير مصرح' });
+        }
       }
 
       // 1️⃣  ALWAYS broadcast to dashboard — zero delay

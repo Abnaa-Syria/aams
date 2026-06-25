@@ -2,20 +2,24 @@ const prisma = require('../../config/database');
 const { NotFoundError } = require('../../utils/errors');
 const { getPaginationParams, buildPaginationMeta, buildOrderBy } = require('../../utils/pagination');
 const { logAudit } = require('../../utils/auditLogger');
-const { mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
+const { mergeDriverNameIntoUserWhere, applyUserOwnedListScope } = require('../../utils/listScope');
 const { mergeAppUserIdFilter, stripOperationalIdentityFields } = require('../../utils/driverIdentity');
 
 class DocumentService {
-  static async list(query) {
+  static async list(query, req) {
     const { page, limit, skip } = getPaginationParams(query);
     const orderBy = buildOrderBy(query, ['createdAt', 'expiryDate', 'type']);
 
     let where = {
       deletedAt: null,
-      ...(query.userId && { userId: parseInt(query.userId) }),
       ...(query.type && { type: query.type }),
       ...(query.status && { status: query.status }),
     };
+    if (req) {
+      where = applyUserOwnedListScope(where, req);
+    } else if (query.userId) {
+      where.userId = parseInt(query.userId);
+    }
     where = mergeAppUserIdFilter(where, query.appUserId);
 
     where = mergeDriverNameIntoUserWhere(where, query);
@@ -57,7 +61,7 @@ class DocumentService {
     const doc = await prisma.document.findFirst({ where: { id: parseInt(id), deletedAt: null } });
     if (!doc) throw new NotFoundError('Document');
     const updateData = {};
-    const allowedFields = ['title', 'type', 'status', 'expiryDate', 'issueDate', 'reviewNotes', 'fileUrl', 'fileName'];
+    const allowedFields = ['title', 'type', 'status', 'expiryDate', 'issueDate', 'reviewNotes', 'fileUrl', 'fileName', 'documentNumber', 'otherDetails'];
     
     allowedFields.forEach(field => {
       if (data[field] !== undefined) {
@@ -84,12 +88,21 @@ class DocumentService {
     return updated;
   }
 
-  static async getExpiringDocuments(daysAhead = 30) {
+  static async getExpiringDocuments(daysAhead = 30, req = null) {
     const futureDate = new Date();
     futureDate.setDate(futureDate.getDate() + daysAhead);
 
+    let where = {
+      deletedAt: null,
+      expiryDate: { lte: futureDate, gte: new Date() },
+      status: { not: 'EXPIRED' },
+    };
+    if (req) {
+      where = applyUserOwnedListScope(where, req);
+    }
+
     return prisma.document.findMany({
-      where: { deletedAt: null, expiryDate: { lte: futureDate, gte: new Date() }, status: { not: 'EXPIRED' } },
+      where,
       include: { user: { select: { id: true, fullNameAr: true, identityNumber: true } } },
       orderBy: { expiryDate: 'asc' },
     });

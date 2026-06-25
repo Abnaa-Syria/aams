@@ -230,7 +230,11 @@ router.post('/broadcast', ...adminPerm(P.COMPLIANCE_WRITE), async (req, res, nex
 router.get('/admin/all', ...adminPerm(P.COMPLIANCE_READ), async (req, res, next) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query);
-    const where = { ...(req.query.userId && { userId: parseInt(req.query.userId) }) };
+    const where = {
+      ...(req.query.userId && { userId: parseInt(req.query.userId) }),
+      ...(req.query.isRead !== undefined && req.query.isRead !== '' && { isRead: req.query.isRead === 'true' }),
+      ...(req.query.category && { category: req.query.category }),
+    };
     const [items, total] = await Promise.all([
       prisma.notification.findMany({
         where, skip, take: limit, orderBy: { createdAt: 'desc' },

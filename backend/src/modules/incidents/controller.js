@@ -43,6 +43,17 @@ class IncidentController {
     }
   }
 
+  static async updateIncident(req, res, next) {
+    try {
+      const existing = await IncidentService.getById(req.params.id);
+      await assertCanAccessDriverRecord(req, existing.userId);
+      const incident = await IncidentService.update(req.params.id, req.user.id, req.body);
+      return ApiResponse.success(res, incident, 'Incident updated successfully');
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static async convertToMaintenance(req, res, next) {
     try {
       const maintenance = await IncidentService.convertToMaintenance(req.params.id, req.user.id, req.body);

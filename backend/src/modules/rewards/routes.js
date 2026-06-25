@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm, adminMutationPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const RewardController = require('./controller');
 
@@ -46,7 +46,7 @@ router.get('/:id', ...sharedPerm(P.HR_READ), RewardController.getById);
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', ...sharedPerm(P.HR_APPROVE), RewardController.create);
+router.post('/', ...adminMutationPerm(P.HR_APPROVE), RewardController.create);
 
 /**
  * @openapi
@@ -57,7 +57,7 @@ router.post('/', ...sharedPerm(P.HR_APPROVE), RewardController.create);
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id', ...sharedPerm(P.HR_APPROVE), RewardController.update);
+router.patch('/:id', ...adminMutationPerm(P.HR_APPROVE), RewardController.update);
 
 /**
  * @openapi
@@ -68,7 +68,7 @@ router.patch('/:id', ...sharedPerm(P.HR_APPROVE), RewardController.update);
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id/status', ...sharedPerm(P.HR_APPROVE), RewardController.updateStatus);
+router.patch('/:id/status', ...adminMutationPerm(P.HR_APPROVE), RewardController.updateStatus);
 
 /**
  * @openapi
@@ -79,6 +79,6 @@ router.patch('/:id/status', ...sharedPerm(P.HR_APPROVE), RewardController.update
  *     security:
  *       - bearerAuth: []
  */
-router.delete('/:id', ...sharedPerm(P.HR_APPROVE), RewardController.delete);
+router.delete('/:id', ...adminMutationPerm(P.HR_APPROVE), RewardController.delete);
 
 module.exports = router;

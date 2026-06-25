@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm, adminMutationPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const upload = require('../../utils/upload');
 const prisma = require('../../config/database');
@@ -96,7 +96,7 @@ router.patch('/:id', ...sharedPerm(P.HR_WRITE), LeaveRequestController.update);
  */
 router.patch('/:id/supervisor-review', ...sharedPerm(P.HR_READ), LeaveRequestController.supervisorReview);
 
-router.patch('/:id/review', ...sharedPerm(P.HR_APPROVE), LeaveRequestController.review);
+router.patch('/:id/review', ...adminMutationPerm(P.HR_APPROVE), LeaveRequestController.review);
 
 /**
  * @openapi

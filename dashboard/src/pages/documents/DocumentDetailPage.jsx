@@ -190,7 +190,7 @@ export default function DocumentDetailPage() {
         formData.append('file', editForm.file);
       }
       
-      await apiService.upload(`/documents/${id}`, formData);
+      await apiService.uploadPatch(`/documents/${id}`, formData);
       toast.success('تم تحديث المستند بنجاح');
       setEditModalOpen(false);
       load();

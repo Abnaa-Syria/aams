@@ -20,12 +20,8 @@ class InvestigationService {
       if (currentUser.appRole === 'DRIVER') {
         where.userId = currentUser.id;
       } else if (currentUser.appRole === 'SUPERVISOR') {
-        where.user = { 
-          appUser: { 
-            supervisorId: currentUser.appUserId,
-            appRole: 'DRIVER'
-          }
-        };
+        where.user = { appUser: { appRole: 'DRIVER' } };
+        if (query.userId) where.userId = parseInt(query.userId);
       } else {
         where.userId = -1;
       }
@@ -61,7 +57,15 @@ class InvestigationService {
     const item = await prisma.investigation.findUnique({
       where: { id: parseInt(id) },
       include: {
-        user: { select: { id: true, fullNameAr: true, fullNameEn: true, identityNumber: true } },
+        user: {
+          select: {
+            id: true,
+            fullNameAr: true,
+            fullNameEn: true,
+            identityNumber: true,
+            appUser: { select: { id: true } },
+          },
+        },
         createdBy: { select: { id: true, fullNameAr: true } },
         attachments: true,
         eventLogs: { orderBy: { createdAt: 'desc' } },
@@ -75,12 +79,7 @@ class InvestigationService {
       if (currentUser.appRole === 'DRIVER' && item.userId !== currentUser.id) {
         throw new NotFoundError('Investigation');
       }
-      if (currentUser.appRole === 'SUPERVISOR') {
-        const isAssigned = await prisma.appUser.findFirst({
-          where: { id: item.user?.appUser?.id, supervisorId: currentUser.appUserId }
-        });
-        if (!isAssigned) throw new NotFoundError('Investigation');
-      }
+      // Supervisors: access all driver investigations (requirement #16)
     }
 
     return item;
@@ -160,6 +159,9 @@ class InvestigationService {
 
   static async updateStatus(id, adminId, data) {
     const invId = parseInt(id);
+    const existing = await prisma.investigation.findUnique({ where: { id: invId } });
+    if (!existing) throw new NotFoundError('Investigation');
+
     const updateData = { status: data.status };
     if (data.status === 'CLOSED') {
       updateData.closedAt = new Date();

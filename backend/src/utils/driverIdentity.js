@@ -37,8 +37,17 @@ async function resolveUserIdFromDriverInput(input = {}, fallbackUser = null) {
     return appUser.userId;
   }
 
+  if (input.identityNumber) {
+    const user = await prisma.user.findFirst({
+      where: { identityNumber: String(input.identityNumber).trim() },
+      select: { id: true },
+    });
+    if (!user) throw new NotFoundError('User');
+    return user.id;
+  }
+
   if (fallbackUser?.id) return fallbackUser.id;
-  throw new ValidationError('Driver identity (userId or appUserId) is required');
+  throw new ValidationError('Driver identity (userId, appUserId, or identityNumber) is required');
 }
 
 function stripOperationalIdentityFields(data) {

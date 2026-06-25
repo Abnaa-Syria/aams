@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm, adminMutationPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const IncidentController = require('./controller');
 const { incidentUploadMiddleware } = require('../../utils/incidentUpload');
@@ -73,7 +73,8 @@ router.post(
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id/status', ...adminPerm(P.COMPLIANCE_WRITE), IncidentController.updateStatus);
+router.patch('/:id/status', ...adminMutationPerm(P.COMPLIANCE_WRITE), IncidentController.updateStatus);
+router.patch('/:id', ...adminMutationPerm(P.COMPLIANCE_WRITE), IncidentController.updateIncident);
 
 /**
  * @openapi

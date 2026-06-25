@@ -1,5 +1,10 @@
 /** Resolve period start date for week | month | year filters (mobile-friendly). */
 function resolvePeriodStartDate(period = 'month', now = new Date()) {
+  if (period === 'day') {
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    return start;
+  }
   if (period === 'week') {
     const start = new Date(now);
     start.setDate(start.getDate() - 7);

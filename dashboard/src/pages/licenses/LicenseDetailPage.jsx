@@ -188,7 +188,7 @@ export default function LicenseDetailPage() {
         formData.append('file', editForm.file);
       }
       
-      await apiService.upload(`/licenses/${id}`, formData);
+      await apiService.uploadPatch(`/licenses/${id}`, formData);
       toast.success('تم تحديث الرخصة بنجاح');
       setEditModalOpen(false);
       load();

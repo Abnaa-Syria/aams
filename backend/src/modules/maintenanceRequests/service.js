@@ -5,6 +5,7 @@ const { logAudit } = require('../../utils/auditLogger');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
 const { mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
 const { mergeAppUserIdFilter } = require('../../utils/driverIdentity');
+const { resolvePeriodStartDate } = require('../../utils/periodFilter');
 
 const DEFAULT_ISSUE_TYPE = 'MECHANICAL';
 
@@ -31,16 +32,20 @@ class MaintenanceRequestService {
     if (currentUser.appRole === 'DRIVER') {
       where.userId = currentUser.id;
     } else if (currentUser.appRole === 'SUPERVISOR') {
-      // If supervisor specifies a userId, it must be one of their drivers
-      if (query.userId) {
-        where.userId = parseInt(query.userId);
-        where.user = { appUser: { supervisorId: currentUser.appUserId } };
-      } else {
-        where.user = { appUser: { supervisorId: currentUser.appUserId } };
-      }
+      if (query.userId) where.userId = parseInt(query.userId);
     } else if (query.userId) {
       // Admins and other roles can filter by userId freely
       where.userId = parseInt(query.userId);
+    }
+
+    where = mergeDriverNameIntoUserWhere(where, query);
+
+    if (query.period && !query.dateFrom && !query.dateTo) {
+      where.createdAt = { gte: resolvePeriodStartDate(query.period) };
+    } else if (query.dateFrom || query.dateTo) {
+      where.createdAt = {};
+      if (query.dateFrom) where.createdAt.gte = new Date(query.dateFrom);
+      if (query.dateTo) where.createdAt.lte = new Date(query.dateTo);
     }
 
     const [items, total] = await Promise.all([
@@ -85,7 +90,23 @@ class MaintenanceRequestService {
   }
 
   static async create(userId, data, files = []) {
-    const vehicleId = parseInt(data.vehicleId, 10);
+    let vehicleId = parseInt(data.vehicleId, 10);
+    if (Number.isNaN(vehicleId)) {
+      const assignment = await prisma.vehicleAssignment.findFirst({
+        where: { userId, isActive: true },
+        orderBy: { assignedAt: 'desc' },
+        select: { vehicleId: true },
+      });
+      if (assignment) vehicleId = assignment.vehicleId;
+    }
+    if (Number.isNaN(vehicleId)) {
+      const activeShift = await prisma.shift.findFirst({
+        where: { userId, status: 'ACTIVE' },
+        orderBy: { startedAt: 'desc' },
+        select: { vehicleId: true },
+      });
+      if (activeShift) vehicleId = activeShift.vehicleId;
+    }
     if (Number.isNaN(vehicleId)) throw new ValidationError('vehicleId is required');
 
     const description = data.description != null ? String(data.description).trim() : '';
@@ -178,7 +199,7 @@ class MaintenanceRequestService {
     if (!existing) throw new NotFoundError('Maintenance Request');
 
     const updateData = {};
-    const allowedFields = ['description', 'priority', 'status', 'cost', 'odometerReading', 'internalNotes', 'workshopName', 'completionDate'];
+    const allowedFields = ['description', 'priority', 'status', 'cost', 'odometerReading', 'workshopName', 'completionDate', 'technicianNotes', 'adminNotes'];
 
     allowedFields.forEach(field => {
       if (data[field] !== undefined) {

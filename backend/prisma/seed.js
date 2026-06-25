@@ -290,11 +290,24 @@ async function main() {
     { nameAr: 'مكة المكرمة', nameEn: 'Makkah', region: 'الغربية' },
     { nameAr: 'المدينة المنورة', nameEn: 'Madinah', region: 'الغربية' },
     { nameAr: 'تبوك', nameEn: 'Tabuk', region: 'الشمالية' },
+    { nameAr: 'الطائف', nameEn: 'Taif', region: 'الغربية' },
   ];
   for (const city of cities) {
     await prisma.city.upsert({ where: { id: cities.indexOf(city) + 1 }, update: {}, create: city });
   }
   console.log('Cities created');
+
+  const branchTargets = [
+    { key: 'report.branchTarget.جدة', value: '448', description: 'هدف طلبات يومي — فرع جدة' },
+    { key: 'report.branchTarget.الطائف', value: '448', description: 'هدف طلبات يومي — فرع الطائف' },
+  ];
+  for (const s of branchTargets) {
+    await prisma.systemSetting.upsert({
+      where: { key: s.key },
+      update: { value: s.value, description: s.description, category: 'reports' },
+      create: { key: s.key, value: s.value, description: s.description, category: 'reports', isVisible: true },
+    });
+  }
 
   // Create Platforms
   const platforms = [

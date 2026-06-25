@@ -6,6 +6,7 @@ import Modal from '../../components/ui/Modal';
 import FileUploadField from '../../components/ui/FileUploadField';
 import { useState, useEffect } from 'react';
 import { apiService } from '../../services/api';
+import { formDataToObject } from '../../utils/formData';
 import { LuPlus, LuPencil } from 'react-icons/lu';
 import toast from 'react-hot-toast';
 
@@ -195,12 +196,16 @@ function IncidentModal({ isOpen, onClose, incident, onSave }) {
   );
 }
 
+const ACCIDENT_TYPES = ['ACCIDENT', 'BREAKDOWN', 'LARGE_ORDER', 'OTHER'];
+const EMERGENCY_TYPES = ['MEDICAL'];
+
 export default function IncidentsPage() {
   const navigate = useNavigate();
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [reloadToken, setReloadToken] = useState(0);
+  const [viewTab, setViewTab] = useState('all');
 
   const handleCreate = async (formData) => {
     await apiService.upload('/incidents', formData);
@@ -208,7 +213,7 @@ export default function IncidentsPage() {
   };
 
   const handleUpdate = async (formData) => {
-    await apiService.upload(`/incidents/${selectedIncident.id}`, formData);
+    await apiService.patch(`/incidents/${selectedIncident.id}`, formDataToObject(formData));
     setReloadToken(t => t + 1);
   };
 
@@ -229,9 +234,30 @@ export default function IncidentsPage() {
 
   return (
     <>
+      <div className="flex gap-2 mb-4 px-1">
+        {[
+          { id: 'all', label: 'الكل' },
+          { id: 'accidents', label: 'حوادث' },
+          { id: 'emergency', label: 'طوارئ / طبية' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => { setViewTab(tab.id); setReloadToken((t) => t + 1); }}
+            className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${viewTab === tab.id ? 'bg-primary text-white' : 'bg-white border border-slate-200 text-slate-600'}`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
       <GenericListPage 
         title="الحوادث والطوارئ" 
-        apiUrl="/incidents" 
+        apiUrl="/incidents"
+        prepareParams={(p) => ({
+          ...p,
+          ...(viewTab === 'accidents' ? { types: ACCIDENT_TYPES.join(',') } : {}),
+          ...(viewTab === 'emergency' ? { type: 'MEDICAL' } : {}),
+        })}
         columns={[...columns.slice(0, -1), {
           key: 'actions',
           label: '',

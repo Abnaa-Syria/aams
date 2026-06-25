@@ -255,7 +255,7 @@ export default function BankAccountsPage() {
   };
 
   const handleUpdate = async (formData) => {
-    await apiService.upload(`/bank-accounts/${selectedAccount.id}`, formData);
+    await apiService.uploadPatch(`/bank-accounts/${selectedAccount.id}`, formData);
     setReloadToken(t => t + 1);
   };
 

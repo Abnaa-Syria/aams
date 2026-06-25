@@ -8,6 +8,7 @@ import FileUploadField from '../../components/ui/FileUploadField';
 import UserSelect from '../../components/ui/UserSelect';
 import PermissionGate from '../../components/auth/PermissionGate';
 import { apiService } from '../../services/api';
+import { formDataToObject } from '../../utils/formData';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { LuPlus, LuPencil, LuEye } from 'react-icons/lu';
@@ -208,7 +209,7 @@ export default function LeavesPage() {
   };
 
   const handleUpdate = async (formData) => {
-    await apiService.upload(`/leave-requests/${selectedLeave.id}`, formData);
+    await apiService.patch(`/leave-requests/${selectedLeave.id}`, formDataToObject(formData));
     setReloadToken(t => t + 1);
   };
 
@@ -270,10 +271,13 @@ export default function LeavesPage() {
         onRowClick={(row) => navigate(`/leaves/${row.id}`)}
         createButton={createButton}
         reloadToken={reloadToken}
+        reportFilters
+        exportModule="leave-requests"
+        selectable
         filters={[
-          { key: 'driverName', type: 'text', placeholder: 'اسم السائق' },
-          { key: 'leaveType', type: 'select', placeholder: 'النوع', options: Object.entries(leaveTypeLabels).map(([v, l]) => ({ value: v, label: l })) },
-          { key: 'status', type: 'select', placeholder: 'الحالة', options: statusOptions },
+          { key: 'driverName', type: 'text', label: 'اسم السائق', placeholder: 'اسم السائق' },
+          { key: 'leaveType', type: 'select', label: 'النوع', placeholder: 'النوع', options: Object.entries(leaveTypeLabels).map(([v, l]) => ({ value: v, label: l })) },
+          { key: 'status', type: 'select', label: 'الحالة', placeholder: 'الحالة', options: statusOptions },
         ]}
       />
 

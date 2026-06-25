@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm, adminMutationPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const { dailyReportUploadMiddleware } = require('../../utils/dailyReportUpload');
 const DailyReportController = require('./controller');
@@ -68,7 +68,7 @@ router.post('/', ...sharedPerm(P.SHIFTS_WRITE), dailyReportUploadMiddleware, Dai
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id/review', ...sharedPerm(P.COMPLIANCE_WRITE), DailyReportController.reviewReport);
+router.patch('/:id/review', ...adminMutationPerm(P.COMPLIANCE_WRITE), DailyReportController.reviewReport);
 
 /**
  * @openapi
@@ -79,6 +79,6 @@ router.patch('/:id/review', ...sharedPerm(P.COMPLIANCE_WRITE), DailyReportContro
  *     security:
  *       - bearerAuth: []
  */
-router.delete('/:id', ...sharedPerm(P.COMPLIANCE_WRITE), DailyReportController.deleteReport);
+router.delete('/:id', ...adminMutationPerm(P.COMPLIANCE_WRITE), DailyReportController.deleteReport);
 
 module.exports = router;

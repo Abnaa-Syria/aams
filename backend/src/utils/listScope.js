@@ -28,8 +28,7 @@ function applyUserOwnedListScope(where, req, options = {}) {
 
   if (appRole === 'SUPERVISOR') {
     const userClause = {
-      appUser: { 
-        supervisorId: appUserId,
+      appUser: {
         appRole: 'DRIVER',
         ...(appUserIdQuery ? { id: appUserIdQuery } : {}),
       },
@@ -62,8 +61,7 @@ function applyUserOwnedListScopeUserIdField(where, req, field = 'userId') {
     return {
       ...where,
       user: {
-        appUser: { 
-          supervisorId: appUserId,
+        appUser: {
           appRole: 'DRIVER',
           ...(appUserIdQuery ? { id: appUserIdQuery } : {}),
         },
@@ -104,12 +102,11 @@ function applyMidShiftListScope(where, req) {
     return {
       ...where,
       shift: {
-        user: { 
-          appUser: { 
-            supervisorId: appUserId,
+        user: {
+          appUser: {
             appRole: 'DRIVER',
             ...(queryAppUserId ? { id: queryAppUserId } : {}),
-          }
+          },
         },
         ...(shiftId ? { id: shiftId } : {}),
       },

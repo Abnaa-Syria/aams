@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const DocumentService = require('../modules/documents/service');
 const TraineeService = require('../modules/trainees/service');
 const VehicleService = require('../modules/vehicles/service');
+const { checkIdleDrivers, checkGpsDisconnect } = require('./trackingJobs');
 
 /**
  * Initialize all scheduled background workers.
@@ -28,6 +29,19 @@ function initCronJobs() {
       await VehicleService.checkOilChangeReminders();
     } catch (err) {
       console.error('[Cron] Error in checkOilChangeReminders:', err);
+    }
+  });
+
+  // Every 15 minutes: idle / GPS disconnect alerts for active shifts
+  cron.schedule('*/15 * * * *', async () => {
+    try {
+      const idle = await checkIdleDrivers();
+      const disconnected = await checkGpsDisconnect();
+      if (idle || disconnected) {
+        console.log(`[Cron] Tracking alerts: idle=${idle}, gps_disconnect=${disconnected}`);
+      }
+    } catch (err) {
+      console.error('[Cron] Error in tracking jobs:', err);
     }
   });
 

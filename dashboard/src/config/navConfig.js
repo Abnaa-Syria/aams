@@ -19,7 +19,9 @@ export const NAV_GROUPS = [
     label: 'الأسطول',
     items: [
       { path: '/vehicles', label: 'المركبات', iconKey: 'vehicles', anyOf: [P.FLEET_READ], hideForSupervisor: true },
+      { path: '/fleet-map', label: 'خريطة الأسطول', iconKey: 'vehicles', anyOf: [P.FLEET_READ] },
       { path: '/maintenance-requests', label: 'طلبات الصيانة', iconKey: 'maintenance', anyOf: [P.INVENTORY_READ] },
+      { path: '/assets', label: 'العهد', iconKey: 'maintenance', anyOf: [P.INVENTORY_READ], hideForSupervisor: true },
     ],
   },
   {
@@ -38,6 +40,7 @@ export const NAV_GROUPS = [
       { path: '/fuel', label: 'سجلات الوقود', iconKey: 'fuel', anyOf: [P.FLEET_READ] },
       { path: '/violations', label: 'المخالفات', iconKey: 'violations', anyOf: [P.COMPLIANCE_READ], hideForSupervisor: true },
       { path: '/incidents', label: 'الحوادث والطوارئ', iconKey: 'incidents', anyOf: [P.COMPLIANCE_READ] },
+      { path: '/operational-reports', label: 'تقرير التشغيل اليومي', iconKey: 'reports', anyOf: [P.SHIFTS_READ, P.DAILY_REPORTS_READ] },
       { path: '/daily-reports', label: 'التقارير اليومية', iconKey: 'reports', anyOf: [P.SHIFTS_READ, P.DAILY_REPORTS_READ] },
     ],
   },
@@ -62,6 +65,7 @@ export const NAV_GROUPS = [
     label: 'الموارد البشرية',
     items: [
       { path: '/leaves', label: 'طلبات الإجازة', iconKey: 'leaves', anyOf: [P.HR_READ] },
+      { path: '/permission-requests', label: 'الاستئذانات', iconKey: 'leaves', anyOf: [P.HR_READ] },
       { path: '/salary-advances', label: 'السلف', iconKey: 'salary', anyOf: [P.FINANCE_READ, P.HR_READ] },
     ],
   },

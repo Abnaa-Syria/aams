@@ -31,20 +31,28 @@ function pickUploadedOrBodyUrl(files, fieldNames, body) {
   return undefined;
 }
 
-function parsePositiveIntField(body, fieldName) {
-  const raw = body?.[fieldName];
-  if (raw === undefined || raw === null || raw === '') return null;
-  const parsed = parseInt(String(raw), 10);
-  return Number.isNaN(parsed) ? null : parsed;
+function parsePositiveIntField(body, fieldName, aliases = []) {
+  const keys = [fieldName, ...aliases];
+  for (const key of keys) {
+    const raw = body?.[key];
+    if (raw === undefined || raw === null || raw === '') continue;
+    const parsed = parseInt(String(raw), 10);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+  return null;
 }
 
 function parseRequestStartPayload(req) {
   const body = req.body || {};
   const files = req.files || {};
 
-  const vehicleId = parsePositiveIntField(body, 'vehicleId');
-  const platformAccountId = parsePositiveIntField(body, 'platformAccountId');
-  const startOdometer = parsePositiveIntField(body, 'startOdometer');
+  const vehicleId = parsePositiveIntField(body, 'vehicleId', ['vehicle_id']);
+  const platformAccountId = parsePositiveIntField(body, 'platformAccountId', [
+    'platform_account_id',
+    'platformAccount',
+    'accountId',
+  ]);
+  const startOdometer = parsePositiveIntField(body, 'startOdometer', ['start_odometer', 'odometer']);
 
   if (!vehicleId) throw new ValidationError('vehicleId is required');
   if (!platformAccountId) throw new ValidationError('platformAccountId is required');
@@ -132,6 +140,12 @@ class ShiftController {
     try {
       const shift = await ShiftService.updateStatus(req.params.id, req.body?.status, req.body?.reason, req.user);
       return ApiResponse.success(res, shift, 'Shift status updated');
+    } catch (err) { next(err); }
+  }
+  static async update(req, res, next) {
+    try {
+      const shift = await ShiftService.updateNotes(req.params.id, req.body || {}, req.user);
+      return ApiResponse.success(res, shift, 'Shift updated');
     } catch (err) { next(err); }
   }
 }

@@ -37,10 +37,7 @@ async function assertCanAccessDriverRecord(reqOrUser, recordUserId) {
     const driver = await prisma.user.findFirst({
       where: {
         id: recordUserId,
-        appUser: {
-          supervisorId: appUserId,
-          appRole: 'DRIVER',
-        },
+        appUser: { appRole: 'DRIVER' },
         deletedAt: null,
       },
       select: { id: true },
@@ -68,7 +65,11 @@ async function assertSupervisorOwnsShiftDriver(reqOrUser, shiftUserId) {
   if (shiftUserId === actor.id) {
     throw new AuthorizationError('لا يمكن للمشرف تنفيذ هذا الإجراء على شفته الشخصية');
   }
-  await assertCanAccessDriverRecord(reqOrUser, shiftUserId);
+  const driver = await prisma.user.findFirst({
+    where: { id: shiftUserId, appUser: { appRole: 'DRIVER' }, deletedAt: null },
+    select: { id: true },
+  });
+  if (!driver) throw new AuthorizationError('غير مصرح بتنفيذ هذا الإجراء على هذا السائق');
 }
 
 /**
@@ -100,7 +101,6 @@ function buildSupervisorTeamOrSelfFilter(currentUser, driverRelation = 'user') {
   const driverClause = {
     [driverRelation]: {
       appUser: {
-        supervisorId: currentUser.appUserId,
         appRole: 'DRIVER',
       },
     },

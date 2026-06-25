@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm, adminMutationPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const SalaryAdvanceController = require('./controller');
 
@@ -59,7 +59,7 @@ router.patch('/:id', ...sharedPerm(P.FINANCE_WRITE), SalaryAdvanceController.upd
  */
 router.patch('/:id/supervisor-review', ...sharedPerm(P.FINANCE_READ), SalaryAdvanceController.supervisorReview);
 
-router.patch('/:id/review', ...sharedPerm(P.FINANCE_APPROVE), SalaryAdvanceController.review);
+router.patch('/:id/review', ...adminMutationPerm(P.FINANCE_APPROVE), SalaryAdvanceController.review);
 
 /**
  * @openapi

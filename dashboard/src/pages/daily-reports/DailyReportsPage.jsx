@@ -6,6 +6,7 @@ import Modal from '../../components/ui/Modal';
 import FileUploadField from '../../components/ui/FileUploadField';
 import { useState, useEffect } from 'react';
 import { apiService } from '../../services/api';
+import { formDataToObject } from '../../utils/formData';
 import { LuPlus, LuPencil } from 'react-icons/lu';
 import toast from 'react-hot-toast';
 
@@ -199,7 +200,8 @@ export default function DailyReportsPage() {
   };
 
   const handleUpdate = async (formData) => {
-    await apiService.upload(`/daily-reports/${selectedReport.id}`, formData);
+    const { status, reviewNotes } = formDataToObject(formData);
+    await apiService.patch(`/daily-reports/${selectedReport.id}/review`, { status, reviewNotes });
     setReloadToken(t => t + 1);
   };
 

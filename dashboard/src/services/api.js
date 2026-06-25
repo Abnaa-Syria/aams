@@ -58,11 +58,13 @@ api.interceptors.response.use(
 export default api;
 
 export const apiService = {
-  get: (url, params) => api.get(url, { params }),
+  get: (url, params, config) => api.get(url, { params, ...config }),
   post: (url, data, config) => api.post(url, data, config),
   put: (url, data, config) => api.put(url, data, config),
   patch: (url, data, config) => api.patch(url, data, config),
   delete: (url, config) => api.delete(url, config),
   upload: (url, formData) => api.post(url, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   uploadPut: (url, formData) => api.put(url, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  uploadPatch: (url, formData) => api.patch(url, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  exportBlob: (url, data) => api.post(url, data, { responseType: 'blob' }),
 };

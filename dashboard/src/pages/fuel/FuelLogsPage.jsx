@@ -228,7 +228,7 @@ export default function FuelLogsPage() {
   };
 
   const handleUpdate = async (form) => {
-    await apiService.upload(`/fuel-logs/${selectedFuelLog.id}`, form);
+    await apiService.uploadPatch(`/fuel-logs/${selectedFuelLog.id}`, form);
     setReloadToken(t => t + 1);
   };
 

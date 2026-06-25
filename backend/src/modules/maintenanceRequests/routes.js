@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm, adminMutationPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const upload = require('../../utils/upload');
 const MaintenanceRequestController = require('./controller');
@@ -131,7 +131,7 @@ router.patch('/:id', ...sharedPerm(P.FLEET_WRITE), MaintenanceRequestController.
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id/status', ...sharedPerm(P.FLEET_WRITE), MaintenanceRequestController.updateStatus);
+router.patch('/:id/status', ...adminMutationPerm(P.FLEET_WRITE), MaintenanceRequestController.updateStatus);
 
 /**
  * @openapi
@@ -142,6 +142,6 @@ router.patch('/:id/status', ...sharedPerm(P.FLEET_WRITE), MaintenanceRequestCont
  *     security:
  *       - bearerAuth: []
  */
-router.delete('/:id', ...sharedPerm(P.FLEET_WRITE), MaintenanceRequestController.deleteRequest);
+router.delete('/:id', ...adminMutationPerm(P.FLEET_WRITE), MaintenanceRequestController.deleteRequest);
 
 module.exports = router;

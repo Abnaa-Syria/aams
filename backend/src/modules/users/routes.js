@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const UserController = require('./controller');
-const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm, adminMutationPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const validate = require('../../middlewares/validate');
 const { listUsersSchema, createUserSchema, updateUserSchema, changeStatusSchema, assignSupervisorSchema, idParamSchema } = require('./validator');
@@ -82,7 +82,7 @@ router.get('/:id', ...sharedPerm(P.USERS_READ), validate(idParamSchema), UserCon
  *       201:
  *         description: User created
  */
-router.post('/', ...sharedPerm(P.USERS_WRITE), validate(createUserSchema), UserController.create);
+router.post('/', ...adminMutationPerm(P.USERS_WRITE), validate(createUserSchema), UserController.create);
 
 /**
  * @openapi
@@ -99,7 +99,7 @@ router.post('/', ...sharedPerm(P.USERS_WRITE), validate(createUserSchema), UserC
  *       200:
  *         description: User updated
  */
-router.put('/:id', ...sharedPerm(P.USERS_WRITE), validate(updateUserSchema), UserController.update);
+router.put('/:id', ...adminMutationPerm(P.USERS_WRITE), validate(updateUserSchema), UserController.update);
 
 /**
  * @openapi
@@ -126,9 +126,9 @@ router.put('/:id', ...sharedPerm(P.USERS_WRITE), validate(updateUserSchema), Use
  *       200:
  *         description: Status changed
  */
-router.patch('/:id/status', ...sharedPerm(P.USERS_WRITE), validate(changeStatusSchema), UserController.changeStatus);
+router.patch('/:id/status', ...adminMutationPerm(P.USERS_WRITE), validate(changeStatusSchema), UserController.changeStatus);
 
-router.patch('/:id/restore', ...sharedPerm(P.USERS_WRITE), validate(idParamSchema), UserController.restore);
+router.patch('/:id/restore', ...adminMutationPerm(P.USERS_WRITE), validate(idParamSchema), UserController.restore);
 
 /**
  * @openapi
@@ -145,7 +145,7 @@ router.patch('/:id/restore', ...sharedPerm(P.USERS_WRITE), validate(idParamSchem
  *       200:
  *         description: Supervisor assigned
  */
-router.patch('/:id/assign-supervisor', ...sharedPerm(P.USERS_WRITE), validate(assignSupervisorSchema), UserController.assignSupervisor);
+router.patch('/:id/assign-supervisor', ...adminMutationPerm(P.USERS_WRITE), validate(assignSupervisorSchema), UserController.assignSupervisor);
 
 /**
  * @openapi
@@ -162,6 +162,6 @@ router.patch('/:id/assign-supervisor', ...sharedPerm(P.USERS_WRITE), validate(as
  *       200:
  *         description: User deleted
  */
-router.delete('/:id', ...sharedPerm(P.USERS_WRITE), validate(idParamSchema), UserController.remove);
+router.delete('/:id', ...adminMutationPerm(P.USERS_WRITE), validate(idParamSchema), UserController.remove);
 
 module.exports = router;

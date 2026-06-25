@@ -86,6 +86,11 @@ enum LicenseType {
   TRANSPORT_LICENSE
   MEDICAL_CERTIFICATE
   OTHER_CERTIFICATE
+  COMMERCIAL_REGISTRATION
+  DEFENSIVE_DRIVING
+  FIRST_AID
+  FOOD_HANDLER
+  HEAVY_VEHICLE
 }
 
 enum VehicleStatus {
@@ -314,6 +319,10 @@ enum AssetType {
   SIM_CARD
   LICENSE_CARD
   THERMAL_BOX
+  HELMET
+  UNIFORM
+  CHARGER
+  TABLET
   OTHER
 }
 
@@ -425,6 +434,7 @@ model User {
   ratings           Rating[]          @relation("RatedUser")
   rewards           Reward[]
   leaveRequests     LeaveRequest[]
+  permissionRequests PermissionRequest[]
   salaryAdvances    SalaryAdvance[]
   maintenanceReqs   MaintenanceRequest[]
   auditLogs         AuditLog[]
@@ -446,6 +456,8 @@ model User {
   vehicleSwapReqs   VehicleSwapRequest[] @relation("VehicleSwapRequester")
   reviewedSwaps     VehicleSwapRequest[] @relation("VehicleSwapReviewer")
   scheduledReminders ScheduledReminder[] @relation("ReminderTarget")
+  operationalReportRows OperationalReportRow[]
+  financialLedgerRows FinancialLedgerRow[]
   locationHistory   LocationHistory[]
   
   oilChangeLogsPerformed OilChangeLog[] @relation("OilChangePerformer")
@@ -498,6 +510,7 @@ model AppUser {
   penalties           Penalty[]
   rewards             Reward[]
   leaveRequests       LeaveRequest[]
+  permissionRequests  PermissionRequest[]
   salaryAdvances      SalaryAdvance[]
   maintenanceReqs     MaintenanceRequest[]
 
@@ -558,6 +571,7 @@ model City {
   isActive    Boolean   @default(true)
   createdAt   DateTime  @default(now())
   users       User[]
+  operationalReports DailyOperationalReport[]
 
   @@map("cities")
 }
@@ -573,6 +587,7 @@ model Document {
   type            DocumentType
   title           String          @db.VarChar(200)
   documentNumber  String?         @db.VarChar(100)
+  otherDetails    String?         @db.VarChar(500)
   issueDate       DateTime?
   expiryDate      DateTime?
   status          DocumentStatus  @default(PENDING)
@@ -602,6 +617,7 @@ model License {
   user            User          @relation(fields: [userId], references: [id])
   type            LicenseType
   licenseNumber   String?       @db.VarChar(100)
+  otherDetails    String?       @db.VarChar(500)
   title           String        @db.VarChar(200)
   issueDate       DateTime?
   expiryDate      DateTime?
@@ -700,6 +716,22 @@ model PlatformAccount {
   @@map("platform_accounts")
   
   canceledOrderLogs CanceledOrderLog[]
+  workHistory       PlatformAccountWorkHistory[]
+}
+
+model PlatformAccountWorkHistory {
+  id                Int             @id @default(autoincrement())
+  platformAccountId Int
+  platformAccount   PlatformAccount @relation(fields: [platformAccountId], references: [id], onDelete: Cascade)
+  startDate         DateTime
+  endDate           DateTime?
+  assignedBy        Int?
+  notes             String?         @db.Text
+  createdAt         DateTime        @default(now())
+
+  @@index([platformAccountId])
+  @@index([startDate])
+  @@map("platform_account_work_history")
 }
 
 // ============================================================
@@ -1384,6 +1416,37 @@ model LeaveRequest {
   @@map("leave_requests")
 }
 
+enum PermissionRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model PermissionRequest {
+  id             Int                     @id @default(autoincrement())
+  userId         Int
+  user           User                    @relation(fields: [userId], references: [id])
+  appUserId      Int?
+  appUser        AppUser?                @relation(fields: [appUserId], references: [id])
+  permissionDate DateTime
+  startTime      String?                 @db.VarChar(10)
+  endTime        String?                 @db.VarChar(10)
+  reason         String                  @db.Text
+  status         PermissionRequestStatus @default(PENDING)
+  reviewedBy     Int?
+  reviewedAt     DateTime?
+  reviewNotes    String?                 @db.Text
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  @@index([userId])
+  @@index([appUserId])
+  @@index([status])
+  @@index([permissionDate])
+  @@map("permission_requests")
+}
+
 // ============================================================
 // SALARY ADVANCE REQUESTS
 // ============================================================
@@ -1589,6 +1652,7 @@ model Asset {
   nameAr      String      @db.VarChar(150)
   nameEn      String?     @db.VarChar(150)
   type        AssetType
+  otherDetails String?     @db.VarChar(500)
   description String?     @db.Text
   isActive    Boolean     @default(true)
   createdAt   DateTime    @default(now())
@@ -1975,4 +2039,114 @@ model ScheduledReminder {
   @@index([triggerDate])
   @@index([isSent])
   @@map("scheduled_reminders")
+}
+
+// ============================================================
+// OPERATIONAL DAILY REPORTS (تقرير التشغيل اليومي)
+// ============================================================
+
+enum OperationalReportStatus {
+  DRAFT
+  FINALIZED
+}
+
+enum OperationalRosterCategory {
+  DEPLOYED
+  ON_LEAVE
+  ABSENT
+  SICK
+  LICENSE_FOLLOWUP
+  MANAGEMENT
+  OPERATIONS_DEPT
+  MECHANICS
+  BOX_MANUFACTURING
+  EXTERNAL_WORK
+  NOT_DEPLOYED
+  CUSTOM
+}
+
+model DailyOperationalReport {
+  id                    Int                     @id @default(autoincrement())
+  reportDate            DateTime                @db.Date
+  cityId                Int?
+  city                  City?                   @relation(fields: [cityId], references: [id])
+  status                OperationalReportStatus @default(DRAFT)
+  requiredOrders        Int?
+  achievedOrders        Int?
+  requiredOrdersManual  Int?
+  achievedOrdersManual  Int?
+  summaryNotes          String?                 @db.Text
+  generatedBy           Int?
+  finalizedBy           Int?
+  finalizedAt           DateTime?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  rows                  OperationalReportRow[]
+
+  @@unique([reportDate, cityId])
+  @@index([reportDate])
+  @@map("daily_operational_reports")
+}
+
+model OperationalReportRow {
+  id              Int                       @id @default(autoincrement())
+  reportId        Int
+  report          DailyOperationalReport    @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  userId          Int
+  user            User                      @relation(fields: [userId], references: [id])
+  category        OperationalRosterCategory
+  platformOrders  Json?
+  notes           String?                   @db.Text
+  sortOrder       Int                       @default(0)
+  isManual        Boolean                   @default(false)
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+
+  @@index([reportId])
+  @@index([userId])
+  @@index([category])
+  @@map("operational_report_rows")
+}
+
+enum FinancialLedgerStatus {
+  DRAFT
+  FINALIZED
+}
+
+model DailyFinancialLedger {
+  id            Int                   @id @default(autoincrement())
+  reportDate    DateTime              @db.Date
+  status        FinancialLedgerStatus @default(DRAFT)
+  finalizedBy   Int?
+  finalizedAt   DateTime?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  rows          FinancialLedgerRow[]
+
+  @@unique([reportDate])
+  @@index([reportDate])
+  @@map("daily_financial_ledgers")
+}
+
+model FinancialLedgerRow {
+  id               Int                 @id @default(autoincrement())
+  ledgerId         Int
+  ledger           DailyFinancialLedger @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
+  userId           Int
+  user             User                @relation(fields: [userId], references: [id])
+  deductionsAmount Decimal?            @db.Decimal(12, 2)
+  deductionsNote   String?             @db.Text
+  violationsAmount Decimal?            @db.Decimal(12, 2)
+  violationsNote   String?             @db.Text
+  trafficAmount    Decimal?            @db.Decimal(12, 2)
+  trafficNote      String?             @db.Text
+  rewardsAmount    Decimal?            @db.Decimal(12, 2)
+  advancesAmount   Decimal?            @db.Decimal(12, 2)
+  isManual         Boolean             @default(false)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@unique([ledgerId, userId])
+  @@index([ledgerId])
+  @@map("financial_ledger_rows")
 }

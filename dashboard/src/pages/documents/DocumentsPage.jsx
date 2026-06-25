@@ -276,7 +276,7 @@ export default function DocumentsPage() {
   };
 
   const handleUpdate = async (form) => {
-    await apiService.upload(`/documents/${selectedDocument.id}`, form);
+    await apiService.uploadPatch(`/documents/${selectedDocument.id}`, form);
     setReloadToken(t => t + 1);
   };
 

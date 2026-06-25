@@ -1,5 +1,6 @@
 const ReportService = require('./service');
 const ApiResponse = require('../../utils/response');
+const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
 
 class ReportController {
   /**
@@ -11,6 +12,7 @@ class ReportController {
   static async getDriverSummary(req, res, next) {
     try {
       const { userId } = req.params;
+      await assertCanAccessDriverRecord(req, parseInt(userId, 10));
       let { startDate, endDate } = req.query;
 
       // Fallback to the last 30 days if dates are not provided

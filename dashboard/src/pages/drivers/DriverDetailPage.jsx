@@ -150,7 +150,7 @@ const TAB_STATUS_MAPPINGS = {
   dailyReports: ['SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'NEEDS_REVISION'],
   leaves: ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'],
   salary: ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'],
-  maintenance: ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'],
+  maintenance: ['REQUESTED', 'APPROVED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'],
   assignments: ['ACTIVE', 'ENDED'],
 };
 
@@ -205,6 +205,7 @@ export default function DriverDetailPage() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createForm, setCreateForm] = useState({});
+  const [createVehicles, setCreateVehicles] = useState([]);
   const [fileAttachment, setFileAttachment] = useState(null);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
 
@@ -351,20 +352,30 @@ export default function DriverDetailPage() {
     }
   };
 
-  const handleCreateOpen = () => {
+  const handleCreateOpen = async () => {
     // Set initial state based on tab
     let initialForm = { userId: parseInt(id) };
     const today = new Date().toISOString().split('T')[0];
+    const activeVehicleId = driver?.vehicleAssignment?.[0]?.vehicleId || '';
     
     if (tab === 'documents') initialForm = { ...initialForm, type: 'NATIONAL_ID', title: '', issueDate: today, expiryDate: today };
     if (tab === 'licenses') initialForm = { ...initialForm, type: 'DRIVING_LICENSE', title: '', licenseNumber: '', issueDate: today, expiryDate: today };
-    if (tab === 'fuel') initialForm = { ...initialForm, fuelDate: today, amount: 0, liters: 0, vehicleId: driver.vehicleAssignment?.[0]?.vehicleId };
+    if (tab === 'fuel') initialForm = { ...initialForm, fuelDate: today, amount: 0, liters: 0, vehicleId: activeVehicleId };
     if (tab === 'violations') initialForm = { ...initialForm, reason: '', violationDate: today, amount: 0 };
     if (tab === 'leaves') initialForm = { ...initialForm, leaveType: 'ANNUAL', startDate: today, endDate: today };
     if (tab === 'penalties') initialForm = { ...initialForm, type: 'FINANCIAL', amount: 0, penaltyDate: today, reason: '' };
     if (tab === 'rewards') initialForm = { ...initialForm, category: 'PERFORMANCE', amount: 0, reason: '' };
-    if (tab === 'maintenance') initialForm = { ...initialForm, priority: 'MEDIUM', issueType: 'MECHANICAL', vehicleId: driver.vehicleAssignment?.[0]?.vehicleId };
+    if (tab === 'maintenance') initialForm = { ...initialForm, priority: 'MEDIUM', issueType: 'MECHANICAL', description: '', vehicleId: activeVehicleId };
     if (tab === 'salary') initialForm = { ...initialForm, amount: 0, reason: '' };
+
+    if (['fuel', 'maintenance'].includes(tab)) {
+      try {
+        const { data } = await apiService.get('/vehicles', { limit: 500 });
+        setCreateVehicles(data.data || []);
+      } catch {
+        setCreateVehicles([]);
+      }
+    }
     
     setCreateForm(initialForm);
     setFileAttachment(null);
@@ -390,6 +401,17 @@ export default function DriverDetailPage() {
         default: return;
       }
       
+      if (tab === 'maintenance' && !createForm.vehicleId) {
+        toast.error('الرجاء اختيار المركبة');
+        setTabLoading(false);
+        return;
+      }
+      if (tab === 'maintenance' && !createForm.description?.trim()) {
+        toast.error('الرجاء إدخال وصف العطل');
+        setTabLoading(false);
+        return;
+      }
+
       if (fileAttachment) {
         const formData = new FormData();
         Object.entries(createForm).forEach(([key, val]) => {
@@ -1183,6 +1205,20 @@ export default function DriverDetailPage() {
 
            {tab === 'maintenance' && (
              <>
+               <div className="space-y-1">
+                 <label className="text-xs font-black text-slate-500 uppercase">المركبة *</label>
+                 <select
+                   className="form-input !rounded-xl"
+                   value={createForm.vehicleId || ''}
+                   onChange={(e) => setCreateForm({ ...createForm, vehicleId: e.target.value })}
+                   required
+                 >
+                   <option value="">اختر المركبة</option>
+                   {createVehicles.map((v) => (
+                     <option key={v.id} value={v.id}>{v.plateNumber} — {v.model}</option>
+                   ))}
+                 </select>
+               </div>
                <div className="space-y-1">
                  <label className="text-xs font-black text-slate-500 uppercase">نوع العطل</label>
                  <select className="form-input !rounded-xl" value={createForm.issueType} onChange={e => setCreateForm({...createForm, issueType: e.target.value})}>

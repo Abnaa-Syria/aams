@@ -26,7 +26,7 @@ const ticketRoutes = require('../modules/tickets/routes');
 const penaltyRoutes = require('../modules/penalties/routes');
 const ratingRoutes = require('../modules/ratings/routes');
 const rewardRoutes = require('../modules/rewards/routes');
-const leaveRequestRoutes = require('../modules/leaveRequests/routes');
+const permissionRequestRoutes = require('../modules/permissionRequests/routes');
 const salaryAdvanceRoutes = require('../modules/salaryAdvances/routes');
 const maintenanceRequestRoutes = require('../modules/maintenanceRequests/routes');
 const settingsRoutes = require('../modules/settings/routes');
@@ -47,7 +47,12 @@ const licenseTestRoutes = require('../modules/licenseTests/routes');
 const canceledOrderRoutes = require('../modules/canceledOrders/routes');
 const oilChangeLogRoutes = require('../modules/oilChangeLogs/routes');
 const substituteVehicleRoutes = require('../modules/substituteVehicles/routes');
+const leaveRequestRoutes = require('../modules/leaveRequests/routes');
 const scheduledReminderRoutes = require('../modules/scheduledReminders/routes');
+const exportRoutes = require('../modules/export/routes');
+const importRoutes = require('../modules/import/routes');
+const operationalReportRoutes = require('../modules/operationalReports/routes');
+const financialLedgerRoutes = require('../modules/financialLedgers/routes');
 
 const v1RouteModules = [
   { segment: 'auth', router: authRoutes },
@@ -73,6 +78,7 @@ const v1RouteModules = [
   { segment: 'ratings', router: ratingRoutes },
   { segment: 'rewards', router: rewardRoutes },
   { segment: 'leave-requests', router: leaveRequestRoutes },
+  { segment: 'permission-requests', router: permissionRequestRoutes },
   { segment: 'salary-advances', router: salaryAdvanceRoutes },
   { segment: 'maintenance-requests', router: maintenanceRequestRoutes },
   { segment: 'settings', router: settingsRoutes },
@@ -94,6 +100,10 @@ const v1RouteModules = [
   { segment: 'oil-change-logs', router: oilChangeLogRoutes },
   { segment: 'substitute-vehicles', router: substituteVehicleRoutes },
   { segment: 'scheduled-reminders', router: scheduledReminderRoutes },
+  { segment: 'export', router: exportRoutes },
+  { segment: 'import', router: importRoutes },
+  { segment: 'operational-reports', router: operationalReportRoutes },
+  { segment: 'financial-ledgers', router: financialLedgerRoutes },
 ];
 
 function mountV1Routes(app, apiV1Base = '/api/v1') {

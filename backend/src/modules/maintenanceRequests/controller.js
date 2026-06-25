@@ -1,6 +1,7 @@
 const MaintenanceRequestService = require('./service');
 const ApiResponse = require('../../utils/response');
 const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
+const { resolveUserIdFromDriverInput } = require('../../utils/driverIdentity');
 
 function collectUploadedFiles(req) {
   if (!req.files) return [];
@@ -13,7 +14,8 @@ function collectUploadedFiles(req) {
 async function createMaintenanceRecord(req, res, next, message) {
   try {
     const files = collectUploadedFiles(req);
-    const request = await MaintenanceRequestService.create(req.user.id, req.body, files);
+    const ownerId = await resolveUserIdFromDriverInput(req.body, req.user);
+    const request = await MaintenanceRequestService.create(ownerId, req.body, files);
     return ApiResponse.created(res, request, message);
   } catch (err) {
     next(err);

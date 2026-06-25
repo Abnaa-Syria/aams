@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const DocumentController = require('./controller');
 const { authenticate } = require('../../middlewares/auth');
-const { adminPerm, sharedPerm } = require('../../middlewares/adminGuard');
+const { adminPerm, sharedPerm, adminMutationPerm } = require('../../middlewares/adminGuard');
 const { PERMISSIONS: P } = require('../../constants/permissions');
 const upload = require('../../utils/upload');
 const prisma = require('../../config/database');
@@ -211,7 +211,7 @@ router.patch('/:id', ...sharedPerm(P.DOCUMENTS_WRITE), upload.single('file'), Do
  *       200:
  *         description: Reviewed
  */
-router.patch('/:id/review', ...sharedPerm(P.DOCUMENTS_REVIEW), DocumentController.review);
-router.delete('/:id', ...sharedPerm(P.DOCUMENTS_WRITE), DocumentController.remove);
+router.patch('/:id/review', ...adminMutationPerm(P.DOCUMENTS_REVIEW), DocumentController.review);
+router.delete('/:id', ...adminMutationPerm(P.DOCUMENTS_WRITE), DocumentController.remove);
 
 module.exports = router;
