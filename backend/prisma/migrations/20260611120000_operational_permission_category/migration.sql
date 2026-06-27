@@ -1,0 +1,7 @@
+-- Add PERMISSION to operational roster categories
+ALTER TABLE `operational_report_rows`
+  MODIFY `category` ENUM(
+    'DEPLOYED', 'ON_LEAVE', 'ABSENT', 'SICK', 'LICENSE_FOLLOWUP', 'PERMISSION',
+    'MANAGEMENT', 'OPERATIONS_DEPT', 'MECHANICS', 'BOX_MANUFACTURING',
+    'EXTERNAL_WORK', 'NOT_DEPLOYED', 'CUSTOM'
+  ) NOT NULL;

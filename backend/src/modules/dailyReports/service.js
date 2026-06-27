@@ -6,6 +6,9 @@ const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
 const { mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
 const { mergeAppUserIdFilter } = require('../../utils/driverIdentity');
 const { resolvePeriodStartDate } = require('../../utils/periodFilter');
+const { assertCanAccessDriverRecord } = require('../../utils/recordAccess');
+
+const ADMIN_ROLES = new Set(['SUPER_ADMIN', 'OPERATIONS_ADMIN', 'HR_ADMIN', 'FLEET_ADMIN', 'FINANCE_ADMIN']);
 
 function findPlatformScreenshotFile(files, platformName) {
   const base = String(platformName || '').trim();
@@ -190,36 +193,55 @@ class DailyReportService {
     };
   }
 
-  static async create(currentUser, data, files = []) {
-    const userId = currentUser.id;
-    const reportDate = new Date(data.reportDate || Date.now());
-    reportDate.setHours(0, 0, 0, 0); // Normalize to start of day
+  static resolveTargetUserId(currentUser, data) {
+    if (currentUser.appRole === 'DRIVER') {
+      if (data.userId && parseInt(data.userId, 10) !== currentUser.id) {
+        throw new BusinessLogicError('لا يمكنك إنشاء تقرير لسائق آخر');
+      }
+      return currentUser.id;
+    }
 
-    // Get user with appUser
-    const user = await prisma.user.findUnique({ 
+    const targetId = parseInt(data.userId, 10);
+    if (!targetId) throw new BusinessLogicError('يجب اختيار السائق');
+    return targetId;
+  }
+
+  static async create(currentUser, data, files = []) {
+    const userId = DailyReportService.resolveTargetUserId(currentUser, data);
+    await assertCanAccessDriverRecord(currentUser, userId);
+
+    const reportDate = new Date(data.reportDate || Date.now());
+    reportDate.setHours(0, 0, 0, 0);
+
+    const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: { appUser: true }
+      include: { appUser: true },
     });
     if (!user) throw new NotFoundError('User');
-    
-    // 0. Automatically link to active shift if shiftId not provided
+    if (user.appUser?.appRole !== 'DRIVER') {
+      throw new BusinessLogicError('التقرير اليومي للسائقين فقط');
+    }
+
     const { ensureActiveShift } = require('../../utils/shiftSecurity');
-    let resolvedShiftId = data.shiftId ? parseInt(data.shiftId) : null;
-    
+    let resolvedShiftId = data.shiftId ? parseInt(data.shiftId, 10) : null;
+
     if (!resolvedShiftId) {
-      const activeShift = await ensureActiveShift(currentUser);
-      resolvedShiftId = activeShift ? activeShift.id : null;
-    } else {
-      // If shiftId is provided, verify it exists and is active/owned by user
-      // Only for non-admins
-      const ADMIN_ROLES = ['SUPER_ADMIN', 'OPERATIONS_ADMIN', 'HR_ADMIN', 'FLEET_ADMIN', 'FINANCE_ADMIN'];
-      if (!ADMIN_ROLES.includes(currentUser.role)) {
-        const shift = await prisma.shift.findFirst({
-          where: { id: resolvedShiftId, userId, status: 'ACTIVE' }
+      if (currentUser.appRole === 'DRIVER') {
+        const activeShift = await ensureActiveShift(currentUser, false);
+        resolvedShiftId = activeShift?.id ?? null;
+      } else {
+        const activeShift = await prisma.shift.findFirst({
+          where: { userId, status: 'ACTIVE' },
+          orderBy: { startedAt: 'desc' },
         });
-        if (!shift) {
-          throw new BusinessLogicError('Specified shift is not active or not owned by you');
-        }
+        resolvedShiftId = activeShift?.id ?? null;
+      }
+    } else if (!ADMIN_ROLES.has(currentUser.role)) {
+      const shift = await prisma.shift.findFirst({
+        where: { id: resolvedShiftId, userId, status: 'ACTIVE' },
+      });
+      if (!shift) {
+        throw new BusinessLogicError('الشفت المحدد غير نشط أو لا يخص هذا السائق');
       }
     }
 
@@ -277,7 +299,11 @@ class DailyReportService {
           })),
         },
       },
-      include: { appBreakdowns: true, screenshots: true },
+      include: {
+        appBreakdowns: true,
+        screenshots: true,
+        user: { select: { id: true, fullNameAr: true, identityNumber: true } },
+      },
     });
 
     return report;

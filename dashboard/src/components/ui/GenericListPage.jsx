@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { apiService } from '../../services/api';
 import DataTable from './DataTable';
 import Pagination from './Pagination';
 import ReportFilterBar from './ReportFilterBar';
-import ImportCsvModal from './ImportCsvModal';
 import CsvTemplateButton from './CsvTemplateButton';
 import { moduleFromApiUrl, isImportableModule } from '../../config/listModules';
+import { importPagePath } from '../../config/importModules';
 import { LuPlus, LuRefreshCw, LuDownload, LuUpload } from 'react-icons/lu';
 import toast from 'react-hot-toast';
 
@@ -25,6 +26,7 @@ export default function GenericListPage({
   const importMod = importModule || resolvedModule;
   const canExport = exportEnabled && !!resolvedModule;
   const canImport = importEnabled && isImportableModule(importMod);
+  const showImportTemplate = canImport;
   const isSelectable = selectable ?? canExport;
 
   const [data, setData] = useState([]);
@@ -32,7 +34,6 @@ export default function GenericListPage({
   const [loading, setLoading] = useState(true);
   const [params, setParams] = useState({ page: 1, ...defaultParams });
   const [selectedIds, setSelectedIds] = useState([]);
-  const [importOpen, setImportOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -53,7 +54,7 @@ export default function GenericListPage({
     const cleanFilters = Object.fromEntries(
       Object.entries(prepared).filter(([k, v]) => v !== '' && v != null && k !== 'page'),
     );
-    const payload = { module: resolvedModule, format: 'csv' };
+    const payload = { module: resolvedModule, format: 'xlsx' };
     if (selectedIds.length) payload.ids = selectedIds;
     else payload.filters = cleanFilters;
     return payload;
@@ -66,7 +67,7 @@ export default function GenericListPage({
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${resolvedModule}-export.csv`;
+      a.download = `${resolvedModule}-export.xlsx`;
       a.click();
       toast.success(selectedIds.length ? `تم تصدير ${selectedIds.length} سجل` : 'تم تصدير النتائج المفلترة');
     } catch (err) {
@@ -99,27 +100,22 @@ export default function GenericListPage({
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           {canImport && (
-            <>
-              <CsvTemplateButton
-                url={`/import/template/${importMod}`}
-                filename={`${importMod}-import-template.csv`}
-              />
-              <button type="button" onClick={() => setImportOpen(true)} className="btn btn-secondary text-sm flex items-center gap-2">
-                <LuUpload size={16} /> استيراد CSV
-              </button>
-            </>
+            <Link to={importPagePath(importMod)} className="btn btn-secondary text-sm flex items-center gap-2">
+              <LuUpload size={16} /> استيراد Excel
+            </Link>
+          )}
+          {showImportTemplate && (
+            <CsvTemplateButton
+              url={`/import/template/${importMod}`}
+              filename={`${importMod}-import-template.xlsx`}
+              label="قالب الاستيراد"
+            />
           )}
           {canExport && (
-            <>
-              <CsvTemplateButton
-                url={`/export/template/${resolvedModule}`}
-                filename={`${resolvedModule}-template.csv`}
-              />
-              <button type="button" onClick={handleExport} className="btn btn-secondary text-sm flex items-center gap-2">
-                <LuDownload size={16} />
-                تصدير {selectedIds.length ? `(${selectedIds.length})` : '(الفلتر)'}
-              </button>
-            </>
+            <button type="button" onClick={handleExport} className="btn btn-secondary text-sm flex items-center gap-2">
+              <LuDownload size={16} />
+              تصدير {selectedIds.length ? `(${selectedIds.length})` : '(الفلتر)'}
+            </button>
           )}
           <button 
             onClick={load} 
@@ -153,8 +149,6 @@ export default function GenericListPage({
           onChange={setParams}
           extraFilters={filterConfig}
           onExport={canExport ? handleExport : undefined}
-          exportTemplateUrl={canExport ? `/export/template/${resolvedModule}` : undefined}
-          exportTemplateFilename={canExport ? `${resolvedModule}-template.csv` : undefined}
         />
       )}
 
@@ -172,15 +166,6 @@ export default function GenericListPage({
       </div>
 
       {children}
-
-      {canImport && (
-        <ImportCsvModal
-          isOpen={importOpen}
-          onClose={() => setImportOpen(false)}
-          module={importMod}
-          onSuccess={() => load()}
-        />
-      )}
     </div>
   );
 }

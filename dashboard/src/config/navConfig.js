@@ -41,6 +41,7 @@ export const NAV_GROUPS = [
       { path: '/violations', label: 'المخالفات', iconKey: 'violations', anyOf: [P.COMPLIANCE_READ], hideForSupervisor: true },
       { path: '/incidents', label: 'الحوادث والطوارئ', iconKey: 'incidents', anyOf: [P.COMPLIANCE_READ] },
       { path: '/operational-reports', label: 'تقرير التشغيل اليومي', iconKey: 'reports', anyOf: [P.SHIFTS_READ, P.DAILY_REPORTS_READ] },
+      { path: '/reports-hub', label: 'مركز التقارير', iconKey: 'analytics', anyOf: DASHBOARD_VIEW_PERMISSIONS },
       { path: '/daily-reports', label: 'التقارير اليومية', iconKey: 'reports', anyOf: [P.SHIFTS_READ, P.DAILY_REPORTS_READ] },
     ],
   },

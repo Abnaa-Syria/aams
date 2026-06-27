@@ -68,6 +68,15 @@ class FuelLogController {
       next(err);
     }
   }
+
+  static async getPolicy(req, res, next) {
+    try {
+      const policy = await FuelLogService.getPolicy();
+      return ApiResponse.success(res, policy);
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 module.exports = FuelLogController;

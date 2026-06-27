@@ -52,6 +52,9 @@ import BankAccountDetailPage from './pages/bank-accounts/BankAccountDetailPage';
 import MaintenancePage from './pages/maintenance/MaintenancePage';
 import MaintenanceRequestDetailPage from './pages/maintenance/MaintenanceRequestDetailPage';
 import OperationalReportsPage from './pages/operational-reports/OperationalReportsPage';
+import ReportsHubPage from './pages/reports/ReportsHubPage';
+import ModuleImportPage from './pages/import/ModuleImportPage';
+import OperationalImportPage from './pages/import/OperationalImportPage';
 import AnalyticsPage from './pages/analytics/AnalyticsPage';
 import SettingsPage from './pages/settings/SettingsPage';
 import SocketTestPage from './pages/settings/SocketTestPage';
@@ -116,6 +119,9 @@ export default function App() {
             <Route path="maintenance-requests" element={<PermissionRoute anyOf={[P.INVENTORY_READ]}><MaintenancePage /></PermissionRoute>} />
             <Route path="maintenance-requests/:id" element={<PermissionRoute anyOf={[P.INVENTORY_READ]}><MaintenanceRequestDetailPage /></PermissionRoute>} />
             <Route path="operational-reports" element={<PermissionRoute anyOf={[P.SHIFTS_READ, P.DAILY_REPORTS_READ]}><OperationalReportsPage /></PermissionRoute>} />
+            <Route path="reports-hub" element={<PermissionRoute anyOf={DASHBOARD_VIEW_PERMISSIONS}><ReportsHubPage /></PermissionRoute>} />
+            <Route path="operational-reports/import/:category" element={<PermissionRoute anyOf={[P.SHIFTS_READ, P.DAILY_REPORTS_READ]}><OperationalImportPage /></PermissionRoute>} />
+            <Route path="import/:module" element={<PermissionRoute anyOf={[P.USERS_WRITE, P.FLEET_WRITE]}><ModuleImportPage /></PermissionRoute>} />
             <Route path="analytics" element={<PermissionRoute anyOf={DASHBOARD_VIEW_PERMISSIONS}><AnalyticsPage /></PermissionRoute>} />
             <Route path="settings" element={<PermissionRoute anyOf={[P.SETTINGS_READ]}><SettingsPage /></PermissionRoute>} />
             <Route path="admins" element={<PermissionRoute anyOf={[P.USERS_WRITE]}><AdminsPage /></PermissionRoute>} />

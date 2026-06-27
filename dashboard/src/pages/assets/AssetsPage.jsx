@@ -102,8 +102,8 @@ export default function AssetsPage() {
         </div>
         <PermissionGate anyOf={[P.INVENTORY_WRITE]}>
           <div className="flex gap-2">
-            <button className="btn-secondary" onClick={() => setAssignModalOpen(true)}>تسليم عهدة</button>
-            <button className="btn-primary flex items-center gap-2" onClick={() => setModalOpen(true)}>
+            <button className="btn btn-secondary" onClick={() => setAssignModalOpen(true)}>تسليم عهدة</button>
+            <button className="btn btn-primary flex items-center gap-2" onClick={() => setModalOpen(true)}>
               <LuPlus size={18} /> إضافة عهدة
             </button>
           </div>
@@ -140,7 +140,7 @@ export default function AssetsPage() {
             <input className="form-input" placeholder="حدد نوع العهدة" value={form.otherDetails} onChange={(e) => setForm({ ...form, otherDetails: e.target.value })} />
           )}
           <textarea className="form-input" placeholder="وصف (اختياري)" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-          <button type="submit" className="btn-primary w-full">حفظ</button>
+          <button type="submit" className="btn btn-primary w-full justify-center">حفظ</button>
         </form>
       </Modal>
 
@@ -154,7 +154,7 @@ export default function AssetsPage() {
           </select>
           <UserSelect value={assignForm.userId} onChange={(userId) => setAssignForm({ ...assignForm, userId })} />
           <textarea className="form-input" placeholder="ملاحظات" value={assignForm.notes} onChange={(e) => setAssignForm({ ...assignForm, notes: e.target.value })} />
-          <button type="submit" className="btn-primary w-full">تسليم</button>
+          <button type="submit" className="btn btn-primary w-full justify-center">تسليم</button>
         </form>
       </Modal>
     </div>

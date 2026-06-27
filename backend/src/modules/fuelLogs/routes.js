@@ -50,6 +50,8 @@ router.get('/', ...sharedPerm(P.COMPLIANCE_READ), FuelLogController.listLogs);
  */
 router.get('/daily-summary', ...sharedPerm(P.COMPLIANCE_READ), FuelLogController.getDailySummary);
 
+router.get('/policy', ...sharedPerm(P.COMPLIANCE_READ), FuelLogController.getPolicy);
+
 router.get('/:id/receipt/download', ...sharedPerm(P.COMPLIANCE_READ), async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);

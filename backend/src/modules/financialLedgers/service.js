@@ -1,6 +1,8 @@
 const prisma = require('../../config/database');
 const { NotFoundError, BusinessLogicError, ValidationError } = require('../../utils/errors');
-const { parseCsv, rowsToCsv } = require('../../utils/csvParser');
+const { rowsToCsv } = require('../../utils/csvParser');
+const { exportRows, exportTemplate } = require('../../utils/xlsxWorkbook');
+const { parseSpreadsheetToRows } = require('../../utils/spreadsheetParse');
 
 function parseReportDate(input) {
   if (!input) throw new ValidationError('reportDate is required');
@@ -202,9 +204,24 @@ class FinancialLedgerService {
     return FinancialLedgerService.getBundle({ reportDate: date.toISOString().slice(0, 10) });
   }
 
-  static async importCsv(reportDate, buffer) {
+  static ledgerColumns() {
+    return [
+      { key: 'identityNumber', label: 'identityNumber', labelAr: 'رقم الإقامة / الهوية', get: (r) => r.user?.identityNumber },
+      { key: 'fullNameAr', label: 'fullNameAr', labelAr: 'الاسم', get: (r) => r.user?.fullNameAr },
+      { key: 'deductions', label: 'deductions', labelAr: 'خصومات', get: (r) => r.deductionsAmount },
+      { key: 'deductions_note', label: 'deductions_note', labelAr: 'ملاحظات الخصم', get: (r) => r.deductionsNote },
+      { key: 'violations', label: 'violations', labelAr: 'مخالفات', get: (r) => r.violationsAmount },
+      { key: 'violations_note', label: 'violations_note', labelAr: 'ملاحظات المخالفات', get: (r) => r.violationsNote },
+      { key: 'traffic', label: 'traffic', labelAr: 'مرور', get: (r) => r.trafficAmount },
+      { key: 'traffic_note', label: 'traffic_note', labelAr: 'ملاحظات المرور', get: (r) => r.trafficNote },
+      { key: 'rewards', label: 'rewards', labelAr: 'مكافآت', get: (r) => r.rewardsAmount },
+      { key: 'advances', label: 'advances', labelAr: 'سلفة', get: (r) => r.advancesAmount },
+    ];
+  }
+
+  static async importFile(reportDate, buffer, filename = '') {
     const date = parseReportDate(reportDate);
-    const rows = parseCsv(buffer.toString('utf8'));
+    const rows = await parseSpreadsheetToRows(buffer, filename);
     const ledger = await prisma.dailyFinancialLedger.upsert({
       where: { reportDate: date },
       create: { reportDate: date },
@@ -251,35 +268,135 @@ class FinancialLedgerService {
     return { imported, bundle: await FinancialLedgerService.getBundle({ reportDate: date.toISOString().slice(0, 10) }) };
   }
 
+  static async importCsv(reportDate, buffer, filename = '') {
+    return FinancialLedgerService.importFile(reportDate, buffer, filename);
+  }
+
+  static async exportLedger(bundle, format = 'xlsx') {
+    const meta = FinancialLedgerService.importMeta();
+    return exportRows({
+      columns: FinancialLedgerService.ledgerColumns(),
+      rows: bundle.rows || [],
+      format,
+      filename: 'financial-ledger',
+      title: meta.titleAr,
+      guideFields: meta.fields,
+      rulesAr: meta.rulesAr,
+    });
+  }
+
   static exportCsv(bundle) {
-    const columns = [
-      { key: 'identityNumber', label: 'identityNumber', get: (r) => r.user?.identityNumber },
-      { key: 'fullNameAr', label: 'fullNameAr', get: (r) => r.user?.fullNameAr },
-      { key: 'deductions', label: 'deductions', get: (r) => r.deductionsAmount },
-      { key: 'deductions_note', label: 'deductions_note', get: (r) => r.deductionsNote },
-      { key: 'violations', label: 'violations', get: (r) => r.violationsAmount },
-      { key: 'violations_note', label: 'violations_note', get: (r) => r.violationsNote },
-      { key: 'traffic', label: 'traffic', get: (r) => r.trafficAmount },
-      { key: 'traffic_note', label: 'traffic_note', get: (r) => r.trafficNote },
-      { key: 'rewards', label: 'rewards', get: (r) => r.rewardsAmount },
-      { key: 'advances', label: 'advances', get: (r) => r.advancesAmount },
-    ];
-    return rowsToCsv(bundle.rows || [], columns);
+    return rowsToCsv(bundle.rows || [], FinancialLedgerService.ledgerColumns());
+  }
+
+  static async exportTemplate(format = 'xlsx') {
+    const meta = FinancialLedgerService.importMeta();
+    return exportTemplate({
+      columns: FinancialLedgerService.ledgerColumns().map(({ get, ...c }) => c),
+      format,
+      filename: 'financial-ledger-template',
+      title: meta.titleAr,
+      guideFields: meta.fields,
+      rulesAr: meta.rulesAr,
+      exampleRow: ['3000000001', 'محمد الأحمد', '100', 'تأخير', '', '', '', '', '200', ''],
+    });
   }
 
   static templateCsv() {
-    return rowsToCsv([], [
-      { key: 'identityNumber', label: 'identityNumber' },
-      { key: 'fullNameAr', label: 'fullNameAr' },
-      { key: 'deductions', label: 'deductions' },
-      { key: 'deductions_note', label: 'deductions_note' },
-      { key: 'violations', label: 'violations' },
-      { key: 'violations_note', label: 'violations_note' },
-      { key: 'traffic', label: 'traffic' },
-      { key: 'traffic_note', label: 'traffic_note' },
-      { key: 'rewards', label: 'rewards' },
-      { key: 'advances', label: 'advances' },
-    ]);
+    return rowsToCsv([], FinancialLedgerService.ledgerColumns().map(({ get, ...c }) => c));
+  }
+
+  static importMeta() {
+    return {
+      type: 'financial-ledger',
+      category: 'financial',
+      titleAr: 'استيراد الكشف المالي اليومي',
+      descriptionAr: 'رفع حركات الخصومات والمخالفات والمكافآت والسلف للتقرير المالي.',
+      backPath: '/operational-reports',
+      rulesAr: [
+        'يُربط كل صف بالسائق برقم الهوية / الإقامة.',
+        'الأرقام المالية اختيارية — اتركها فارغة إذا لا توجد حركة.',
+        'يُفضّل توليد لقطة الكشف للتاريخ قبل الاستيراد.',
+        'الاستيراد يُحدّث أو يُضيف صفوف الكشف لنفس التاريخ.',
+      ],
+      fields: [
+        {
+          key: 'identityNumber',
+          label: 'identityNumber',
+          labelAr: 'رقم الإقامة / الهوية',
+          required: true,
+          type: 'string',
+        },
+        {
+          key: 'fullNameAr',
+          label: 'fullNameAr',
+          labelAr: 'الاسم',
+          required: false,
+          type: 'string',
+        },
+        {
+          key: 'deductions',
+          label: 'deductions',
+          labelAr: 'خصومات',
+          required: false,
+          type: 'number',
+        },
+        {
+          key: 'deductions_note',
+          label: 'deductions_note',
+          labelAr: 'ملاحظات الخصم',
+          required: false,
+          type: 'string',
+        },
+        {
+          key: 'violations',
+          label: 'violations',
+          labelAr: 'مخالفات',
+          required: false,
+          type: 'number',
+        },
+        {
+          key: 'violations_note',
+          label: 'violations_note',
+          labelAr: 'ملاحظات المخالفات',
+          required: false,
+          type: 'string',
+        },
+        {
+          key: 'traffic',
+          label: 'traffic',
+          labelAr: 'مرور',
+          required: false,
+          type: 'number',
+        },
+        {
+          key: 'traffic_note',
+          label: 'traffic_note',
+          labelAr: 'ملاحظات المرور',
+          required: false,
+          type: 'string',
+        },
+        {
+          key: 'rewards',
+          label: 'rewards',
+          labelAr: 'مكافآت',
+          required: false,
+          type: 'number',
+        },
+        {
+          key: 'advances',
+          label: 'advances',
+          labelAr: 'سلفة',
+          required: false,
+          type: 'number',
+        },
+      ],
+      templateFilename: 'financial-ledger-template.xlsx',
+      acceptedFormats: ['xlsx', 'csv'],
+      contextFields: [
+        { key: 'reportDate', labelAr: 'تاريخ التقرير', required: true },
+      ],
+    };
   }
 }
 

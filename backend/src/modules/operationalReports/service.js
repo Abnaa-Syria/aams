@@ -1,9 +1,12 @@
 const prisma = require('../../config/database');
 const { NotFoundError, BusinessLogicError, ValidationError } = require('../../utils/errors');
-const { parseCsv, rowsToCsv } = require('../../utils/csvParser');
+const { rowsToCsv } = require('../../utils/csvParser');
+const { exportRows, exportTemplate, exportMultiSheet } = require('../../utils/xlsxWorkbook');
+const { parseSpreadsheetToRows } = require('../../utils/spreadsheetParse');
+const { normalizeFormat } = require('../../utils/spreadsheetMime');
 
 const SIDE_CATEGORIES = [
-  'ON_LEAVE', 'ABSENT', 'SICK', 'LICENSE_FOLLOWUP',
+  'ON_LEAVE', 'ABSENT', 'SICK', 'LICENSE_FOLLOWUP', 'PERMISSION',
   'MANAGEMENT', 'OPERATIONS_DEPT', 'MECHANICS', 'BOX_MANUFACTURING', 'EXTERNAL_WORK', 'NOT_DEPLOYED', 'CUSTOM',
 ];
 
@@ -13,6 +16,7 @@ const CATEGORY_LABELS = {
   ABSENT: 'الغيابات',
   SICK: 'المرضى',
   LICENSE_FOLLOWUP: 'متابعة دلة',
+  PERMISSION: 'الاستئذانات',
   MANAGEMENT: 'الإدارة',
   OPERATIONS_DEPT: 'قسم التشغيل',
   MECHANICS: 'الميكانيك',
@@ -120,7 +124,7 @@ class OperationalReportService {
     const drivers = await OperationalReportService.loadDrivers(cityId);
     const driverIds = drivers.map((d) => d.id);
 
-    const [dailyReports, shifts, leaves, licenseTests] = await Promise.all([
+    const [dailyReports, shifts, leaves, licenseTests, permissions] = await Promise.all([
       prisma.dailyReport.findMany({
         where: {
           userId: { in: driverIds },
@@ -160,6 +164,14 @@ class OperationalReportService {
         },
         select: { userId: true, isRetest: true, notes: true, testDate: true, result: true },
       }),
+      prisma.permissionRequest.findMany({
+        where: {
+          userId: { in: driverIds },
+          status: 'APPROVED',
+          permissionDate: { gte: start, lt: end },
+        },
+        select: { userId: true, reason: true, startTime: true, endTime: true },
+      }),
     ]);
 
     const reportsByUser = new Map();
@@ -191,6 +203,13 @@ class OperationalReportService {
       licenseUsers.set(lt.userId, note);
     });
 
+    const permissionUsers = new Map();
+    permissions.forEach((p) => {
+      const time = [p.startTime, p.endTime].filter(Boolean).join(' - ');
+      const note = time ? `${p.reason || 'استئذان'} (${time})` : (p.reason || 'استئذان');
+      permissionUsers.set(p.userId, note);
+    });
+
     const deployed = [];
     const notDeployed = [];
     const absent = [];
@@ -205,7 +224,7 @@ class OperationalReportService {
       const onLeave = onLeaveUsers.has(driver.id);
       const sick = sickUsers.has(driver.id);
 
-      if (onLeave || sick || licenseUsers.has(driver.id)) return;
+      if (onLeave || sick || licenseUsers.has(driver.id) || permissionUsers.has(driver.id)) return;
 
       if (total > 0 || hasShift) {
         deployed.push({
@@ -260,6 +279,13 @@ class OperationalReportService {
         platformOrders: null,
         notes,
       })),
+      PERMISSION: [...permissionUsers.entries()].map(([userId, notes]) => ({
+        userId,
+        user: drivers.find((d) => d.id === userId),
+        category: 'PERMISSION',
+        platformOrders: null,
+        notes,
+      })),
       ABSENT: absent,
       NOT_DEPLOYED: notDeployed,
       MANAGEMENT: [],
@@ -285,6 +311,7 @@ class OperationalReportService {
         absentCount: absent.length,
         sickCount: sections.SICK.length,
         licenseFollowUpCount: sections.LICENSE_FOLLOWUP.length,
+        permissionCount: sections.PERMISSION.length,
         fieldTotal: deployed.length + notDeployed.length,
         achievedOrders,
         requiredOrders: defaultTarget,
@@ -510,14 +537,14 @@ class OperationalReportService {
     });
   }
 
-  static async importSectionCsv(reportDate, cityId, category, buffer, userId) {
+  static async importSectionCsv(reportDate, cityId, category, buffer, userId, filename = '') {
     const date = parseReportDate(reportDate);
     const cid = cityId ? parseInt(cityId, 10) : null;
     const cat = String(category || 'DEPLOYED').toUpperCase();
     if (!CATEGORY_LABELS[cat]) throw new ValidationError('Invalid category');
 
     const platforms = await OperationalReportService.getActivePlatforms();
-    const rows = parseCsv(buffer.toString('utf8'));
+    const rows = await parseSpreadsheetToRows(buffer, filename);
     const report = await OperationalReportService.findOrCreateReport(date, cid, userId);
 
     let imported = 0;
@@ -569,52 +596,261 @@ class OperationalReportService {
     return { imported, bundle: await OperationalReportService.getBundle({ reportDate: date.toISOString().slice(0, 10), cityId: cid }) };
   }
 
-  static async exportSectionCsv(reportDate, cityId, category) {
+  static buildSectionColumns(cat, platforms) {
+    if (cat === 'DEPLOYED') {
+      return [
+        { key: 'identityNumber', label: 'identityNumber', labelAr: 'رقم الهوية / الإقامة' },
+        { key: 'fullNameAr', label: 'fullNameAr', labelAr: 'الاسم بالعربي' },
+        { key: 'branch', label: 'branch', labelAr: 'الفرع' },
+        ...platforms.map((p) => ({
+          key: `orders_${p.nameAr}`,
+          label: `orders_${p.nameAr}`,
+          labelAr: `طلبات ${p.nameAr}`,
+        })),
+        { key: 'notes', label: 'notes', labelAr: 'ملاحظات' },
+      ];
+    }
+    return [
+      { key: 'identityNumber', label: 'identityNumber', labelAr: 'رقم الهوية / الإقامة' },
+      { key: 'fullNameAr', label: 'fullNameAr', labelAr: 'الاسم بالعربي' },
+      { key: 'notes', label: 'notes', labelAr: 'ملاحظات' },
+    ];
+  }
+
+  static sectionRowValues(row, columns, platforms, cat) {
+    if (cat === 'DEPLOYED') {
+      const orders = row.platformOrders || {};
+      return {
+        identityNumber: row.user?.identityNumber,
+        fullNameAr: row.user?.fullNameAr,
+        branch: row.user?.city?.nameAr,
+        ...Object.fromEntries(platforms.map((p) => [`orders_${p.nameAr}`, orders[p.nameAr] ?? 0])),
+        notes: row.notes,
+      };
+    }
+    return {
+      identityNumber: row.user?.identityNumber,
+      fullNameAr: row.user?.fullNameAr,
+      notes: row.notes,
+    };
+  }
+
+  static async exportSection(reportDate, cityId, category, format = 'xlsx') {
     const bundle = await OperationalReportService.getBundle({ reportDate, cityId });
     const cat = String(category || 'DEPLOYED').toUpperCase();
     const section = bundle.sections[cat] || [];
     const platforms = bundle.platforms || [];
+    const baseColumns = OperationalReportService.buildSectionColumns(cat, platforms);
+    const columns = baseColumns.map((c) => ({
+      ...c,
+      get: (r) => OperationalReportService.sectionRowValues(r, baseColumns, platforms, cat)[c.key],
+    }));
+    const meta = await OperationalReportService.importMeta(cat);
+    return exportRows({
+      columns,
+      rows: section,
+      format,
+      filename: `operational-${cat}`,
+      title: meta.titleAr,
+      guideFields: meta.fields,
+      rulesAr: meta.rulesAr,
+    });
+  }
 
-    if (cat === 'DEPLOYED') {
-      const columns = [
-        { key: 'identityNumber', label: 'identityNumber', get: (r) => r.user?.identityNumber },
-        { key: 'fullNameAr', label: 'fullNameAr', get: (r) => r.user?.fullNameAr },
-        { key: 'branch', label: 'branch', get: (r) => r.user?.city?.nameAr },
-        ...platforms.map((p) => ({
-          key: p.nameAr,
-          label: `orders_${p.nameAr}`,
-          get: (r) => r.platformOrders?.[p.nameAr] ?? 0,
-        })),
-        { key: 'notes', label: 'notes', get: (r) => r.notes },
-      ];
-      return rowsToCsv(section, columns);
-    }
+  static async exportSectionCsv(reportDate, cityId, category) {
+    const result = await OperationalReportService.exportSection(reportDate, cityId, category, 'csv');
+    return result.body;
+  }
 
-    const columns = [
-      { key: 'identityNumber', label: 'identityNumber', get: (r) => r.user?.identityNumber },
-      { key: 'fullNameAr', label: 'fullNameAr', get: (r) => r.user?.fullNameAr },
-      { key: 'notes', label: 'notes', get: (r) => r.notes },
-    ];
-    return rowsToCsv(section, columns);
+  static async exportSectionTemplate(category, format = 'xlsx') {
+    const cat = String(category || 'DEPLOYED').toUpperCase();
+    const meta = await OperationalReportService.importMeta(cat);
+    const platforms = cat === 'DEPLOYED'
+      ? await OperationalReportService.getActivePlatforms()
+      : [];
+    const columns = OperationalReportService.buildSectionColumns(cat, platforms);
+    const exampleRow = cat === 'DEPLOYED'
+      ? ['3000000001', 'محمد الأحمد', 'جدة', ...platforms.map(() => 5), 'مثال']
+      : ['3000000001', 'محمد الأحمد', 'ملاحظة تجريبية'];
+    return exportTemplate({
+      columns,
+      format,
+      filename: `operational-template-${cat}`,
+      title: meta.titleAr,
+      guideFields: meta.fields,
+      rulesAr: meta.rulesAr,
+      exampleRow,
+    });
   }
 
   static async templateCsv(category) {
+    const result = await OperationalReportService.exportSectionTemplate(category, 'csv');
+    return result.body;
+  }
+
+  static async importMeta(category) {
     const cat = String(category || 'DEPLOYED').toUpperCase();
+    const label = CATEGORY_LABELS[cat] || cat;
+    const baseFields = [
+      {
+        key: 'identityNumber',
+        label: 'identityNumber',
+        labelAr: 'رقم الهوية / الإقامة',
+        required: true,
+        type: 'string',
+        hintAr: 'يُطابق السائق في النظام — إجباري لكل صف',
+      },
+      {
+        key: 'fullNameAr',
+        label: 'fullNameAr',
+        labelAr: 'الاسم بالعربي',
+        required: false,
+        type: 'string',
+        hintAr: 'للمراجعة — يُفضّل مطابقة السجل',
+      },
+    ];
+
+    const rulesAr = [
+      'يجب توليد لقطة التقرير للتاريخ المحدد قبل الاستيراد أو سيُنشأ تقرير تلقائياً.',
+      'كل صف يُضاف أو يُحدَّث في قسم التقرير المحدد فقط.',
+      'رقم الهوية هو المفتاح الأساسي لربط الصف بالسائق.',
+      'الصفوف الفارغة أو بدون هوية تُتخطى أو تفشل حسب التحقق.',
+    ];
+
     if (cat === 'DEPLOYED') {
       const platforms = await OperationalReportService.getActivePlatforms();
-      return rowsToCsv([], [
-        { key: 'identityNumber', label: 'identityNumber' },
-        { key: 'fullNameAr', label: 'fullNameAr' },
-        { key: 'branch', label: 'branch' },
-        ...platforms.map((p) => ({ key: `orders_${p.nameAr}`, label: `orders_${p.nameAr}` })),
-        { key: 'notes', label: 'notes' },
-      ]);
+      return {
+        type: 'operational-section',
+        category: cat,
+        titleAr: `استيراد — ${label}`,
+        descriptionAr: `رفع بيانات قسم «${label}» للتقرير التشغيلي اليومي.`,
+        backPath: '/operational-reports',
+        rulesAr: [
+          ...rulesAr,
+          'أعمدة المنصات ديناميكية — استخدم القالب المحدّث لنفس التاريخ.',
+          'أرقام الطلبات أعداد صحيحة — اتركها 0 إذا لا يوجد نشاط.',
+        ],
+        fields: [
+          ...baseFields,
+          {
+            key: 'branch',
+            label: 'branch',
+            labelAr: 'الفرع',
+            required: false,
+            type: 'string',
+            hintAr: 'اسم الفرع (جدة، الطائف…) — اختياري',
+          },
+          ...platforms.map((p) => ({
+            key: `orders_${p.nameAr}`,
+            label: `orders_${p.nameAr}`,
+            labelAr: `طلبات ${p.nameAr}`,
+            required: false,
+            type: 'number',
+            defaultOnCreate: '0',
+            hintAr: 'عدد الطلبات على المنصة',
+          })),
+          {
+            key: 'notes',
+            label: 'notes',
+            labelAr: 'ملاحظات',
+            required: false,
+            type: 'string',
+          },
+        ],
+        templateFilename: `operational-template-${cat}.xlsx`,
+      acceptedFormats: ['xlsx', 'csv'],
+        contextFields: [
+          { key: 'reportDate', labelAr: 'تاريخ التقرير', required: true },
+          { key: 'cityId', labelAr: 'الفرع (معرّف المدينة)', required: false },
+        ],
+      };
     }
-    return rowsToCsv([], [
-      { key: 'identityNumber', label: 'identityNumber' },
-      { key: 'fullNameAr', label: 'fullNameAr' },
-      { key: 'notes', label: 'notes' },
-    ]);
+
+    return {
+      type: 'operational-section',
+      category: cat,
+      titleAr: `استيراد — ${label}`,
+      descriptionAr: `رفع بيانات قسم «${label}» للتقرير التشغيلي اليومي.`,
+      backPath: '/operational-reports',
+      rulesAr,
+      fields: [
+        ...baseFields,
+        {
+          key: 'notes',
+          label: 'notes',
+          labelAr: 'ملاحظات',
+          required: false,
+          type: 'string',
+          hintAr: 'سبب الغياب، الإجازة، الملاحظة التشغيلية…',
+        },
+      ],
+      templateFilename: `operational-template-${cat}.xlsx`,
+      acceptedFormats: ['xlsx', 'csv'],
+      contextFields: [
+        { key: 'reportDate', labelAr: 'تاريخ التقرير', required: true },
+        { key: 'cityId', labelAr: 'الفرع (معرّف المدينة)', required: false },
+      ],
+    };
+  }
+
+  static async exportAllSections(reportDate, cityId, format = 'xlsx') {
+    const bundle = await OperationalReportService.getBundle({ reportDate, cityId });
+    const platforms = bundle.platforms || [];
+    const exportCategories = [
+      'DEPLOYED', 'ON_LEAVE', 'SICK', 'LICENSE_FOLLOWUP', 'PERMISSION',
+      'NOT_DEPLOYED', 'ABSENT',
+    ];
+
+    const sheets = exportCategories.map((cat) => {
+      const section = bundle.sections[cat] || [];
+      const baseColumns = OperationalReportService.buildSectionColumns(cat, platforms);
+      const columns = baseColumns.map((c) => ({
+        key: c.key,
+        label: c.key,
+        labelAr: c.label,
+        get: (r) => OperationalReportService.sectionRowValues(r, baseColumns, platforms, cat)[c.key],
+      }));
+      return {
+        name: CATEGORY_LABELS[cat] || cat,
+        columns,
+        rows: section,
+      };
+    });
+
+    const summaryRows = [{
+      label: 'نازل الميدان', value: bundle.summary.deployedCount,
+    }, {
+      label: 'غير نازل', value: bundle.summary.notDeployedCount,
+    }, {
+      label: 'إجازات', value: bundle.summary.onLeaveCount,
+    }, {
+      label: 'مرضى', value: bundle.summary.sickCount,
+    }, {
+      label: 'استئذانات', value: bundle.summary.permissionCount ?? 0,
+    }, {
+      label: 'غيابات', value: bundle.summary.absentCount,
+    }, {
+      label: 'متابعة دلة', value: bundle.summary.licenseFollowUpCount,
+    }, {
+      label: 'إجمالي الطلبات', value: bundle.summary.achievedOrders,
+    }];
+
+    sheets.unshift({
+      name: 'الملخص',
+      columns: [
+        { key: 'label', label: 'label', labelAr: 'البند' },
+        { key: 'value', label: 'value', labelAr: 'القيمة' },
+      ],
+      rows: summaryRows,
+    });
+
+    const date = parseReportDate(reportDate).toISOString().slice(0, 10);
+    return exportMultiSheet({
+      sheets,
+      format,
+      filename: `operational-report-all-${date}`,
+      title: `تقرير التشغيل — ${date}`,
+    });
   }
 }
 

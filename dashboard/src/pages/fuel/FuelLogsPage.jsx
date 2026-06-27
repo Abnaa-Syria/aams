@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import GenericListPage from '../../components/ui/GenericListPage';
 import StatusBadge from '../../components/ui/StatusBadge';
 import StatusSelect from '../../components/ui/StatusSelect';
@@ -6,7 +6,7 @@ import Modal from '../../components/ui/Modal';
 import FileUploadField from '../../components/ui/FileUploadField';
 import { useState, useEffect } from 'react';
 import { apiService } from '../../services/api';
-import { LuPlus, LuPencil } from 'react-icons/lu';
+import { LuPlus, LuPencil, LuFuel, LuCircleAlert } from 'react-icons/lu';
 import toast from 'react-hot-toast';
 
 const statusOptions = [
@@ -221,6 +221,11 @@ export default function FuelLogsPage() {
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [selectedFuelLog, setSelectedFuelLog] = useState(null);
   const [reloadToken, setReloadToken] = useState(0);
+  const [policy, setPolicy] = useState(null);
+
+  useEffect(() => {
+    apiService.get('/fuel-logs/policy').then((res) => setPolicy(res.data.data)).catch(() => {});
+  }, [reloadToken]);
 
   const handleCreate = async (form) => {
     await apiService.upload('/fuel-logs', form);
@@ -249,6 +254,30 @@ export default function FuelLogsPage() {
 
   return (
     <>
+      {policy && (
+        <div className="mb-6 card bg-gradient-to-br from-sky-50 to-white border-sky-100 p-5">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center shrink-0">
+                <LuFuel size={20} />
+              </div>
+              <div>
+                <p className="font-black text-slate-800">معيار الاستهلاك المعتمد</p>
+                <p className="text-sm text-slate-600 mt-1">
+                  كل <strong>100 كم</strong> يفترض استهلاك <strong>{policy.litersPer100Km} لتر</strong> تقريباً
+                  {policy.varianceThresholdPercent ? (
+                    <> — يُعلَّم السجل <strong>مشبوهاً</strong> عند تجاوز <strong>{policy.varianceThresholdPercent}%</strong> عن المتوقع</>
+                  ) : null}
+                </p>
+                <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
+                  <LuCircleAlert size={12} /> الحالات المشبوهة: تجاوز الخزان، تعبئة مكررة، بدون إيصال، تعبئة ثانية باليوم، استهلاك أعلى من المعيار
+                </p>
+              </div>
+            </div>
+            <Link to="/settings" className="btn btn-secondary text-sm shrink-0">تعديل المعيار</Link>
+          </div>
+        </div>
+      )}
       <GenericListPage 
         title="سجلات الوقود" 
         apiUrl="/fuel-logs" 

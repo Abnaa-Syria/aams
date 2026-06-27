@@ -1,5 +1,7 @@
 const OperationalReportService = require('./service');
 const ApiResponse = require('../../utils/response');
+const { sendExportResponse } = require('../../utils/xlsxWorkbook');
+const { normalizeFormat } = require('../../utils/spreadsheetMime');
 
 class OperationalReportController {
   static async getBundle(req, res, next) {
@@ -41,14 +43,28 @@ class OperationalReportController {
 
   static async exportSection(req, res, next) {
     try {
-      const csv = await OperationalReportService.exportSectionCsv(
+      const format = normalizeFormat(req.query.format || 'xlsx');
+      const result = await OperationalReportService.exportSection(
         req.query.reportDate,
         req.query.cityId,
         req.query.category,
+        format,
       );
-      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', `attachment; filename="operational-${req.query.category || 'section'}.csv"`);
-      return res.send(csv);
+      return sendExportResponse(res, result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async exportAll(req, res, next) {
+    try {
+      const format = normalizeFormat(req.query.format || 'xlsx');
+      const result = await OperationalReportService.exportAllSections(
+        req.query.reportDate,
+        req.query.cityId,
+        format,
+      );
+      return sendExportResponse(res, result);
     } catch (err) {
       next(err);
     }
@@ -56,10 +72,18 @@ class OperationalReportController {
 
   static async template(req, res, next) {
     try {
-      const csv = await OperationalReportService.templateCsv(req.query.category);
-      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', `attachment; filename="operational-template-${req.query.category || 'DEPLOYED'}.csv"`);
-      return res.send(csv);
+      const format = normalizeFormat(req.query.format || 'xlsx');
+      const result = await OperationalReportService.exportSectionTemplate(req.query.category, format);
+      return sendExportResponse(res, result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async importMeta(req, res, next) {
+    try {
+      const data = await OperationalReportService.importMeta(req.query.category);
+      return ApiResponse.success(res, data);
     } catch (err) {
       next(err);
     }
@@ -69,13 +93,14 @@ class OperationalReportController {
     try {
       const { reportDate, cityId, category } = req.body;
       const buffer = req.file?.buffer;
-      if (!buffer) return ApiResponse.badRequest(res, 'CSV file is required');
+      if (!buffer) return ApiResponse.badRequest(res, 'Excel or CSV file is required');
       const result = await OperationalReportService.importSectionCsv(
         reportDate,
         cityId,
         category,
         buffer,
         req.user.id,
+        req.file.originalname,
       );
       return ApiResponse.success(res, result, 'Import completed');
     } catch (err) {

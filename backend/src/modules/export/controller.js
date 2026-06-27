@@ -1,5 +1,7 @@
 const ExportService = require('./service');
 const ApiResponse = require('../../utils/response');
+const { sendExportResponse } = require('../../utils/xlsxWorkbook');
+const { normalizeFormat } = require('../../utils/spreadsheetMime');
 
 class ExportController {
   static async listModules(req, res, next) {
@@ -12,10 +14,9 @@ class ExportController {
 
   static async template(req, res, next) {
     try {
-      const result = ExportService.templateCsv(req.params.module);
-      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
-      return res.send(result.csv);
+      const format = normalizeFormat(req.query.format || 'xlsx');
+      const result = await ExportService.template(req.params.module, format);
+      return sendExportResponse(res, result);
     } catch (err) {
       next(err);
     }
@@ -23,14 +24,12 @@ class ExportController {
 
   static async exportSelected(req, res, next) {
     try {
-      const { module, ids = [], format = 'csv', filters = {} } = req.body;
+      const { module, ids = [], format = 'xlsx', filters = {} } = req.body;
       const result = await ExportService.exportSelected(module, ids, format, filters, req);
-      if (format === 'json') {
+      if (String(format).toLowerCase() === 'json') {
         return ApiResponse.success(res, result);
       }
-      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
-      return res.send(result.csv);
+      return sendExportResponse(res, result);
     } catch (err) {
       next(err);
     }

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { apiService } from '../../services/api';
 import { hasAnyPermissionForUser, PERMISSIONS as P } from '../../utils/rolePermissions';
@@ -9,9 +9,9 @@ import Pagination from '../../components/ui/Pagination';
 import StatusBadge from '../../components/ui/StatusBadge';
 import Modal from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
-import ImportCsvModal from '../../components/ui/ImportCsvModal';
 import CsvTemplateButton from '../../components/ui/CsvTemplateButton';
 import { DRIVER_FILTER_PRESETS } from '../../config/listModules';
+import { importPagePath } from '../../config/importModules';
 import toast from 'react-hot-toast';
 import { LuPlus, LuSearch, LuFilter, LuUsers, LuRefreshCw, LuMessageSquare, LuDownload, LuUpload } from 'react-icons/lu';
 import { buildUserListParams } from '../../utils/userListParams';
@@ -27,7 +27,6 @@ export default function DriversPage() {
     employmentStatus: '', availabilityStatus: '', onShift: '', hasVehicle: '', hasBankAccount: '',
   });
   const [selectedIds, setSelectedIds] = useState([]);
-  const [importOpen, setImportOpen] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [restoreUser, setRestoreUser] = useState(null);
   const [form, setForm] = useState({ identityNumber: '', fullNameAr: '', fullNameEn: '', mobileNumber: '', email: '', password: '' });
@@ -76,7 +75,7 @@ export default function DriversPage() {
     try {
       const payload = {
         module: 'users',
-        format: 'csv',
+        format: 'xlsx',
         filters: buildUserListParams({ ...filters, role: 'DRIVER' }),
       };
       if (selectedIds.length) {
@@ -87,7 +86,7 @@ export default function DriversPage() {
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'drivers-export.csv';
+      a.download = 'drivers-export.xlsx';
       a.click();
       toast.success('تم التصدير');
     } catch (err) {
@@ -161,11 +160,10 @@ export default function DriversPage() {
            </div>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          <CsvTemplateButton url="/import/template/users" filename="users-import-template.csv" />
-          <button type="button" onClick={() => setImportOpen(true)} className="btn btn-secondary flex items-center gap-2">
-            <LuUpload size={18} /> استيراد CSV
-          </button>
-          <CsvTemplateButton url="/export/template/users" filename="users-template.csv" />
+          <Link to={importPagePath('users')} className="btn btn-secondary flex items-center gap-2">
+            <LuUpload size={18} /> استيراد Excel
+          </Link>
+          <CsvTemplateButton url="/import/template/users" filename="drivers-import-template.xlsx" label="قالب الاستيراد" />
           <button type="button" onClick={handleExport} className="btn btn-secondary flex items-center gap-2">
             <LuDownload size={18} /> تصدير {selectedIds.length ? `(${selectedIds.length})` : '(الفلتر)'}
           </button>
@@ -379,7 +377,6 @@ export default function DriversPage() {
         </form>
       </Modal>
 
-      <ImportCsvModal isOpen={importOpen} onClose={() => setImportOpen(false)} module="users" title="استيراد سائقين من CSV" onSuccess={loadDrivers} />
 
       <ConfirmDialog
         isOpen={!!restoreUser}

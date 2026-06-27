@@ -11,8 +11,8 @@ export default function ImportCsvModal({ isOpen, onClose, module, title, onSucce
 
   const downloadTemplate = async () => {
     try {
-      const res = await apiService.get(`/import/template/${module}`, undefined, { responseType: 'blob' });
-      triggerBlobDownload(res.data, `${module}-import-template.csv`);
+      const res = await apiService.get(`/import/template/${module}`, { format: 'xlsx' }, { responseType: 'blob' });
+      triggerBlobDownload(res.data, `${module}-import-template.xlsx`);
     } catch {
       toast.error('تعذر تحميل القالب');
     }
@@ -22,7 +22,7 @@ export default function ImportCsvModal({ isOpen, onClose, module, title, onSucce
     e.preventDefault();
     const file = fileRef.current?.files?.[0];
     if (!file) {
-      toast.error('اختر ملف CSV');
+      toast.error('اختر ملف Excel أو CSV');
       return;
     }
     setLoading(true);
@@ -47,12 +47,12 @@ export default function ImportCsvModal({ isOpen, onClose, module, title, onSucce
     <Modal isOpen={isOpen} onClose={onClose} title={title || `استيراد بيانات — ${module}`}>
       <form onSubmit={handleImport} className="space-y-5">
         <p className="text-sm text-slate-600 leading-relaxed">
-          ارفع ملف CSV بنفس أعمدة القالب. الصفوف الموجودة (برقم الهوية أو اللوحة) تُحدَّث، والجديدة تُضاف.
+          ارفع ملف Excel (.xlsx) أو CSV بنفس أعمدة القالب. الصفوف الموجودة تُحدَّث والجديدة تُضاف.
         </p>
         <button type="button" onClick={downloadTemplate} className="btn btn-secondary w-full flex items-center justify-center gap-2">
-          <LuDownload size={18} /> تحميل قالب CSV
+          <LuDownload size={18} /> تحميل قالب Excel
         </button>
-        <input ref={fileRef} type="file" accept=".csv,text/csv" className="form-input" />
+        <input ref={fileRef} type="file" accept=".xlsx,.csv" className="form-input" />
         <button type="submit" disabled={loading} className="btn btn-primary w-full flex items-center justify-center gap-2">
           <LuUpload size={18} /> {loading ? 'جاري الرفع...' : 'رفع واستيراد'}
         </button>

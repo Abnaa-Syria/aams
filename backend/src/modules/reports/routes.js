@@ -29,6 +29,12 @@ const ReportController = require('./controller');
  *         description: Composite summary JSON object
  */
 router.get('/driver-summary/:userId', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), ReportController.getDriverSummary);
+router.get('/attendance-period', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), ReportController.getAttendancePeriod);
+router.get('/driver-dossier/:userId', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), ReportController.getDriverDossier);
+router.get('/driver-dossier/:userId/export', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), ReportController.exportDriverDossier);
+router.get('/unified-search', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), ReportController.unifiedSearch);
+router.get('/absence-report', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), ReportController.getAbsenceReport);
+router.get('/absence-report/export', ...sharedPerm(...DASHBOARD_VIEW_PERMISSIONS), ReportController.exportAbsenceReport);
 router.get('/dashboard-overview', ...fleetReportPerm(...DASHBOARD_VIEW_PERMISSIONS), ReportController.getDashboardOverview);
 
 
@@ -240,43 +246,10 @@ router.get('/platform-performance', ...fleetReportPerm(...DASHBOARD_VIEW_PERMISS
 
 router.get('/fuel-efficiency', ...fleetReportPerm(...DASHBOARD_VIEW_PERMISSIONS), async (req, res, next) => {
   try {
-    const setting = await prisma.systemSetting.findUnique({ where: { key: 'FUEL_LITERS_PER_100KM' } });
-    const litersPer100 = parseFloat(setting?.value || '10');
+    const { computeFuelEfficiency } = require('../../utils/fuelEfficiency');
     const { vehicleId, userId, dateFrom, dateTo } = req.query;
-    const fuelWhere = { status: 'APPROVED' };
-    if (vehicleId) fuelWhere.vehicleId = parseInt(vehicleId, 10);
-    if (userId) fuelWhere.userId = parseInt(userId, 10);
-    if (dateFrom || dateTo) {
-      fuelWhere.fuelDate = {};
-      if (dateFrom) fuelWhere.fuelDate.gte = new Date(dateFrom);
-      if (dateTo) fuelWhere.fuelDate.lte = new Date(dateTo);
-    }
-    const fuelAgg = await prisma.fuelLog.aggregate({
-      where: fuelWhere,
-      _sum: { liters: true },
-    });
-    const shiftWhere = { status: 'ENDED', startOdometer: { not: null }, endOdometer: { not: null } };
-    if (vehicleId) shiftWhere.vehicleId = parseInt(vehicleId, 10);
-    if (userId) shiftWhere.userId = parseInt(userId, 10);
-    if (dateFrom || dateTo) {
-      shiftWhere.endedAt = {};
-      if (dateFrom) shiftWhere.endedAt.gte = new Date(dateFrom);
-      if (dateTo) shiftWhere.endedAt.lte = new Date(dateTo);
-    }
-    const shifts = await prisma.shift.findMany({
-      where: shiftWhere,
-      select: { startOdometer: true, endOdometer: true },
-    });
-    const totalKm = shifts.reduce((sum, s) => sum + Math.max(0, (s.endOdometer || 0) - (s.startOdometer || 0)), 0);
-    const actualLiters = Number(fuelAgg._sum.liters || 0);
-    const expectedLiters = totalKm > 0 ? (totalKm / 100) * litersPer100 : 0;
-    return ApiResponse.success(res, {
-      litersPer100KmConfig: litersPer100,
-      totalKm,
-      actualLiters,
-      expectedLiters: Number(expectedLiters.toFixed(2)),
-      varianceLiters: Number((actualLiters - expectedLiters).toFixed(2)),
-    });
+    const data = await computeFuelEfficiency({ vehicleId, userId, dateFrom, dateTo });
+    return ApiResponse.success(res, data);
   } catch (err) { next(err); }
 });
 

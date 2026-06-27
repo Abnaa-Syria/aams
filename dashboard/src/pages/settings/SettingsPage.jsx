@@ -71,11 +71,13 @@ function SettingsSection({ title, icon: Icon, children }) {
 }
 
 function SettingRow({ setting, onUpdate, onEdit }) {
-  const { type, options, isEditable } = setting;
+  const { type, options } = setting;
+  const editable = setting.isEditable !== false;
   const label = setting.labelAr || setting.key;
   const description = setting.descriptionAr || '';
   const isBoolean = type === 'boolean';
   const isSelect = type === 'select';
+  const isNumber = type === 'number';
   
   const selectOptions = isSelect && options ? JSON.parse(options) : [];
 
@@ -90,26 +92,48 @@ function SettingRow({ setting, onUpdate, onEdit }) {
           <ToggleSwitch
             checked={setting.value === 'true'}
             onChange={(val) => onUpdate(setting.key, val.toString())}
-            disabled={!isEditable}
+            disabled={!editable}
           />
         ) : isSelect ? (
           <select
             value={setting.value}
             onChange={(e) => onUpdate(setting.key, e.target.value)}
-            disabled={!isEditable}
+            disabled={!editable}
             className="form-input form-select w-40 text-sm py-2"
           >
             {selectOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
+        ) : isNumber && editable ? (
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              step="any"
+              className="form-input w-28 text-sm py-2 text-center"
+              defaultValue={setting.value}
+              key={`${setting.key}-${setting.value}`}
+              onBlur={(e) => {
+                const next = e.target.value.trim();
+                if (next && next !== String(setting.value)) onUpdate(setting.key, next);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.target.blur();
+                }
+              }}
+            />
+            <button type="button" onClick={() => onEdit(setting)} className="p-2 text-slate-400 hover:text-brand-primary hover:bg-brand-light rounded-xl transition-all" title="تعديل متقدم">
+              <LuPencil size={16} />
+            </button>
+          </div>
         ) : (
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg ltr:text-left">
               {setting.value}
             </span>
-            {isEditable && (
-              <button onClick={() => onEdit(setting)} className="p-2 text-slate-400 hover:text-brand-primary hover:bg-brand-light rounded-xl transition-all">
+            {editable && (
+              <button type="button" onClick={() => onEdit(setting)} className="p-2 text-slate-400 hover:text-brand-primary hover:bg-brand-light rounded-xl transition-all">
                 <LuPencil size={16} />
               </button>
             )}

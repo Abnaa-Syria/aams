@@ -72,23 +72,23 @@ router.get('/:key', authenticate, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post('/', ...adminPerm(P.SETTINGS_WRITE), async (req, res, next) => {
+async function upsertSetting(req, res, next) {
   try {
-    const { key, value, labelAr, descriptionAr, labelEn, descriptionEn, type, options, category, group, sortOrder, isVisible, isEditable } = req.body;
-    
-    // Validate value based on type
+    const {
+      key, value, labelAr, descriptionAr, labelEn, descriptionEn,
+      type, options, category, group, sortOrder, isVisible, isEditable,
+    } = req.body;
+
     if (type === 'number' && value !== undefined && value !== null && value !== '') {
-      if (isNaN(Number(value))) {
+      if (Number.isNaN(Number(value))) {
         return ApiResponse.badRequest(res, 'القيمة يجب أن تكون رقماً');
       }
     }
-    
-    if (type === 'boolean') {
-      if (value !== 'true' && value !== 'false') {
-        return ApiResponse.badRequest(res, 'القيمة يجب أن تكون true أو false');
-      }
+
+    if (type === 'boolean' && value !== 'true' && value !== 'false') {
+      return ApiResponse.badRequest(res, 'القيمة يجب أن تكون true أو false');
     }
-    
+
     if (type === 'select' && options) {
       try {
         const parsedOptions = JSON.parse(options);
@@ -99,15 +99,47 @@ router.post('/', ...adminPerm(P.SETTINGS_WRITE), async (req, res, next) => {
         return ApiResponse.badRequest(res, 'تنسيق الخيارات غير صحيح');
       }
     }
-    
+
     const item = await prisma.systemSetting.upsert({
       where: { key },
-      create: { key, value, labelAr, descriptionAr, labelEn, descriptionEn, type, options, category: category || group, group, sortOrder: sortOrder || 0, isVisible: isVisible !== false, isEditable: isEditable !== false },
-      update: { value, labelAr, descriptionAr, labelEn, descriptionEn, type, options, category: category || group, group, sortOrder: sortOrder ?? undefined, isVisible: isVisible ?? undefined, isEditable: isEditable ?? undefined },
+      create: {
+        key,
+        value,
+        labelAr,
+        descriptionAr,
+        labelEn,
+        descriptionEn,
+        type,
+        options,
+        category: category || group,
+        group,
+        sortOrder: sortOrder || 0,
+        isVisible: isVisible !== false,
+        isEditable: isEditable !== false,
+      },
+      update: {
+        value,
+        labelAr,
+        descriptionAr,
+        labelEn,
+        descriptionEn,
+        type,
+        options,
+        category: category || group,
+        group,
+        sortOrder: sortOrder ?? undefined,
+        isVisible: isVisible ?? undefined,
+        isEditable: isEditable ?? undefined,
+      },
     });
     return ApiResponse.success(res, item, 'Setting saved');
-  } catch (err) { next(err); }
-});
+  } catch (err) {
+    next(err);
+  }
+}
+
+router.post('/', ...adminPerm(P.SETTINGS_WRITE), upsertSetting);
+router.put('/', ...adminPerm(P.SETTINGS_WRITE), upsertSetting);
 
 /**
  * @openapi

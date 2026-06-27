@@ -5,6 +5,7 @@ const { logAudit } = require('../../utils/auditLogger');
 const { normalizeStoredUploadPath } = require('../../utils/uploadPath');
 const { mergeDriverNameIntoUserWhere } = require('../../utils/listScope');
 const { mergeAppUserIdFilter } = require('../../utils/driverIdentity');
+const { evaluateFuelSuspicion, getFuelPolicy } = require('../../utils/fuelEfficiency');
 
 class FuelLogService {
   static async list(query, currentUser) {
@@ -94,35 +95,28 @@ class FuelLogService {
     const amount = parseFloat(data.amount);
     const liters = data.liters ? parseFloat(data.liters) : null;
 
-    let status = 'PENDING';
-    let reviewNotes = '';
-
-    if (liters && vehicle.tankCapacity && liters > vehicle.tankCapacity) {
-      status = 'FLAGGED';
-      reviewNotes = `Warning: Fuel liters (${liters}) exceeds vehicle tank capacity (${vehicle.tankCapacity})`;
-    }
-
-    const recent = await prisma.fuelLog.findFirst({
-      where: {
-        userId,
-        vehicleId,
-        createdAt: { gte: new Date(Date.now() - 15 * 60000) },
-      },
+    const suspicion = await evaluateFuelSuspicion({
+      userId,
+      vehicleId,
+      liters,
+      file,
+      vehicle,
+      fuelDate: data.fuelDate ? new Date(data.fuelDate) : new Date(),
     });
 
     const log = await prisma.fuelLog.create({
       data: {
         userId,
-        appUserId: user.appUser?.id || null, // Set appUserId for operational queries
+        appUserId: user.appUser?.id || null,
         vehicleId,
         shiftId: data.shiftId ? parseInt(data.shiftId) : (activeShift ? activeShift.id : undefined),
         amount,
         liters,
         fuelDate: data.fuelDate ? new Date(data.fuelDate) : new Date(),
         receiptUrl: file ? normalizeStoredUploadPath(file.path) : undefined,
-        status,
-        reviewNotes,
-        isDuplicate: !!recent,
+        status: suspicion.status,
+        reviewNotes: suspicion.reviewNotes || null,
+        isDuplicate: suspicion.isDuplicate,
       },
     });
 
@@ -259,6 +253,10 @@ class FuelLogService {
     }
 
     return summaries;
+  }
+
+  static async getPolicy() {
+    return getFuelPolicy();
   }
 }
 

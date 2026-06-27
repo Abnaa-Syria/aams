@@ -4,6 +4,7 @@ const path = require('path');
 
 require('dotenv').config();
 const prisma = require('../src/config/database');
+const { seedBulkDemoData } = require('./seed-bulk-data');
 
 /** Remote sample image for all seeded photo fields (no local demo image file). */
 const DEMO_IMAGE_URL =
@@ -298,14 +299,14 @@ async function main() {
   console.log('Cities created');
 
   const branchTargets = [
-    { key: 'report.branchTarget.جدة', value: '448', description: 'هدف طلبات يومي — فرع جدة' },
-    { key: 'report.branchTarget.الطائف', value: '448', description: 'هدف طلبات يومي — فرع الطائف' },
+    { key: 'report.branchTarget.جدة', value: '448', descriptionAr: 'هدف طلبات يومي — فرع جدة' },
+    { key: 'report.branchTarget.الطائف', value: '448', descriptionAr: 'هدف طلبات يومي — فرع الطائف' },
   ];
   for (const s of branchTargets) {
     await prisma.systemSetting.upsert({
       where: { key: s.key },
-      update: { value: s.value, description: s.description, category: 'reports' },
-      create: { key: s.key, value: s.value, description: s.description, category: 'reports', isVisible: true },
+      update: { value: s.value, descriptionAr: s.descriptionAr, category: 'reports' },
+      create: { key: s.key, value: s.value, descriptionAr: s.descriptionAr, category: 'reports', isVisible: true },
     });
   }
 
@@ -412,7 +413,7 @@ async function main() {
 
   const driverUsers = await prisma.user.findMany({
     where: { identityNumber: { in: drivers.map((d) => d.identityNumber) } },
-    select: { id: true, identityNumber: true, fullNameAr: true, supervisorId: true },
+    select: { id: true, identityNumber: true, fullNameAr: true, supervisorId: true, cityId: true },
     orderBy: { id: 'asc' },
   });
 
@@ -487,7 +488,7 @@ async function main() {
   }
 
   // Create platform accounts for drivers (required for shifts)
-  const platformRows = await prisma.platform.findMany({ select: { id: true, nameAr: true }, orderBy: { id: 'asc' } });
+  const platformRows = await prisma.platform.findMany({ select: { id: true, nameAr: true, nameEn: true }, orderBy: { id: 'asc' } });
   const platformAccounts = [];
   for (let i = 0; i < driverUsers.length; i++) {
     const driver = driverUsers[i];
@@ -1155,17 +1156,35 @@ async function main() {
   const settings = [
     { key: 'max_shift_hours', value: '12', labelAr: 'الحد الأقصى لعدد ساعات الشفت', descriptionAr: 'الحد الأقصى لمدة الشفت', type: 'number', category: 'shifts', sortOrder: 1 },
     { key: 'document_expiry_alert_days', value: '30', labelAr: 'أيام تنبيه انتهاء المستند', descriptionAr: 'عدد الأيام قبل الانتهاء للتنبيه', type: 'number', category: 'documents', sortOrder: 1 },
-    { key: 'max_fuel_logs_per_day', value: '5', labelAr: 'الحد الأقصى لتعبئات الوقود', descriptionAr: 'الحد الأقصى لتعبئات الوقود يومياً للسائق', type: 'number', category: 'fuel', sortOrder: 1 },
+    {
+      key: 'FUEL_LITERS_PER_100KM',
+      value: '10',
+      labelAr: 'المعيار المعتمد: لتر لكل 100 كم',
+      descriptionAr: 'كل 100 كم يفترض أن تستهلك المركبة هذا القدر من اللترات. يُستخدم لمقارنة الاستهلاك الفعلي واكتشاف الحالات المشبوهة.',
+      type: 'number',
+      category: 'fuel',
+      sortOrder: 1,
+    },
+    {
+      key: 'FUEL_VARIANCE_THRESHOLD_PERCENT',
+      value: '25',
+      labelAr: 'حد التجاوز المشبوه (%)',
+      descriptionAr: 'إذا تجاوز الاستهلاك الفعلي المتوقع بهذه النسبة يُعلَّم السجل كمشبوه تلقائياً',
+      type: 'number',
+      category: 'fuel',
+      sortOrder: 2,
+    },
+    { key: 'max_fuel_logs_per_day', value: '5', labelAr: 'الحد الأقصى لتعبئات الوقود', descriptionAr: 'الحد الأقصى لتعبئات الوقود يومياً للسائق', type: 'number', category: 'fuel', sortOrder: 3 },
     { key: 'annual_leave_days', value: '30', labelAr: 'أيام الإجازة السنوية', descriptionAr: 'عدد أيام الإجازة السنوية الافتراضية', type: 'number', category: 'leaves', sortOrder: 1 },
     { key: 'company_name_ar', value: 'شركة النقل المتقدمة', labelAr: 'اسم الشركة (عربي)', descriptionAr: 'اسم الشركة بالعربية', type: 'text', category: 'company', sortOrder: 1 },
     { key: 'company_name_en', value: 'Advanced Asset Management System', labelAr: 'اسم الشركة (إنجليزي)', descriptionAr: 'اسم الشركة بالإنجليزية', type: 'text', category: 'company', sortOrder: 2 },
   ];
 
   for (const setting of settings) {
-    await prisma.systemSetting.upsert({ 
-      where: { key: setting.key }, 
-      update: {}, 
-      create: { ...setting, isVisible: true, isEditable: true }
+    await prisma.systemSetting.upsert({
+      where: { key: setting.key },
+      update: { ...setting, isVisible: true, isEditable: true },
+      create: { ...setting, isVisible: true, isEditable: true },
     });
   }
   console.log('System settings created');
@@ -1183,6 +1202,17 @@ async function main() {
     await prisma.notificationTemplate.upsert({ where: { key: template.key }, update: {}, create: template });
   }
   console.log('Notification templates created');
+
+  await seedBulkDemoData(prisma, {
+    driverPassword,
+    supervisor,
+    opsAdmin,
+    superAdmin,
+    DEMO,
+    daysFromNow,
+    driverUsers,
+    platformRows,
+  });
 
   // ============================================================
   // RBAC — Seed permissions + roles from constants (idempotent)
@@ -1261,6 +1291,7 @@ const ROLES_MAP = {
   console.log('---');
   console.log('Admin login: identityNumber=1000000001, password=admin123');
   console.log('Driver login: identityNumber=3000000001, password=driver123');
+  console.log('Extra drivers: 3000000006 … 3000000035 (same password)');
   console.log('Tip: set SEED_RESET=true to wipe demo transactional rows for demo drivers before reseeding.');
 }
 

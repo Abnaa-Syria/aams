@@ -1,25 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { apiService } from '../../services/api';
 import DataTable from '../../components/ui/DataTable';
-import CsvTemplateButton from '../../components/ui/CsvTemplateButton';
+import { operationalImportPath } from '../../config/importModules';
+import { DRIVER_ROSTER_TABS, HIDDEN_ROSTER_CATEGORIES } from '../../config/operationalReportTabs';
 import toast from 'react-hot-toast';
 import {
-  LuCalendar, LuDownload, LuUpload, LuRefreshCw, LuFileSpreadsheet,
-  LuUsers, LuClipboardList, LuWallet,
+  LuDownload, LuUpload, LuRefreshCw, LuFileSpreadsheet, LuWallet, LuInfo,
 } from 'react-icons/lu';
-
-const SIDE_TABS = [
-  { id: 'ON_LEAVE', label: 'الإجازات', icon: LuCalendar },
-  { id: 'ABSENT', label: 'الغيابات', icon: LuUsers },
-  { id: 'SICK', label: 'المرضى', icon: LuUsers },
-  { id: 'LICENSE_FOLLOWUP', label: 'متابعة دلة', icon: LuClipboardList },
-  { id: 'NOT_DEPLOYED', label: 'غير نازل', icon: LuUsers },
-  { id: 'MANAGEMENT', label: 'الإدارة', icon: LuUsers },
-  { id: 'OPERATIONS_DEPT', label: 'قسم التشغيل', icon: LuUsers },
-  { id: 'MECHANICS', label: 'الميكانيك', icon: LuUsers },
-  { id: 'BOX_MANUFACTURING', label: 'تصنيع صناديق', icon: LuUsers },
-  { id: 'EXTERNAL_WORK', label: 'أعمال خارجية', icon: LuUsers },
-];
 
 function SummaryCard({ label, value, accent = 'text-slate-800' }) {
   return (
@@ -39,6 +27,7 @@ export default function OperationalReportsPage() {
   const [financial, setFinancial] = useState(null);
   const [loading, setLoading] = useState(true);
   const [summaryForm, setSummaryForm] = useState({ required: '', achieved: '', notes: '' });
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -66,14 +55,18 @@ export default function OperationalReportsPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    if (HIDDEN_ROSTER_CATEGORIES.has(tab)) setTab('summary');
+  }, [tab]);
+
   const handleGenerate = async () => {
     try {
       await apiService.post('/operational-reports/generate', { reportDate, cityId: cityId || null });
       await apiService.post('/financial-ledgers/generate', { reportDate });
-      toast.success('تم توليد لقطة التقرير');
+      toast.success('تم تثبيت التقرير — البيانات التلقائية محدّثة');
       load();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'فشل التوليد');
+      toast.error(err.response?.data?.message || 'فشل التثبيت');
     }
   };
 
@@ -106,9 +99,20 @@ export default function OperationalReportsPage() {
 
   const exportSection = async (category) => {
     try {
-      const params = { reportDate, category };
+      const params = { reportDate, category, format: 'xlsx' };
       if (cityId) params.cityId = cityId;
-      await downloadBlob('/operational-reports/export', params, `operational-${category}-${reportDate}.csv`);
+      await downloadBlob('/operational-reports/export', params, `operational-${category}-${reportDate}.xlsx`);
+    } catch {
+      toast.error('فشل التصدير');
+    }
+  };
+
+  const exportAll = async () => {
+    try {
+      const params = { reportDate, format: 'xlsx' };
+      if (cityId) params.cityId = cityId;
+      await downloadBlob('/operational-reports/export-all', params, `operational-report-all-${reportDate}.xlsx`);
+      toast.success('تم تصدير التقرير الكامل');
     } catch {
       toast.error('فشل التصدير');
     }
@@ -116,44 +120,14 @@ export default function OperationalReportsPage() {
 
   const exportFinancial = async () => {
     try {
-      await downloadBlob('/financial-ledgers/export', { reportDate }, `financial-${reportDate}.csv`);
+      await downloadBlob('/financial-ledgers/export', { reportDate, format: 'xlsx' }, `financial-${reportDate}.xlsx`);
     } catch {
       toast.error('فشل التصدير');
     }
   };
 
-  const importSection = async (category, file) => {
-    if (!file) return;
-    const fd = new FormData();
-    fd.append('file', file);
-    fd.append('reportDate', reportDate);
-    fd.append('category', category);
-    if (cityId) fd.append('cityId', cityId);
-    try {
-      await apiService.upload('/operational-reports/import', fd);
-      toast.success('تم الاستيراد');
-      load();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'فشل الاستيراد');
-    }
-  };
-
-  const importFinancial = async (file) => {
-    if (!file) return;
-    const fd = new FormData();
-    fd.append('file', file);
-    fd.append('reportDate', reportDate);
-    try {
-      await apiService.upload('/financial-ledgers/import', fd);
-      toast.success('تم استيراد الكشف المالي');
-      load();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'فشل الاستيراد');
-    }
-  };
-
+  const importContext = { reportDate, cityId };
   const platforms = bundle?.platforms || [];
-
   const withRowNum = (rows) => (rows || []).map((r, i) => ({ ...r, _rowNum: i + 1 }));
 
   const deployedColumns = [
@@ -193,40 +167,38 @@ export default function OperationalReportsPage() {
     { key: 'advances', label: 'سلفة', render: (_, r) => r.advancesAmount ?? '—' },
   ];
 
+  const activeRosterTab = DRIVER_ROSTER_TABS.find((t) => t.id === tab);
   const sectionRows = bundle?.sections?.[tab] || [];
-  const activeSideTab = SIDE_TABS.find((t) => t.id === tab);
 
-  const TabActions = ({ category, onImport }) => (
-    <div className="flex flex-wrap gap-2 mb-4">
-      <CsvTemplateButton
-        url="/operational-reports/template"
-        params={{ category }}
-        filename={`operational-template-${category}.csv`}
-      />
+  const TabActions = ({ category, allowImport = false }) => (
+    <div className="flex flex-wrap items-center gap-2 mb-4">
       <button type="button" className="btn btn-secondary text-sm flex items-center gap-2" onClick={() => exportSection(category)}>
-        <LuDownload size={16} /> تصدير CSV
+        <LuDownload size={16} /> تصدير Excel
       </button>
-      <CsvTemplateButton
-        url="/operational-reports/template"
-        params={{ category }}
-        filename={`operational-template-${category}.csv`}
-      />
-      <label className="btn btn-secondary text-sm flex items-center gap-2 cursor-pointer">
-        <LuUpload size={16} /> استيراد CSV
-        <input type="file" accept=".csv" className="hidden" onChange={(e) => { onImport(e.target.files?.[0]); e.target.value = ''; }} />
-      </label>
+      {allowImport && showAdvanced && (
+        <Link
+          to={operationalImportPath(category, importContext)}
+          className="btn btn-secondary text-sm flex items-center gap-2 border-dashed"
+        >
+          <LuUpload size={16} /> تعديل من Excel
+        </Link>
+      )}
     </div>
   );
 
+  const statusLabel = bundle?.status === 'FINALIZED' ? 'مغلق' : bundle?.reportId ? 'مسودة محفوظة' : 'معاينة فقط';
+
   return (
     <div className="page-container animate-in fade-in duration-500">
-      <div className="flex flex-col lg:flex-row justify-between items-start gap-6 mb-8">
+      <div className="flex flex-col lg:flex-row justify-between items-start gap-6 mb-6">
         <div>
           <h2 className="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-3">
             <LuFileSpreadsheet className="text-primary" size={28} />
             تقارير التشغيل اليومية
           </h2>
-          <p className="text-sm text-slate-500 mt-1">توليد لأي تاريخ — عرض بجداول — تصدير/استيراد CSV لكل قسم</p>
+          <p className="text-sm text-slate-500 mt-1">
+            عرض تلقائي من الشفتات والإجازات والتقارير اليومية — ثبّت التقرير عند نهاية اليوم
+          </p>
         </div>
         <div className="flex flex-wrap items-end gap-3">
           <div>
@@ -240,21 +212,46 @@ export default function OperationalReportsPage() {
               {(bundle?.cities || []).map((c) => <option key={c.id} value={c.id}>{c.nameAr}</option>)}
             </select>
           </div>
-          <button type="button" onClick={load} className="btn btn-secondary" disabled={loading}>
+          <button type="button" onClick={load} className="btn btn-secondary" disabled={loading} title="تحديث المعاينة">
             <LuRefreshCw size={18} className={loading ? 'animate-spin' : ''} />
           </button>
-          <button type="button" onClick={handleGenerate} className="btn btn-primary">
-            توليد / تحديث اللقطة
+          <button type="button" onClick={exportAll} className="btn btn-secondary flex items-center gap-2" title="تصدير كل الأقسام في ملف Excel واحد">
+            <LuDownload size={16} /> Excel شامل
+          </button>
+          <button type="button" onClick={handleGenerate} className="btn btn-primary" title="حفظ التقرير الرسمي لهذا التاريخ والفرع">
+            تثبيت التقرير لليوم
           </button>
         </div>
       </div>
 
-      {/* Tabs */}
+      <div className="flex flex-wrap items-start gap-3 mb-6 p-4 rounded-2xl bg-blue-50/80 border border-blue-100 text-sm text-slate-700">
+        <LuInfo className="text-primary shrink-0 mt-0.5" size={18} />
+        <div className="space-y-1">
+          <p>
+            <span className="font-bold">المعاينة:</span> الجداول تتحدث تلقائياً عند تغيير التاريخ أو الضغط على تحديث.
+            {' '}
+            <span className="font-bold">التثبيت:</span> يحفظ لقطة رسمية في النظام (مسودة) ويحدّث الأقسام التلقائية.
+          </p>
+          <p className="text-xs text-slate-500">
+            الحالة الحالية: <span className="font-bold text-slate-700">{statusLabel}</span>
+            {' · '}
+            الاستيراد من Excel اختياري — افتح «خيارات متقدمة» عند الحاجة فقط.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowAdvanced((v) => !v)}
+          className="ms-auto text-xs font-bold text-primary hover:underline shrink-0"
+        >
+          {showAdvanced ? 'إخفاء الخيارات المتقدمة' : 'خيارات متقدمة (استيراد Excel)'}
+        </button>
+      </div>
+
       <div className="flex flex-wrap gap-2 mb-6 border-b border-slate-100 pb-2">
         {[
           { id: 'summary', label: 'الملخص' },
           { id: 'DEPLOYED', label: 'نزول الميدان' },
-          ...SIDE_TABS,
+          ...DRIVER_ROSTER_TABS,
           { id: 'financial', label: 'الكشف المالي', icon: LuWallet },
         ].map((t) => (
           <button
@@ -278,29 +275,31 @@ export default function OperationalReportsPage() {
 
       {!loading && tab === 'summary' && bundle && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
             <SummaryCard label="نازل الميدان" value={bundle.summary.deployedCount} accent="text-emerald-600" />
             <SummaryCard label="غير نازل" value={bundle.summary.notDeployedCount} accent="text-amber-600" />
             <SummaryCard label="إجازات" value={bundle.summary.onLeaveCount} />
+            <SummaryCard label="استئذانات" value={bundle.summary.permissionCount} accent="text-violet-600" />
             <SummaryCard label="غيابات" value={bundle.summary.absentCount} accent="text-red-500" />
             <SummaryCard label="مرضى" value={bundle.summary.sickCount} />
             <SummaryCard label="متابعة دلة" value={bundle.summary.licenseFollowUpCount} />
           </div>
 
           <div className="card p-6 bg-gradient-to-br from-white to-slate-50">
-            <h3 className="font-black text-slate-800 mb-4">المطلوب والمحقق (قابل للتعديل)</h3>
+            <h3 className="font-black text-slate-800 mb-1">المطلوب والمحقق</h3>
+            <p className="text-xs text-slate-500 mb-4">يمكنك تعديل الأرقام يدوياً بعد التثبيت — القيم التلقائية للمراجعة فقط</p>
             <div className="grid md:grid-cols-3 gap-4 mb-4">
               <div>
                 <label className="text-xs font-bold text-slate-500">المطلوب</label>
                 <input type="number" className="form-input mt-1" value={summaryForm.required}
                   onChange={(e) => setSummaryForm((f) => ({ ...f, required: e.target.value }))} />
-                <p className="text-[10px] text-slate-400 mt-1">تلقائي: {bundle.summary.requiredOrders ?? '—'}</p>
+                <p className="text-[10px] text-slate-400 mt-1">هدف الفرع: {bundle.summary.requiredOrders ?? '—'}</p>
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-500">المحقق</label>
                 <input type="number" className="form-input mt-1" value={summaryForm.achieved}
                   onChange={(e) => setSummaryForm((f) => ({ ...f, achieved: e.target.value }))} />
-                <p className="text-[10px] text-slate-400 mt-1">محسوب: {bundle.summary.achievedOrders ?? '—'}</p>
+                <p className="text-[10px] text-slate-400 mt-1">محسوب من الميدان: {bundle.summary.achievedOrders ?? '—'}</p>
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-500">الفرق</label>
@@ -317,42 +316,42 @@ export default function OperationalReportsPage() {
                 onChange={(e) => setSummaryForm((f) => ({ ...f, notes: e.target.value }))} />
             </div>
             <button type="button" className="btn btn-primary" onClick={saveSummary}>حفظ الملخص</button>
-            {bundle.status && (
-              <span className={`ms-3 text-sm font-bold ${bundle.status === 'FINALIZED' ? 'text-emerald-600' : 'text-amber-600'}`}>
-                الحالة: {bundle.status === 'FINALIZED' ? 'مغلق' : 'مسودة'}
-              </span>
-            )}
           </div>
         </div>
       )}
 
       {!loading && tab === 'DEPLOYED' && bundle && (
         <>
-          <TabActions category="DEPLOYED" onImport={(f) => importSection('DEPLOYED', f)} />
+          <p className="text-sm text-slate-500 mb-3">يُملأ تلقائياً من الشفتات النشطة والتقارير اليومية المعتمدة</p>
+          <TabActions category="DEPLOYED" allowImport />
           <DataTable columns={deployedColumns} data={withRowNum(bundle.sections.DEPLOYED)} loading={false} />
         </>
       )}
 
-      {!loading && activeSideTab && bundle && (
+      {!loading && activeRosterTab && bundle && (
         <>
-          <TabActions category={tab} onImport={(f) => importSection(tab, f)} />
+          <p className="text-sm text-slate-500 mb-3">يُملأ تلقائياً من بيانات النظام — للعرض والتصدير فقط</p>
+          <TabActions category={tab} />
           <DataTable columns={sideColumns} data={withRowNum(sectionRows)} loading={false}
-            emptyMessage={`لا يوجد سجلات في ${activeSideTab.label}`} />
+            emptyMessage={`لا يوجد سجلات في ${activeRosterTab.label}`} />
         </>
       )}
 
       {!loading && tab === 'financial' && financial && (
         <>
+          <p className="text-sm text-slate-500 mb-3">كشف الخصومات والمكافآت — يُحدَّث عند تثبيت التقرير</p>
           <div className="flex flex-wrap gap-2 mb-4">
-            <CsvTemplateButton url="/financial-ledgers/template" filename="financial-ledger-template.csv" />
             <button type="button" className="btn btn-secondary text-sm flex items-center gap-2" onClick={exportFinancial}>
-              <LuDownload size={16} /> تصدير CSV
+              <LuDownload size={16} /> تصدير Excel
             </button>
-            <CsvTemplateButton url="/financial-ledgers/template" filename="financial-ledger-template.csv" />
-            <label className="btn btn-secondary text-sm flex items-center gap-2 cursor-pointer">
-              <LuUpload size={16} /> استيراد CSV
-              <input type="file" accept=".csv" className="hidden" onChange={(e) => { importFinancial(e.target.files?.[0]); e.target.value = ''; }} />
-            </label>
+            {showAdvanced && (
+              <Link
+                to={operationalImportPath('financial', importContext)}
+                className="btn btn-secondary text-sm flex items-center gap-2 border-dashed"
+              >
+                <LuUpload size={16} /> تعديل من Excel
+              </Link>
+            )}
           </div>
           <DataTable columns={financialColumns} data={withRowNum(financial.rows)} loading={false}
             emptyMessage="لا توجد حركات مالية لهذا التاريخ" />

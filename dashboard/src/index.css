@@ -89,6 +89,9 @@
 .btn-primary { 
   @apply bg-primary text-white shadow-orange hover:bg-primary-hover hover:-translate-y-0.5 active:translate-y-0.5;
 }
+.btn-secondary {
+  @apply bg-slate-100 text-slate-600 hover:bg-slate-200 hover:-translate-y-0.5 active:translate-y-0.5;
+}
 
 .form-input { 
   @apply w-full px-4 py-3 border border-slate-200 rounded-xl font-alexandria text-[0.95rem] bg-white/80 transition-all duration-200 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-light text-right;

@@ -1,13 +1,14 @@
 const { AuthorizationError } = require('../../utils/errors');
-const { rowsToCsv } = require('../../utils/csvParser');
 const { EXPORT_REGISTRY } = require('./registry');
+const { exportRows, exportTemplate } = require('../../utils/xlsxWorkbook');
+const { normalizeFormat } = require('../../utils/spreadsheetMime');
 
 class ExportService {
   static supportedModules() {
     return Object.keys(EXPORT_REGISTRY);
   }
 
-  static async exportSelected(module, ids, format = 'csv', filters = {}, req = null) {
+  static async exportSelected(module, ids, format = 'xlsx', filters = {}, req = null) {
     const handler = EXPORT_REGISTRY[module];
     if (!handler) throw new AuthorizationError(`Export module not supported: ${module}`);
 
@@ -21,14 +22,26 @@ class ExportService {
       rows = await handler.fetchIds([]);
     }
 
-    if (format === 'json') return { rows, columns: handler.columns };
-    return { csv: rowsToCsv(rows, handler.columns), filename: `${module}-export.csv` };
+    if (String(format).toLowerCase() === 'json') return { rows, columns: handler.columns };
+
+    return exportRows({
+      columns: handler.columns,
+      rows,
+      format,
+      filename: `${module}-export`,
+      title: `تصدير — ${module}`,
+    });
   }
 
-  static templateCsv(module) {
+  static async template(module, format = 'xlsx') {
     const handler = EXPORT_REGISTRY[module];
     if (!handler) throw new AuthorizationError(`Export module not supported: ${module}`);
-    return { csv: rowsToCsv([], handler.columns), filename: `${module}-template.csv` };
+    return exportTemplate({
+      columns: handler.columns,
+      format,
+      filename: `${module}-template`,
+      title: `قالب تصدير — ${module}`,
+    });
   }
 }
 

@@ -99,9 +99,26 @@ const settingsData = [
   { key: 'feature.maintenance', value: 'true', labelAr: 'الصيانة', descriptionAr: 'تفعيل إدارة صيانة المركبات', type: 'boolean', category: 'features', sortOrder: 13 },
 
   // =====================
-  // Fuel efficiency (#15)
+  // Fuel efficiency (#15) — الأدمن يحدد المعيار من الإعدادات
   // =====================
-  { key: 'FUEL_LITERS_PER_100KM', value: '10', labelAr: 'استهلاك الوقود المتوقع (لتر/100كم)', descriptionAr: 'يُستخدم لحساب الفرق بين الوقود الفعلي والمتوقع للمركبات', type: 'number', category: 'fuel', sortOrder: 1 },
+  {
+    key: 'FUEL_LITERS_PER_100KM',
+    value: '10',
+    labelAr: 'المعيار المعتمد: لتر لكل 100 كم',
+    descriptionAr: 'كل 100 كم يفترض أن تستهلك المركبة هذا القدر من اللترات. يُستخدم لمقارنة الاستهلاك الفعلي واكتشاف الحالات المشبوهة.',
+    type: 'number',
+    category: 'fuel',
+    sortOrder: 1,
+  },
+  {
+    key: 'FUEL_VARIANCE_THRESHOLD_PERCENT',
+    value: '25',
+    labelAr: 'حد التجاوز المشبوه (%)',
+    descriptionAr: 'إذا تجاوز الاستهلاك الفعلي المتوقع بهذه النسبة يُعلَّم السجل كمشبوه تلقائياً',
+    type: 'number',
+    category: 'fuel',
+    sortOrder: 2,
+  },
 
   // =====================
   // Company Info
@@ -127,8 +144,8 @@ async function seedSettings() {
     try {
       await prisma.systemSetting.upsert({
         where: { key: setting.key },
-        update: setting,
-        create: setting,
+        update: { ...setting, isVisible: true, isEditable: setting.isEditable !== false },
+        create: { ...setting, isVisible: true, isEditable: setting.isEditable !== false },
       });
       console.log(`  ✓ ${setting.key}`);
     } catch (err) {

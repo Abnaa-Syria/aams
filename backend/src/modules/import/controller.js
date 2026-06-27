@@ -1,13 +1,23 @@
 const ImportService = require('./service');
 const ApiResponse = require('../../utils/response');
+const { sendExportResponse } = require('../../utils/xlsxWorkbook');
+const { normalizeFormat } = require('../../utils/spreadsheetMime');
 
 class ImportController {
   static async template(req, res, next) {
     try {
-      const result = ImportService.template(req.params.module);
-      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
-      return res.send(result.csv);
+      const format = normalizeFormat(req.query.format || 'xlsx');
+      const result = await ImportService.template(req.params.module, format);
+      return sendExportResponse(res, result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async meta(req, res, next) {
+    try {
+      const data = ImportService.meta(req.params.module);
+      return ApiResponse.success(res, data);
     } catch (err) {
       next(err);
     }
@@ -17,11 +27,16 @@ class ImportController {
     try {
       const module = req.body.module || req.params.module;
       if (!req.file?.buffer && !req.file?.path) {
-        return ApiResponse.error(res, 'CSV file is required', 400);
+        return ApiResponse.error(res, 'Excel or CSV file is required', 400);
       }
       const fs = require('fs');
       const buffer = req.file.buffer || fs.readFileSync(req.file.path);
-      const results = await ImportService.importCsv(module, buffer, req.user.id);
+      const results = await ImportService.importFile(
+        module,
+        buffer,
+        req.user.id,
+        req.file.originalname,
+      );
       return ApiResponse.success(res, results, 'Import completed');
     } catch (err) {
       next(err);
